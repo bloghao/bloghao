@@ -282,6 +282,8 @@ const plazaSync: ServerPlugin = {
     const token = (ctx.settings.plazaToken || '').trim()
     if (!/^https:\/\//i.test(endpoint) || !token) return
     await plazaIngest(endpoint, token, {
+      // 站点头像随上报更新（hub 端 https 校验，空/非法忽略）：后台「站点头像」改了，下一条发布即同步
+      avatar: (ctx.settings.avatarUrl || '').trim(),
       items: [
         {
           kind: 'post',
@@ -300,6 +302,8 @@ const plazaSync: ServerPlugin = {
     const token = (ctx.settings.plazaToken || '').trim()
     if (!/^https:\/\//i.test(endpoint) || !token) return
     await plazaIngest(endpoint, token, {
+      // 站点头像随上报更新（hub 端 https 校验，空/非法忽略）：后台「站点头像」改了，下一条发布即同步
+      avatar: (ctx.settings.avatarUrl || '').trim(),
       items: [
         {
           kind: 'weibo',

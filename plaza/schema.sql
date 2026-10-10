@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS sites (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   site_url TEXT NOT NULL,             -- 站点绝对地址（去尾斜杠，唯一）
   site_name TEXT NOT NULL DEFAULT '', -- 展示名（feed 与名录出参）
+  avatar TEXT NOT NULL DEFAULT '',    -- 站点头像 https 地址（ingest 上报 / 管理端设置，广场卡主视觉）
   token TEXT NOT NULL,                -- push ingest 凭据（32 hex，明文只在创建返回一次）
   verified INTEGER NOT NULL DEFAULT 0,-- 认证徽标（B18 雏形：所有权验证通过后管理员打开）
   weight INTEGER NOT NULL DEFAULT 1,  -- 混排权重 0-10（管理员定，默认 1）

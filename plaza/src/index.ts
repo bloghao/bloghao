@@ -82,6 +82,7 @@ async function adminAuth(c: Context<{ Bindings: Env }>, next: () => Promise<void
   if (!c.env.PLAZA_ADMIN_TOKEN || !timingSafeEqualStr(auth, `Bearer ${c.env.PLAZA_ADMIN_TOKEN}`)) {
     return c.json({ error: 'unauthorized' }, 401)
   }
+  await ensureSchemaExtras(c.env.DB) // admin 写路径（如 PATCH avatar）同样要求列已迁移
   await next()
 }
 app.use('/api/admin/*', adminAuth)
@@ -158,6 +159,7 @@ async function readBodyLimited(res: Response, maxBytes: number): Promise<ArrayBu
 
 /** feed：混排出参。candidates 取最近 300 条（量纲按社区几百站设计，够用很久） */
 app.get('/api/feed', async (c) => {
+  await ensureSchemaExtras(c.env.DB)
   c.header('Cache-Control', 'public, max-age=60')
   const limit = Math.max(1, Math.min(100, Number(c.req.query('limit')) || 30))
   const kind = c.req.query('kind')
@@ -165,7 +167,7 @@ app.get('/api/feed', async (c) => {
   const sql = `
     SELECT i.kind, i.ref, i.title, i.summary, i.url, i.image, i.published_at AS publishedAt,
            s.id AS siteId, s.site_name AS siteName, s.site_url AS siteUrl,
-           s.verified AS siteVerified, s.weight AS siteWeight
+           s.avatar AS siteAvatar, s.verified AS siteVerified, s.weight AS siteWeight
     FROM items i JOIN sites s ON s.id = i.site_id
     WHERE s.disabled = 0 AND i.hidden = 0 ${kindFilter ? 'AND i.kind = ?' : ''}
     ORDER BY i.published_at DESC LIMIT 300`
@@ -200,6 +202,7 @@ app.get('/api/feed', async (c) => {
       siteId: r.siteId,
       siteName: r.siteName,
       siteUrl: r.siteUrl,
+      siteAvatar: r.siteAvatar || '',
       siteVerified: r.siteVerified === 1,
       siteWeight: r.siteWeight,
     })),
@@ -211,9 +214,10 @@ app.get('/api/feed', async (c) => {
 
 /** 站点名录：官网「收录了哪些博客号」与广场页侧栏共用 */
 app.get('/api/sites', async (c) => {
+  await ensureSchemaExtras(c.env.DB)
   c.header('Cache-Control', 'public, max-age=60')
   const { results } = await c.env.DB.prepare(
-    `SELECT s.id, s.site_url AS url, s.site_name AS name, s.verified,
+    `SELECT s.id, s.site_url AS url, s.site_name AS name, s.avatar, s.verified,
             s.created_at AS createdAt,
             (SELECT COUNT(*) FROM items i WHERE i.site_id = s.id) AS items
      FROM sites s WHERE s.disabled = 0 ORDER BY s.verified DESC, s.created_at ASC LIMIT 200`
@@ -252,6 +256,9 @@ app.post('/api/ingest', async (c) => {
   const parsed = validateIngest(safeJsonParse(rawBody))
   if (!parsed) return c.json({ error: 'bad body' }, 400)
   const { items, deleted } = parsed
+  if (parsed.avatar) {
+    await c.env.DB.prepare('UPDATE sites SET avatar = ? WHERE id = ?').bind(parsed.avatar, site.id).run()
+  }
   let accepted = 0
   for (const it of items) {
     // 站内 ref 唯一：重发同一篇 = 更新（编辑标题/摘要后重推即生效），幂等；
@@ -281,6 +288,22 @@ app.post('/api/ingest', async (c) => {
   if (accepted > 0) await bumpStats(c.env.DB, 'ingest_items', accepted)
   return c.json({ ok: true, accepted })
 })
+
+/* ---------------- 老库迁移 ---------------- */
+
+let schemaExtrasDone = false
+
+/** sites.avatar 老库补列：新库 schema 已含（CREATE IF NOT EXISTS 不补老列），这里惰性 ALTER 一次。
+ *  列已存在时 SQLite 报错，吞掉即幂等 */
+async function ensureSchemaExtras(db: Env['DB']): Promise<void> {
+  if (schemaExtrasDone) return
+  schemaExtrasDone = true
+  try {
+    await db.prepare("ALTER TABLE sites ADD COLUMN avatar TEXT NOT NULL DEFAULT ''").run()
+  } catch {
+    /* 列已存在 */
+  }
+}
 
 /* ---------------- 管理面 ---------------- */
 
@@ -357,7 +380,7 @@ app.post('/api/admin/sites', async (c) => {
 
 app.get('/api/admin/sites', async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT id, site_url AS url, site_name AS name, token, verified, weight, disabled, pull_enabled AS pullEnabled,
+    `SELECT id, site_url AS url, site_name AS name, avatar, token, verified, weight, disabled, pull_enabled AS pullEnabled,
             last_seen_at AS lastSeenAt, created_at AS createdAt,
             (SELECT COUNT(*) FROM items i WHERE i.site_id = sites.id) AS items
      FROM sites ORDER BY created_at DESC LIMIT 500`
@@ -380,6 +403,11 @@ app.patch('/api/admin/sites/:id', async (c) => {
   if ('name' in body) {
     patch.push('site_name = ?')
     args.push(String(body.name ?? '').trim().slice(0, 100))
+  }
+  if ('avatar' in body) {
+    // https 白名单与 ingest 上报同口径；空串 = 清除头像（回落 favicon/首字）
+    patch.push('avatar = ?')
+    args.push(/^https:\/\//i.test(String(body.avatar ?? '').trim()) ? String(body.avatar).trim().slice(0, 500) : '')
   }
   if ('verified' in body) {
     patch.push('verified = ?')
@@ -408,7 +436,7 @@ app.patch('/api/admin/sites/:id', async (c) => {
       .run()
   }
   const row = await c.env.DB.prepare(
-    'SELECT id, site_url AS url, site_name AS name, token, verified, weight, disabled, pull_enabled AS pullEnabled FROM sites WHERE id = ?'
+    'SELECT id, site_url AS url, site_name AS name, avatar, token, verified, weight, disabled, pull_enabled AS pullEnabled FROM sites WHERE id = ?'
   )
     .bind(id)
     .first<{ token: string }>()

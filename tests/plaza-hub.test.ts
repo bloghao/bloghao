@@ -238,3 +238,14 @@ test('statsDay：北京日口径（+8h 取 UTC 分量，0-8 点不算前一天�
   assert.equal(statsDay(Date.UTC(2026, 9, 10, 16, 0, 0)), '2026-10-11')
   assert.match(statsDay(), /^\d{4}-\d{2}-\d{2}$/)
 })
+
+test('validateIngest：顶层 avatar 白名单（https 才收、超长截断、非字符串忽略）', async () => {
+  const { validateIngest } = await import('../plaza/src/core.ts')
+  const base = { items: [{ kind: 'post', ref: 'a', url: 'https://x.test/p' }] }
+  assert.equal(validateIngest({ ...base, avatar: 'https://x.test/a.png' }).avatar, 'https://x.test/a.png')
+  assert.equal(validateIngest({ ...base, avatar: 'http://x.test/a.png' }).avatar, '')
+  assert.equal(validateIngest({ ...base, avatar: 'javascript:alert(1)' }).avatar, '')
+  assert.equal(validateIngest({ ...base, avatar: 123 }).avatar, '')
+  assert.equal(validateIngest(base).avatar, '')
+  assert.equal(validateIngest({ ...base, avatar: 'https://' + 'a'.repeat(600) + '.png' }).avatar.length, 500)
+})

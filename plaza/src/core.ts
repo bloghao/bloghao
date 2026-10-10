@@ -89,6 +89,8 @@ export function generatePlazaToken(): string {
 export interface ValidatedIngest {
   items: PlazaItem[]
   deleted: { kind: PlazaKind; ref: string }[]
+  /** 站点头像（可选，站点级）：合法 https 地址才收，随 ingest 更新 sites.avatar */
+  avatar: string
 }
 
 /** 单次上报的硬上限：防一个签名请求塞爆库 */
@@ -109,9 +111,10 @@ function safeUrl(v: unknown): string {
  * 一个都不合法则 items 为空数组照常 ok——站点侧不因一次脏数据被卡住。
  */
 export function validateIngest(body: unknown): ValidatedIngest {
-  const out: ValidatedIngest = { items: [], deleted: [] }
+  const out: ValidatedIngest = { items: [], deleted: [], avatar: '' }
   if (!body || typeof body !== 'object') return out
   const b = body as Record<string, unknown>
+  out.avatar = safeUrl(b.avatar)
   const rawItems = Array.isArray(b.items) ? b.items.slice(0, INGEST_MAX_ITEMS) : []
   for (const raw of rawItems) {
     if (!raw || typeof raw !== 'object') continue
