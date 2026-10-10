@@ -918,3 +918,75 @@ a.wx-account:hover { opacity: 0.75; }
 .paywall-title { margin: 10px 0 6px; font-size: 15.5px; font-weight: 600; color: #1a1a1a; }
 .paywall-text { margin: 0 0 16px; font-size: 13.5px; line-height: 1.7; color: var(--wx-sub); }
 .paywall-cta { display: inline-block; padding: 10px 26px; border-radius: 999px; background: var(--wx-accent); color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; }
+
+/* ---------- 桌面端增强（≥1024px 两栏；移动端 DOM 存在但 CSS 隐藏，版式零变化） ----------
+ * 首页：正文列（微博流/时光机/搜索/列表/翻页）+ 右侧栏（话题云/分类）
+ * 文章页：正文列 + 右侧栏（目录锚点 + 文章信息卡），目录锚点 id 由 wechat.ts tocOf 渲染期注入
+ */
+html { scroll-behavior: smooth; }
+.rich h2, .rich h3 { scroll-margin-top: 20px; }
+.wx-cols { display: block; }
+.wx-side { display: none; }
+.wx-side-card {
+  background: var(--wx-card);
+  border: 1px solid var(--wx-line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(43, 36, 25, 0.04);
+}
+.wx-side-card + .wx-side-card { margin-top: 14px; }
+.wx-side-title {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  font-size: 14px; font-weight: 600; color: #1a1a1a;
+  margin-bottom: 10px;
+}
+.wx-side-sub { font-size: 12px; font-weight: 400; color: #b5aea1; font-variant-numeric: tabular-nums; }
+.wx-side-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.wx-side-chip {
+  font-size: 12.5px; line-height: 1; color: var(--wx-text); white-space: nowrap;
+  padding: 6px 11px; border: 1px solid var(--wx-line); border-radius: 999px; background: var(--wx-bg);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.wx-side-chip i { font-style: normal; font-size: 11px; opacity: 0.55; margin-left: 3px; font-variant-numeric: tabular-nums; }
+.wx-side-chip:hover { color: var(--wx-accent); border-color: var(--wx-accent); }
+.wx-side-rows .wx-side-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  padding: 8px 2px; font-size: 13.5px; color: var(--wx-text);
+  border-bottom: 1px dashed var(--wx-line);
+}
+.wx-side-rows .wx-side-row:first-child { padding-top: 2px; }
+.wx-side-rows .wx-side-row:last-child { border-bottom: none; padding-bottom: 2px; }
+.wx-side-row span { flex: 0 0 auto; font-size: 12.5px; color: #b5aea1; }
+.wx-side-row b { font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
+.wx-side-row a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 0.15s ease; }
+.wx-side-row a:hover { color: var(--wx-accent); }
+/* 文章目录：左竖线层级导航，锚点平滑滚动（html scroll-behavior） */
+.wx-toc { display: flex; flex-direction: column; }
+.wx-toc a {
+  font-size: 13px; line-height: 1.5; color: #6e675e;
+  padding: 5px 0 5px 12px;
+  border-left: 2px solid var(--wx-line);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.wx-toc a:hover { color: var(--wx-accent); border-left-color: var(--wx-accent); }
+.wx-toc-lv3 { padding-left: 26px; font-size: 12.5px; color: #978f82; }
+@media (min-width: 1024px) {
+  .wx-page-wide, .wx-article-wide { max-width: 1120px; }
+  .wx-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    column-gap: 56px;
+    align-items: start;
+  }
+  .wx-side {
+    display: block;
+    position: sticky; top: 24px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: #d8d0c2 transparent;
+    overscroll-behavior: contain;
+  }
+  .wx-side::-webkit-scrollbar { width: 6px; }
+  .wx-side::-webkit-scrollbar-thumb { background: #d8d0c2; border-radius: 3px; }
+}

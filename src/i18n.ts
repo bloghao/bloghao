@@ -52,6 +52,12 @@ const ZH_EN: Record<string, string> = {
   '分享': 'Share',
   '分享本文': 'Share this post',
   '点赞': 'Like',
+  // 桌面端增强（wechat 主题侧栏）
+  '目录': 'Contents',
+  '文章信息': 'About this post',
+  '发布于': 'Published',
+  '阅读时长': 'Reading time',
+  '阅读量': 'Views',
   // 评论区
   '作者': 'Author',
   '回复': 'Reply',

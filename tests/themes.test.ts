@@ -436,3 +436,30 @@ test('SSR 评论头像位：游客自填 QQ 的站内头像出图；与会员头
   assert.ok(!html.includes('/images/u/old.png'), '行内 avatar 被会员头像遮蔽时不输出')
   assert.ok(!/<img[^>]*src="12345"/.test(html), 'qq 本体永不进公开 HTML')
 })
+
+// ── 桌面端增强（wechat 主题先行：≥1024px 两栏布局 + 文章页目录栏；CSS 断点见 wechat.css 桌面段） ──
+
+test('wechat 桌面增强：post 从正文提取 h2/h3 注入 toc-N 锚点并渲染目录卡', () => {
+  const d = postData()
+  d.post.contentHtml = '<h2>第一节</h2><p>内容</p><h3>子标题</h3><h2>第二节 &amp; 收尾</h2>'
+  const html = THEMES.wechat.post(d)
+  assert.ok(html.includes('wx-toc'), '应渲染目录卡')
+  assert.ok(html.includes('<h2 id="toc-1">'), '标题注入锚点 id（渲染期生成，非用户输入）')
+  assert.ok(html.includes('<h3 id="toc-2">'))
+  assert.ok(html.includes('<h2 id="toc-3">'))
+  assert.ok(html.includes('href="#toc-1"'), '目录项链接指向锚点')
+  assert.ok(html.includes('第一节'), '目录文本来自标题')
+  const one = THEMES.wechat.post({ ...d, post: { ...d.post, contentHtml: '<h2>唯一一节</h2><p>内容</p>' } })
+  assert.ok(!one.includes('wx-toc'), '不足 2 条标题不出目录卡')
+  assert.ok(!THEMES.wechat.post(postData()).includes('wx-toc'), '无标题正文不出目录卡（密码墙表单同理）')
+})
+
+test('wechat 桌面增强：home 有标签/分类时出侧栏，全空则退单栏', () => {
+  const html = THEMES.wechat.home(homeData())
+  assert.ok(html.includes('wx-side'), '应渲染侧栏')
+  assert.ok(html.includes('wx-side-chip'), '话题云带计数')
+  assert.ok(html.includes('/tag/%E7%94%9F%E6%B4%BB'), '话题链接指向标签页')
+  assert.ok(html.includes('共 1 篇'), '话题卡头带文章总数')
+  const bare = THEMES.wechat.home({ ...homeData(), tags: [], categories: [] })
+  assert.ok(!bare.includes('wx-side'), '无标签无分类不出侧栏（单栏版式）')
+})

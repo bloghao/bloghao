@@ -61,6 +61,23 @@ function footLinksFor(s: SettingsMap, en: boolean): { home: string; archive: str
   }
 }
 
+/** 桌面端侧栏公共卡（首页话题/分类、文章页目录/文章信息共用一张卡面） */
+function sideCard(title: string, sub: string, body: string): string {
+  return `<section class="wx-side-card"><h2 class="wx-side-title">${title}${sub ? `<span class="wx-side-sub">${sub}</span>` : ''}</h2>${body}</section>`
+}
+
+/** 桌面端文章目录：从已净化正文提取 h2/h3 并注入 toc-N 锚点 id（id 值由渲染端生成、非用户输入，
+ * 不触净化器「不放行 id」的 DOM clobbering 防线），返回注入后的正文与目录项；无标题时正文原样返回 */
+function tocOf(contentHtml: string): { html: string; items: { level: 2 | 3; text: string; id: string }[] } {
+  const items: { level: 2 | 3; text: string; id: string }[] = []
+  const html = contentHtml.replace(/<(h[23])((?:\s[^>]*)?)>([\s\S]*?)<\/\1>/g, (_m: string, tag: string, attrs: string, inner: string) => {
+    const id = `toc-${items.length + 1}`
+    items.push({ level: tag === 'h2' ? 2 : 3, text: inner.replace(/<[^>]*>/g, '').trim(), id })
+    return `<${tag}${attrs} id="${id}">${inner}</${tag}>`
+  })
+  return { html, items }
+}
+
 /** 站点头像：设置过 avatarUrl 用图片，否则退回站名首字 */
 function avatar(s: SettingsMap): string {
   if (s.avatarUrl) {
@@ -78,6 +95,24 @@ function searchForm(q: string | undefined, en: boolean): string {
   <input class="wx-search-input" type="search" name="q" value="${esc(q || '')}" placeholder="${en ? 'Search posts…' : '搜一搜站内的文章…'}" maxlength="60" aria-label="${en ? 'Search posts' : '搜索文章'}">
   <button class="wx-search-btn" type="submit">${en ? 'Search' : '搜索'}</button>
 </form>`
+}
+
+/** 桌面端首页侧栏（≥1024px 显示，移动端 CSS 隐藏）：话题云 + 分类，数据都是 HomeData 现成的；两块都空不出侧栏 */
+function homeSide(d: HomeData, en: boolean): string {
+  const tagChips = d.tags
+    .slice(0, 14)
+    .map((t) => `<a class="wx-side-chip" href="${tagLink(t.name)}">${esc(tr(en, t.name))}<i>${t.count}</i></a>`)
+    .join('')
+  const catRows = d.categories
+    .slice(0, 10)
+    .map((c) => `<a class="wx-side-row" href="${categoryLink(c)}">${esc(tr(en, c.name))}</a>`)
+    .join('')
+  if (!tagChips && !catRows) return ''
+  const total = en ? `${d.total} ${plural(d.total, 'post', 'posts')}` : `共 ${d.total} 篇`
+  const cards: string[] = []
+  if (tagChips) cards.push(sideCard(tr(en, '话题'), total, `<div class="wx-side-chips">${tagChips}</div>`))
+  if (catRows) cards.push(sideCard(tr(en, '分类'), '', `<div class="wx-side-rows">${catRows}</div>`))
+  return cards.join('\n')
 }
 
 export function home(d: HomeData): string {
@@ -111,7 +146,8 @@ export function home(d: HomeData): string {
     })
     .join('\n')
 
-  return `<div class="wx-page">
+  const side = homeSide(d, en)
+  return `<div class="wx-page${side ? ' wx-page-wide' : ''}">
   ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, active: d.navActive, en })}
   <header class="wx-masthead">
     ${avatar(s)}
@@ -119,6 +155,7 @@ export function home(d: HomeData): string {
     ${s.siteDescription ? `<p class="wx-masthead-desc">${esc(tr(en, s.siteDescription))}</p>` : ''}
   </header>
   ${d.notice ? `<div class="wx-notice">${d.notice}</div>` : ''}
+  ${side ? `<div class="wx-cols"><div class="wx-maincol">` : ''}
   ${d.weiboFeed ? weiboHomeFeed({ settings: s, items: d.weiboFeed.items, total: d.weiboFeed.total, avatarHtml: avatar(s), allowComments: d.weiboFeed.allowComments, adminName: d.weiboFeed.adminName, memberName: d.weiboFeed.memberName }) : ''}
   ${d.weibo ? weiboHomeEntry({ ...d.weibo, en }) : ''}
   ${onThisDayCard(d.onThisDay, en)}
@@ -133,6 +170,7 @@ export function home(d: HomeData): string {
     base: homeListBase({ sort: d.sort, seed: d.seed, tag: d.tag, categorySlug: d.categorySlug, q: d.q }),
   }, en)}
   ${d.searchWeibo ? weiboSearchResults({ settings: s, items: d.searchWeibo.items, total: d.searchWeibo.total, avatarHtml: avatar(s) }) : ''}
+  ${side ? `</div><aside class="wx-side">${side}</aside></div>` : ''}
   ${foot(s, footLinksFor(s, en).home)}
 </div>`
 }
@@ -141,6 +179,7 @@ export function post(d: PostData): string {
   const s = d.settings
   const en = isEn(s)
   const p = d.post
+  const toc = tocOf(p.contentHtml)
   const tagChips = p.tags
     .map((t) => `<a class="wx-tag" href="${tagLink(t)}"># ${esc(t)}</a>`)
     .join('')
@@ -160,9 +199,32 @@ export function post(d: PostData): string {
   </div>
 </section>`
     : ''
+  // 桌面端右栏：目录（≥2 条标题才值得挂）+ 文章信息卡；移动端 CSS 隐藏，版式不变
+  const tocCard =
+    toc.items.length >= 2
+      ? sideCard(
+          tr(en, '目录'),
+          '',
+          `<nav class="wx-toc">${toc.items
+            .map((i) => `<a class="wx-toc-lv${i.level}" href="#${i.id}">${i.text}</a>`)
+            .join('')}</nav>`
+        )
+      : ''
+  const infoRows = [
+    d.category
+      ? `<div class="wx-side-row"><span>${tr(en, '分类')}</span><a href="${categoryLink(d.category)}">${esc(d.category.name)}</a></div>`
+      : '',
+    `<div class="wx-side-row"><span>${tr(en, '发布于')}</span><b>${en ? fmtDateEn(p.published_at) : fmtDateCN(p.published_at)}</b></div>`,
+    `<div class="wx-side-row"><span>${tr(en, '阅读时长')}</span><b>${en ? `${p.readingMinutes} min` : `${p.readingMinutes} 分钟`}</b></div>`,
+    `<div class="wx-side-row"><span>${tr(en, '阅读量')}</span><b>${p.views}</b></div>`,
+  ]
+    .filter(Boolean)
+    .join('')
+  const side = `${tocCard}${sideCard(tr(en, '文章信息'), '', `<div class="wx-side-rows">${infoRows}</div>`)}`
 
-  return `<div class="wx-article">
+  return `<div class="wx-article wx-article-wide">
   ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, en })}
+  <div class="wx-cols"><div class="wx-maincol">
   <h1 class="wx-title">${esc(p.title)}</h1>
   <div class="wx-meta">
     <a class="wx-meta-avatar" href="/" aria-label="${en ? 'Back to home' : '返回首页'}">${avatar(s)}</a>
@@ -172,7 +234,7 @@ export function post(d: PostData): string {
     </div>
   </div>
   ${p.cover ? `<div class="wx-cover"><img src="${esc(p.cover)}" alt=""></div>` : ''}
-  <article class="rich" id="rich-content">${p.contentHtml}</article>
+  <article class="rich" id="rich-content">${toc.html}</article>
   ${p.locked ? paywallHtml(p.minTier, en) : ''}
   ${tagChips || catChip ? `<div class="wx-tags">${catChip}${tagChips}</div>` : ''}
   <div class="wx-actions">
@@ -185,6 +247,7 @@ export function post(d: PostData): string {
   </div>
   ${related}
   ${d.comments.html}
+  </div><aside class="wx-side">${side}</aside></div>
   ${foot(s, footLinksFor(s, en).article)}
 </div>`
 }
