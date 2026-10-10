@@ -39,19 +39,30 @@
     var html = ''
     for (var i = 0; i < feed.length; i++) {
       var it = feed[i]
-      // 所有动态字段走 esc；hub 出参里的 url 只收 https（hub 端已校验），这里仍只作为 href 输出
+      // 所有动态字段走 esc；hub 出参里的 url 只收 https（hub 端已校验），这里仍只作为 href 输出。
+      // 卡片容器用 <article> 而非 <a>——HTML 禁止链接嵌链接：外层 a 会在 meta 的站点链接处被
+      // 解析器强行闭合，整卡 DOM 被拆成空壳+散块（线上实测的「空白框、排版散架」就是这个）。
+      // 整卡可点改用拉伸链接：标题 <a> 的 ::after 铺满卡片，站点链接 z-index 浮在其上各自可点。
+      // media 位兜底站点首字头像（朱砂渐变白字，与官网目录 showcase-avatar 同语汇）：
+      // 无封面图时必然有头像可看；有图时 img 铺在上层，加载失败 remove 后头像自然露出。
+      var initial = esc((it.siteName || '博').replace(/^\s+/, '').charAt(0).toUpperCase() || '博')
       html +=
-        '<a class="plaza-card" href="' + esc(it.url) + '" target="_blank" rel="noopener">' +
-        (it.image ? '<img class="plaza-card-thumb" src="' + esc(it.image) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">' : '') +
+        '<article class="plaza-card' + (it.kind === 'weibo' ? ' is-weibo' : '') + '">' +
+        '<div class="plaza-card-media" aria-hidden="true">' +
+        '<span class="plaza-media-fallback">' + initial + '</span>' +
+        (it.image ? '<img src="' + esc(it.image) + '" alt="" loading="lazy" onerror="this.remove()">' : '') +
+        '</div>' +
         '<div class="plaza-card-main">' +
+        '<a class="plaza-card-link" href="' + esc(it.url) + '" target="_blank" rel="noopener">' +
         '<h3 class="plaza-card-title">' + esc(it.title) + '</h3>' +
+        '</a>' +
         (it.summary && it.summary !== it.title ? '<p class="plaza-card-summary">' + esc(it.summary) + '</p>' : '') +
         '<div class="plaza-card-meta">' +
-        '<a class="plaza-site-link" href="' + esc(it.siteUrl) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + esc(it.siteName) + '</a>' +
+        '<a class="plaza-site-link" href="' + esc(it.siteUrl) + '" target="_blank" rel="noopener">' + esc(it.siteName) + '</a>' +
         (it.siteVerified ? '<span class="plaza-badge" title="站点已通过所有权验证">' + BADGE_SVG + '</span>' : '') +
         '<span class="plaza-kind-chip">' + (it.kind === 'post' ? '📝 文章' : '💭 微博') + '</span>' +
         '<span>' + fmtDate(it.publishedAt) + '</span>' +
-        '</div></div></a>'
+        '</div></div></article>'
     }
     feedEl.innerHTML = html
   }

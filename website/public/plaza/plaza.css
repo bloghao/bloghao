@@ -52,27 +52,59 @@
 .plaza-card {
   display: flex;
   gap: 14px;
+  position: relative;
   background: #fff;
   border: 1px solid var(--line, #e5e0d8);
   border-radius: 14px;
   padding: 16px;
-  text-decoration: none;
   color: inherit;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 .plaza-card:hover {
   transform: translateY(-2px);
-  border-color: var(--brand, #c0392b);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  border-color: rgba(178, 58, 41, 0.35);
+  box-shadow: var(--shadow, 0 10px 40px rgba(32, 29, 26, 0.08));
 }
-.plaza-card-thumb {
+/* media 位：有封面图看图，无图（或加载失败）露出站点首字头像——朱砂渐变白字，
+   与官网目录 showcase-avatar 同一视觉语汇，绝不开天窗 */
+.plaza-card-media {
   flex: 0 0 96px;
+  width: 96px;
   height: 96px;
   border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.plaza-media-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent, #b23a29), #c25440);
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.plaza-card-media img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  background: var(--line, #e5e0d8);
 }
 .plaza-card-main { min-width: 0; flex: 1; }
+/* 拉伸链接：标题 a 的伪元素铺满整卡 = 整卡可点；meta 里的站点链接 z-index 浮上层各自可点 */
+.plaza-card-link { text-decoration: none; color: inherit; display: block; }
+.plaza-card-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 14px;
+}
+.plaza-card:hover .plaza-card-title { color: var(--accent, #b23a29); }
 .plaza-card-title {
   font-weight: 700;
   font-size: 1.02rem;
@@ -102,7 +134,8 @@
   font-size: 0.8rem;
   color: var(--muted, #6b6b6b);
 }
-.plaza-site-link { color: var(--brand, #c0392b); text-decoration: none; font-weight: 600; }
+.plaza-card-meta > * { position: relative; z-index: 1; }
+.plaza-site-link { color: var(--accent, #b23a29); text-decoration: none; font-weight: 600; }
 .plaza-site-link:hover { text-decoration: underline; }
 .plaza-kind-chip {
   border: 1px solid var(--line, #e5e0d8);
@@ -157,5 +190,6 @@
 @media (max-width: 900px) {
   .plaza-wrap { grid-template-columns: 1fr; }
   .plaza-side { position: static; }
-  .plaza-card-thumb { flex-basis: 72px; height: 72px; }
+  .plaza-card-media { flex-basis: 72px; width: 72px; height: 72px; }
+  .plaza-media-fallback { font-size: 1.2rem; }
 }
