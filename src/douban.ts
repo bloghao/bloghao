@@ -38,8 +38,9 @@ const FETCH_TIMEOUT_MS = 10_000
 const RELAY_TIMEOUT_MS = 15_000
 const MAX_BODY_BYTES = 2 * 1024 * 1024
 /** 与 linkmeta 同款浏览器 UA（豆瓣按 UA 粗筛，缺 UA 直接触发风控） */
-const UA =
+export const BROWSER_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+const UA = BROWSER_UA
 
 const DOUBAN_HOST: Record<Exclude<MediaType, 'music'>, string> = {
   book: 'book.douban.com',
@@ -57,6 +58,48 @@ export function doubanDetailUrl(type: MediaType, id: string): string {
 export function subjectIdFromUrl(raw: string): string | null {
   const m = /douban\.com\/subject\/(\d{1,14})/.exec(String(raw || '').replace(/[\t\r\n]/g, '').trim())
   return m ? m[1] : null
+}
+
+/* ---------------- 封面策略 ---------------- */
+
+/** 豆瓣 CDN 有防盗链：无 Referer 418、外站 Referer 403（实测 2026-10），
+ *  转存/代理时必须带图床自己的域作 Referer；其他源（Deezer/TMDB/Google/iTunes）
+ *  无防盗链，不需要特殊 Referer */
+export function coverReferer(u: string): string | null {
+  if (!/doubanio\.com\//.test(u || '')) return null
+  try {
+    return new URL(u).origin + '/'
+  } catch {
+    return null
+  }
+}
+
+/** 编辑器结果列表缩略图代理的域名白名单（端点本就要求登录 + 限频，这里再限源） */
+const COVER_PROXY_HOSTS = ['doubanio.com', 'dzcdn.net', 'mzstatic.com', 'image.tmdb.org', 'books.google.com']
+export function coverProxyHostOk(host: string): boolean {
+  const h = String(host || '').toLowerCase()
+  return COVER_PROXY_HOSTS.some((suffix) => h === suffix || h.endsWith('.' + suffix))
+}
+
+export interface ResolvedCover {
+  cover: string
+  /** 转存是否成功（false 时豆瓣封面已省略或走了中转兜底，供日志/提示） */
+  local: boolean
+}
+
+/** 组卡前的封面归一：转存进站内图床优先（卡片永久自持，不依赖任何外域与中转）；
+ *  转存失败时豆瓣图退中转 /img（没配中转就省略——绝不烘必挂的防盗链死图），
+ *  非豆瓣源 CDN 无防盗链，保留原直连。transferred 为 null 表示转存失败 */
+export function resolveCardCover(cover: string, transferred: string | null, relayBase: string | null): ResolvedCover {
+  const c = String(cover || '').trim()
+  if (!c) return { cover: '', local: true }
+  if (c.startsWith('/images/')) return { cover: c, local: true }
+  if (transferred) return { cover: transferred, local: true }
+  if (/doubanio\.com\//.test(c)) {
+    if (relayBase) return { cover: `${relayBase.replace(/\/+$/, '')}/img?u=${encodeURIComponent(c)}`, local: false }
+    return { cover: '', local: false }
+  }
+  return { cover: c, local: false }
 }
 
 /* ---------------- 中转地址校验 ---------------- */
@@ -635,16 +678,12 @@ function fmtCount(n: number): string {
 /** 书影音卡片：内联样式（六主题零改动），配色取中性浅灰与豆瓣星色；
  *  data-no-dark 随净化白名单放行，防主题反色时卡片被反转。
  *  结构与 linkmeta 同理——span + display:flex 的整体 <a>，段落内插入不破结构。
- *  封面：豆瓣 CDN 有防盗链（无 Referer 418、外站 Referer 403），doubanio 的图
- *  必须改写到中转 /img 代理（relayBase 由插件配置随请求携带、烘进卡片 HTML）；
- *  没配中转时豆瓣封面直接省略（诚实降级为无图卡），非豆瓣源（Deezer/TMDB/
- *  Google）的 CDN 无防盗链，直连不动 */
-export function buildCardHtml(item: MediaItem, opts?: { relayBase?: string | null }): string {
+ *  封面由端点侧 resolveCardCover 归一（站内 /images/ 优先）；这里只兜一道底：
+ *  裸 doubanio 地址（防盗链必挂）不烘进文章，其余照用 */
+export function buildCardHtml(item: MediaItem): string {
   const title = clampText(item.title, 60) || '未知条目'
   let cover = (item.cover || '').trim()
-  if (/doubanio\.com\//.test(cover)) {
-    cover = opts?.relayBase ? `${opts.relayBase.replace(/\/+$/, '')}/img?u=${encodeURIComponent(cover)}` : ''
-  }
+  if (/doubanio\.com\//.test(cover) && !cover.startsWith('/images/')) cover = ''
   const year = item.year ? `<span style="font-weight: 400;font-size: 12px;color: #999;"> (${escAttr(item.year)})</span>` : ''
   const meta = clampText(item.meta || '', 80)
   const intro = clampText(item.intro || '', 150)

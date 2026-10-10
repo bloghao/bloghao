@@ -83,11 +83,13 @@ export function sniffImageExt(buf: ArrayBuffer): 'jpg' | 'png' | 'gif' | 'webp' 
  *  类型只认文件魔数，不信任源站 Content-Type / URL 参数（如 wx_fmt）：声明成图片但内容
  *  是 HTML/SVG 的响应一律拒收，存储的 Content-Type 由识别出的扩展名反推，
  *  保证 /images/ 回源时永远是安全的图片类型 */
-export async function transferImage(env: Env, url: string, name: string): Promise<string | null> {
+/** 远程图转存：进 R2 图床返回站内地址。referer 缺省沿用公众号场景（有防盗链的源
+ *  各自定义，如豆瓣图床要求豆瓣域 Referer）；只认文件魔数，声明长度与实际字节双限 */
+export async function transferImage(env: Env, url: string, name: string, referer?: string): Promise<string | null> {
   if (!/^https?:\/\//i.test(url)) return null
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': REMOTE_FETCH_UA, Referer: 'https://mp.weixin.qq.com/' },
+      headers: { 'User-Agent': REMOTE_FETCH_UA, Referer: referer || 'https://mp.weixin.qq.com/' },
       redirect: 'follow',
       signal: AbortSignal.timeout(REMOTE_FETCH_TIMEOUT_MS),
     })

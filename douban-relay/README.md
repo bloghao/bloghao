@@ -140,4 +140,4 @@ sudo systemctl restart douban-relay
 | --- | --- | --- |
 | `GET /api/health` | Bearer | `{ok, uptime, cacheFetch, cacheImg, cooldownUntil}` |
 | `GET /api/fetch?u=<douban url>` | Bearer | `{status, body, finalUrl}` 或 `{blocked: true, cooldownUntil?}`，6h 缓存 |
-| `GET /img?u=<doubanio url>` | 无（限频 120/分/IP） | 图片字节，30 天缓存。**豆瓣 CDN 有防盗链（无 Referer 418、外站 Referer 403），豆瓣封面一律经此代理**——组卡时服务端自动把 doubanio 图址改写到 `/img`；非豆瓣源（Deezer/TMDB/Google）封面直连各自 CDN |
+| `GET /img?u=<doubanio url>` | 无（限频 120/分/IP） | 图片字节，30 天缓存。豆瓣 CDN 有防盗链（无 Referer 418、外站 Referer 403）的**兜底通道**——正常情况下封面在插卡时已转存进博客自己的 R2 图床（零配置可用），仅转存失败且配了中转时，卡片封面才退回 `/img` |

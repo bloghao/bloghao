@@ -2,6 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildCardHtml,
+  coverProxyHostOk,
+  coverReferer,
   doubanDetailUrl,
   fetchDoubanDetail,
   normalizeCoverUrl,
@@ -12,6 +14,7 @@ import {
   parseSubjectHtml,
   parseTmdb,
   probeRelay,
+  resolveCardCover,
   sanitizeMediaItem,
   searchMedia,
   subjectIdFromUrl,
@@ -422,11 +425,10 @@ const CARD_ITEM: MediaItem = {
   link: 'https://book.douban.com/subject/2567698/',
 }
 
-test('buildCardHtml：结构、评分格式、来源行、尾随空段', () => {
-  const html = buildCardHtml(CARD_ITEM, { relayBase: 'https://relay.example.com' })
+test('buildCardHtml：结构、评分格式、来源行、尾随空段（封面为站内转存地址）', () => {
+  const html = buildCardHtml({ ...CARD_ITEM, cover: '/images/u/cover.jpg' })
   assert.match(html, /^<a class="media-card" data-no-dark="" /)
-  // 豆瓣 CDN 有防盗链：封面必须改写进中转 /img（URL 编码原址）
-  assert.match(html, /src="https:\/\/relay\.example\.com\/img\?u=https%3A%2F%2Fimg3\.doubanio\.com%2F/)
+  assert.match(html, /src="\/images\/u\/cover\.jpg"/)
   assert.match(html, /href="https:\/\/book\.douban\.com\/subject\/2567698\/"/)
   assert.match(html, /rel="noopener noreferrer"/)
   assert.match(html, /★ 8\.9/)
@@ -435,17 +437,53 @@ test('buildCardHtml：结构、评分格式、来源行、尾随空段', () => {
   assert.ok(html.endsWith('<p><br></p>'))
 })
 
-test('buildCardHtml 封面降级：无中转时豆瓣图省略、非豆瓣图直连保留', () => {
-  // 没配中转：豆瓣封面直接省略（诚实降级为无图卡，不留必挂的死图）
-  const noRelay = buildCardHtml(CARD_ITEM)
-  assert.ok(!noRelay.includes('<img'))
-  // 非豆瓣源（Deezer/TMDB/Google）的 CDN 无防盗链：直连保留
-  const deezer = buildCardHtml({ ...CARD_ITEM, source: 'deezer', cover: 'https://cdn-images.dzcdn.net/images/cover/x/500x500.jpg' })
-  assert.match(deezer, /<img src="https:\/\/cdn-images\.dzcdn\.net\//)
-  const noCover = buildCardHtml({ ...CARD_ITEM, cover: undefined }, { relayBase: 'https://relay.example.com' })
-  assert.ok(!noCover.includes('<img'))
-  const noLink = buildCardHtml({ ...CARD_ITEM, cover: undefined, link: undefined }, { relayBase: 'https://relay.example.com' })
-  assert.match(noLink, /^<div class="media-card"/)
+test('buildCardHtml 封面兜底：裸 doubanio 地址必挂防盗链，绝不烘进文章', () => {
+  // 豆瓣图床有防盗链：未经 resolveCardCover 归一的裸 doubanio 地址直接省略
+  const raw = buildCardHtml(CARD_ITEM)
+  assert.ok(!raw.includes('<img'))
+  // 站内转存地址与非豆瓣源 CDN（无防盗链）保留
+  assert.match(buildCardHtml({ ...CARD_ITEM, cover: '/images/u/c.jpg' }), /<img src="\/images\/u\/c\.jpg"/)
+  assert.match(buildCardHtml({ ...CARD_ITEM, cover: 'https://cdn-images.dzcdn.net/images/cover/x/500x500.jpg' }), /<img src="https:\/\/cdn-images\.dzcdn\.net\//)
+  assert.match(buildCardHtml({ ...CARD_ITEM, cover: '/images/u/c.jpg', link: undefined }), /^<div class="media-card"/)
+})
+
+/* ── 封面解析（转存优先，中转兜底，防盗链死图绝不落库） ── */
+
+test('resolveCardCover：转存成功优先站内地址', () => {
+  assert.deepEqual(resolveCardCover('https://img3.doubanio.com/a.jpg', '/images/u/x.jpg', null), { cover: '/images/u/x.jpg', local: true })
+  // 已是站内地址原样保留（不再转存）
+  assert.deepEqual(resolveCardCover('/images/u/y.jpg', null, null), { cover: '/images/u/y.jpg', local: true })
+})
+
+test('resolveCardCover：转存失败时豆瓣退中转或省略，非豆瓣源保留直连', () => {
+  // 豆瓣 + 没中转：省略（绝不烘必挂的防盗链死图）
+  assert.deepEqual(resolveCardCover('https://img3.doubanio.com/a.jpg', null, null), { cover: '', local: false })
+  // 豆瓣 + 中转：退中转 /img 兜底
+  const viaRelay = resolveCardCover('https://img3.doubanio.com/a.jpg', null, 'https://relay.example.com')
+  assert.equal(viaRelay.cover, 'https://relay.example.com/img?u=https%3A%2F%2Fimg3.doubanio.com%2Fa.jpg')
+  assert.equal(viaRelay.local, false)
+  // 非豆瓣源 CDN 无防盗链：转存失败保留原直连
+  assert.deepEqual(resolveCardCover('https://cdn-images.dzcdn.net/x.jpg', null, null), { cover: 'https://cdn-images.dzcdn.net/x.jpg', local: false })
+  assert.deepEqual(resolveCardCover('', null, null), { cover: '', local: true })
+})
+
+/* ── 封面 Referer 与缩略图代理白名单 ── */
+
+test('coverReferer：豆瓣图床要豆瓣域 Referer（防盗链），其他源不需要', () => {
+  assert.equal(coverReferer('https://img3.doubanio.com/view/subject/l/public/s1.jpg'), 'https://img3.doubanio.com/')
+  assert.equal(coverReferer('https://cdn-images.dzcdn.net/x.jpg'), null)
+  assert.equal(coverReferer(''), null)
+})
+
+test('coverProxyHostOk：缩略图代理只放行常用封面 CDN', () => {
+  assert.ok(coverProxyHostOk('img3.doubanio.com'))
+  assert.ok(coverProxyHostOk('cdn-images.dzcdn.net'))
+  assert.ok(coverProxyHostOk('is1-ssl.mzstatic.com'))
+  assert.ok(coverProxyHostOk('image.tmdb.org'))
+  assert.ok(coverProxyHostOk('books.google.com'))
+  assert.ok(!coverProxyHostOk('evil.com'))
+  assert.ok(!coverProxyHostOk('doubanio.com.evil.com'))
+  assert.ok(!coverProxyHostOk(''))
 })
 
 test('卡片过 sanitizeHtml 白名单：class/style/外链图存活，无 id、无内联事件', () => {
@@ -455,7 +493,7 @@ test('卡片过 sanitizeHtml 白名单：class/style/外链图存活，无 id、
     meta: '作者"><svg onload=alert(3)>',
     intro: '简介 <!-- 注释 --> <a href="javascript:alert(4)">x</a>',
   }
-  const cleaned = sanitizeHtml(buildCardHtml(dirty, { relayBase: 'https://relay.example.com' }))
+  const cleaned = sanitizeHtml(buildCardHtml({ ...dirty, cover: '/images/u/c.jpg' }))
   // 断言只针对「真实标签 / 真实属性」——转义后的文本里出现 script/onerror 字样是预期形态；
   // 先屏蔽引号属性值再扫标签（alt 里合法地躺着转义后的脏文本，不能算进真实属性）
   const noAttrVals = cleaned.replace(/=("[^"]*"|'[^']*')/g, '=""')
@@ -465,7 +503,7 @@ test('卡片过 sanitizeHtml 白名单：class/style/外链图存活，无 id、
   assert.ok(!cleaned.includes('<!--'))
   assert.match(cleaned, /class="media-card"/) // class 钩子存活（前台样式可用）
   assert.match(cleaned, /data-no-dark/)
-  assert.match(cleaned, /<img src="https:\/\/relay\.example\.com\/img\?u=/) // 中转封面存活
+  assert.match(cleaned, /<img src="\/images\/u\/c\.jpg"/) // 站内转存封面存活
   assert.match(cleaned, /三体&lt;script/) // 文本里的标签被实体化而非吞掉
   assert.ok(!cleaned.match(/\sid=/)) // id 恒不放行（DOM clobbering 防线）
   // 转义值的二次复核：escAttr 后 & 均为实体形态

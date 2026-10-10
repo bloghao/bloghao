@@ -75,7 +75,7 @@ function openMediaDialog(ctx) {
     '<input class="input" id="dm-tmdb" placeholder="32 位 hex" autocapitalize="off" spellcheck="false"></div>' +
     '<div style="display: flex;align-items: center;gap: 10px;margin-top: 4px;">' +
     '<button class="btn" id="dm-test">测试中转</button>' +
-    '<span style="font-size: 12px;color: var(--sub);line-height: 1.6;">不配中转拿不到豆瓣的评分与封面（数据中心 IP 被风控、豆瓣图床有防盗链），只有备用源结果。建议自建中转（仓库 douban-relay/ 一键部署）。</span></div>' +
+    '<span style="font-size: 12px;color: var(--sub);line-height: 1.6;">不配中转也能用：封面自动转存进图床、书影音信息照常。中转可选——豆瓣详情页（尤其电影）被风控时，自建中转（仓库 douban-relay/，配合豆瓣登录 Cookie）能明显提高评分与简介的成功率。</span></div>' +
     '</details>' +
     '</div>' +
     '<div class="modal-foot"><button class="btn" data-close>关闭</button></div>' +
@@ -181,8 +181,8 @@ function openMediaDialog(ctx) {
         'display: flex;align-items: center;gap: 10px;padding: 8px;border: 1px solid var(--line, #eee);border-radius: 8px;margin-bottom: 8px;cursor: pointer;'
       row.innerHTML =
         (item.cover
-          ? '<img src="' +
-            String(item.cover).replace(/"/g, '&quot;') +
+          ? '<img src="/api/admin/tools/douban/img?u=' +
+            encodeURIComponent(String(item.cover)) +
             '" alt="" style="width: 40px;height: 54px;object-fit: cover;border-radius: 4px;background: #f0ede8;flex-shrink: 0;">'
           : '<div style="width: 40px;height: 54px;border-radius: 4px;background: #f0ede8;flex-shrink: 0;"></div>') +
         '<div style="flex: 1;min-width: 0;">' +

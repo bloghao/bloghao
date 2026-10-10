@@ -73,7 +73,7 @@ import { hashPostPassword } from './protect'
 import { listTrash, restorePostStatus, trashTable, type TrashTable } from './trash'
 import { classifyBrowser, classifyDevice, cleanPath, cleanRef, cleanTitle, cleanVid, getVisitStats, recordVisit } from './stats'
 import { fetchLinkMeta } from './linkmeta'
-import { buildCardHtml, fetchDoubanDetail, probeRelay, sanitizeMediaItem, searchMedia, subjectIdFromUrl, validateRelay } from './douban'
+import { BROWSER_UA, buildCardHtml, coverProxyHostOk, coverReferer, fetchDoubanDetail, probeRelay, resolveCardCover, sanitizeMediaItem, searchMedia, subjectIdFromUrl, validateRelay, type MediaItem } from './douban'
 import { THEMES } from './themes/registry'
 import type { CommentRow, Env, MemberRow, MemberTier, PostRow, SessionUser } from './types'
 import { clampInt, cleanDisabledPlugins, cleanNickname, cleanSlug, excerpt, extractWeiboTopics, fmtDateCN, isDemo, isValidQQ, jsonItemLikePattern, nicknameCooldown, normalizeLinkUrl, slugify } from './utils'
@@ -1728,15 +1728,61 @@ api.post('/admin/tools/linkmeta', async (c) => {
   return c.json({ meta })
 })
 
-/** 书影音组卡用的中转基地址（豆瓣封面改写走 /img）；配置不完整回 null（封面省略） */
+/** 书影音组卡用的中转基地址（转存失败时豆瓣封面退中转 /img 兜底）；配置不完整回 null */
 function validateRelayBase(relay: string, relayToken: string): string | null {
   return validateRelay(relay, relayToken)?.base ?? null
 }
 
+/** 组卡前把外链封面转存进站内图床（卡片永久自持——豆瓣图床有防盗链，浏览器直连必挂）；
+ *  转存失败时豆瓣图退中转 /img 或省略（resolveCardCover），非豆瓣源 CDN 无防盗链保留直连 */
+async function buildCardWithCover(env: Env, item: MediaItem, relayBase: string | null): Promise<string> {
+  const cover = (item.cover || '').trim()
+  let transferred: string | null = null
+  if (cover && !cover.startsWith('/images/')) {
+    transferred = await transferImage(env, cover, '书影音封面', coverReferer(cover) || undefined)
+  }
+  const resolved = resolveCardCover(cover, transferred, relayBase)
+  return buildCardHtml({ ...item, cover: resolved.cover })
+}
+
+/** 编辑器结果列表的封面缩略图代理（<img> 自动带同源会话 Cookie，注册在鉴权之后）：
+ *  豆瓣图床防盗链（无 Referer 418、外站 403），浏览器直连必挂；白名单限常用封面 CDN，
+ *  限频 + 体积上限。仅供编辑器预览——正式卡片走转存（buildCardWithCover），不烘代理地址 */
+api.get('/admin/tools/douban/img', async (c) => {
+  const raw = c.req.query('u') || ''
+  let u: URL
+  try {
+    u = new URL(raw)
+  } catch {
+    return jsonError('链接不合法')
+  }
+  if (u.protocol !== 'https:' || !coverProxyHostOk(u.hostname)) return jsonError('域名不在白名单', 403)
+  if (!rateLimit(`doubanimg:${clientIp(c.req.raw)}`, 60, 60_000)) return jsonError('请求过于频繁，请稍后再试', 429)
+  try {
+    const res = await fetch(u, {
+      headers: { 'User-Agent': BROWSER_UA, Referer: coverReferer(raw) || `${u.origin}/` },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(8_000),
+    })
+    if (!res.ok) return jsonError('封面拉取失败', 502)
+    const ct = String(res.headers.get('content-type') || '').split(';')[0]
+    if (!/^image\/(jpeg|png|webp|gif)$/.test(ct)) return jsonError('非图片响应', 502)
+    const buf = await res.arrayBuffer()
+    if (buf.byteLength === 0 || buf.byteLength > 1_000_000) return jsonError('图片过大', 502)
+    c.header('Cache-Control', 'private, max-age=86400')
+    c.header('X-Content-Type-Options', 'nosniff')
+    return c.body(buf, 200, { 'Content-Type': ct })
+  } catch {
+    return jsonError('封面拉取失败', 502)
+  }
+})
+
 /** 书影音卡片（第三方编辑器插件 douban-media 的数据面），见 src/douban.ts 与 douban-relay/。
  *  中转地址/令牌由插件随请求携带（存插件自己的 localStorage，不进 settings），
  *  本端点只认代码构造的豆瓣地址（粘贴链接仅提取条目 id 重组），不构成开放代理；
- *  插件停用即端点 404（与编辑器侧开关一致），限频同 linkmeta */
+ *  插件停用即端点 404（与编辑器侧开关一致），限频同 linkmeta。
+ *  封面在组卡时转存进站内图床（buildCardWithCover），零配置即可用；
+ *  中转可选，提升豆瓣详情（尤其电影条目页，sec 风控最紧）的成功率 */
 api.post('/admin/tools/douban', async (c) => {
   const settings = await getSettings(c.env.DB)
   const disabled = cleanDisabledPlugins(String(settings.pluginsDisabled ?? ''))
@@ -1772,19 +1818,18 @@ api.post('/admin/tools/douban', async (c) => {
       return c.json(await searchMedia({ type: type as 'book' | 'movie' | 'music', q, relay, relayToken, tmdbKey }))
     }
     // detail：条目 id 优先（搜索结果点选），也接受粘贴的豆瓣链接（只提取数字 id）；
-    // blocked 时插件用搜索结果走 card 动作补卡。relayBase 供组卡把豆瓣封面
-    // 改写进中转 /img（豆瓣 CDN 防盗链，直连必挂）
+    // blocked 时插件用搜索结果走 card 动作补卡。卡片封面在此转存进站内图床
     if (action === 'detail') {
       const id = /^\d{1,14}$/.test(String(body?.id ?? '')) ? String(body?.id) : subjectIdFromUrl(String(body?.url ?? ''))
       if (!id) return jsonError('缺少条目 id（或粘贴的链接不含豆瓣 subject）')
-      const relayBase = validateRelayBase(relay, relayToken)
       const r = await fetchDoubanDetail({ type: type as 'book' | 'movie' | 'music', id, relay, relayToken })
-      return c.json({ item: r.item, blocked: r.blocked, card: r.item ? buildCardHtml(r.item, { relayBase }) : null })
+      const card = r.item ? await buildCardWithCover(c.env, r.item, validateRelayBase(relay, relayToken)) : null
+      return c.json({ item: r.item, blocked: r.blocked, card })
     }
-    // card：详情被风控时的补卡路径——插件回传搜索结果条目，服务端校验重建后组卡
+    // card：详情被风控时的补卡路径——插件回传搜索结果条目，服务端校验重建后组卡（封面同样转存）
     const item = sanitizeMediaItem(body?.item)
     if (!item) return jsonError('条目数据不完整')
-    return c.json({ card: buildCardHtml(item, { relayBase: validateRelayBase(relay, relayToken) }) })
+    return c.json({ card: await buildCardWithCover(c.env, item, validateRelayBase(relay, relayToken)) })
   } catch {
     return jsonError('抓取失败，请稍后再试', 502)
   }
