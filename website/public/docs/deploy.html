@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>部署教程 - 博客号文档</title>
+<meta name="description" content="从注册 Cloudflare 到部署 Worker、绑定自定义域名、自动部署、备份与恢复，含 Docker 自托管。">
+<meta property="og:title" content="部署教程 - 博客号文档">
+<meta property="og:description" content="从注册 Cloudflare 到部署 Worker、绑定自定义域名、自动部署、备份与恢复，含 Docker 自托管。">
+<meta property="og:type" content="article">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">
+      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">文档中心</a>
+      <a href="../index.html">返回官网</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="docs-shell docs-shell-toc">
+  
+    <aside class="docs-sidebar">
+      <a class="docs-side-title" href="index.html">📚 文档中心</a>
+      <ul class="docs-side-list">
+      <li><a class="is-active" href="deploy.html">🚀 部署教程</a></li>
+      <li><a href="guide.html">📖 使用手册</a></li>
+      <li><a href="plaza.html">🧭 广场</a></li>
+      <li><a href="themes.html">🎨 主题开发</a></li>
+      <li><a href="plugins.html">🧩 插件开发</a></li>
+      <li><a href="api.html">🔌 API 参考</a></li>
+      <li><a href="typography.html">🩺 排版规范</a></li>
+      <li><a href="demo.html">🎪 演示站指南</a></li>
+      <li><a href="roadmap.html">🗺️ 路线图</a></li>
+      </ul>
+      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+    </aside>
+  <main class="docs-main">
+    <div class="docs-crumbs">
+      <a href="index.html">文档中心</a><span>/</span><b>🚀 部署教程</b>
+      <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/DEPLOY.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
+    </div>
+    <article class="doc-md">
+<h1 id="博客号-bloghao-完整部署教程">博客号 BlogHao 完整部署教程</h1><p>从零开始，把这套博客部署到 Cloudflare（全程可使用免费套餐）。不想把代码跑在 Cloudflare 上、想用自己的服务器？见下方「方式三：Docker 自托管」。</p>
+<blockquote>
+<p>在线示例：<strong><a href="https://blog.xiaowuleyi.com" target="_blank" rel="noopener noreferrer">https://blog.xiaowuleyi.com</a></strong>（作者实例；Worker 名 <code>xwblog</code>，数据库 <code>xwblog-db</code>，图床桶 <code>xwblog-images</code>，与仓库内 wrangler.jsonc 一致）。给自己部署一套时，资源名可以原样沿用，也可以自行替换——与你的 wrangler.jsonc 保持一致即可。</p>
+</blockquote>
+<h2 id="方式一一键部署推荐全程不碰命令行">方式一：一键部署（推荐，全程不碰命令行）</h2><p><a href="https://deploy.workers.cloudflare.com/?url=https://github.com/bloghao/bloghao" target="_blank" rel="noopener noreferrer"><img src="../assets/deploy-button.svg" alt="Deploy to Cloudflare" loading="lazy"></a></p>
+<p>点按钮 → 用 GitHub 账号授权 → 在设置页给 Worker、D1 数据库、R2 图床起好名字 → 点 <strong>Create and deploy</strong>。Cloudflare 会自动完成：</p>
+<ol>
+<li>把仓库复制一份到你的 GitHub 账号（以后改代码、提 Issue 都在这份副本上）</li>
+<li>按仓库内 <code>wrangler.jsonc</code> 开通 D1 数据库与 R2 存储桶，并把新资源的 id 回填进副本的配置</li>
+<li>构建并部署到 Workers，随后接管 <strong>push 自动部署</strong>（你往副本推代码，Cloudflare 自动重新部署，无需 GitHub Actions 密钥）</li>
+</ol>
+<blockquote>
+<p>若账号还没用过 R2，会被要求先添加支付方式——免费额度内不扣费，只是验证。</p>
+</blockquote>
+<p>部署完成后（约 1-2 分钟）打开 Workers 面板给出的 <code>https://&lt;你的 Worker 名&gt;.&lt;你的子域&gt;.workers.dev</code>：</p>
+<ul>
+<li>访问 <code>/admin/</code> <strong>创建管理员</strong>（同第 4 节，首次进入即建号，欢迎文章已就位）</li>
+<li>进后台「设置」<strong>填站点链接</strong>（同第 5 节，绑自定义域名前可先空着，用默认 workers.dev 域）</li>
+<li>想绑自定义域名 → 第 6 节；想本地开发 → 第 9 节</li>
+</ul>
+<blockquote>
+<p>副本仓库里的 GitHub Actions 部署工作流（<code>deploy.yml</code>）没有配置密钥，push 时会黄字警告并自动跳过——这是正常的，部署已由 Cloudflare 侧接管；想改用 Actions 部署见第 7 节。</p>
+</blockquote>
+<p>以下第 0–7 节是<strong>方式二：命令行部署</strong>的完整步骤（想自己掌控每一步、或要写进自动化脚本时用）。</p>
+<h2 id="0-准备工作">0. 准备工作</h2><ul>
+<li>一个 Cloudflare 账号（免费版即可）：<a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer">dash.cloudflare.com</a> 注册</li>
+<li>本机安装 Node.js 18 或更高版本</li>
+<li>本项目代码（clone 或 fork 后下载）</li>
+</ul>
+<div class="codeblock" data-lang="bash"><pre><code>cd bloghao
+npm install
+npx wrangler login   # 会打开浏览器授权，登录你的 Cloudflare 账号
+npx wrangler whoami  # 确认登录成功</code></pre></div><h2 id="1-创建-d1-数据库">1. 创建 D1 数据库</h2><div class="codeblock" data-lang="bash"><pre><code>npx wrangler d1 create xwblog-db</code></pre></div><p>输出大致如下：</p>
+<div class="codeblock" data-lang="toml"><pre><code>[[d1_databases]]
+binding = &quot;DB&quot;
+database_name = &quot;xwblog-db&quot;
+database_id = &quot;xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx&quot;</code></pre></div><p><strong>把 <code>database_id</code> 复制</strong>，打开 <code>wrangler.jsonc</code>，替换（仓库里已填的是本站自己的 id，部署你自己的副本时换成你的）：</p>
+<div class="codeblock" data-lang="jsonc"><pre><code>&quot;d1_databases&quot;: [
+  {
+    &quot;binding&quot;: &quot;DB&quot;,
+    &quot;database_name&quot;: &quot;xwblog-db&quot;,
+    &quot;database_id&quot;: &quot;粘贴你的 database_id&quot;
+  }
+]</code></pre></div><p>然后初始化表结构（幂等，可重复执行）：</p>
+<div class="codeblock" data-lang="bash"><pre><code>npx wrangler d1 execute DB --remote --file schema.sql</code></pre></div><h2 id="2-创建-r2-存储桶图床">2. 创建 R2 存储桶（图床）</h2><div class="codeblock" data-lang="bash"><pre><code>npx wrangler r2 bucket create xwblog-images</code></pre></div><blockquote>
+<p>R2 免费额度：10GB 存储 / 每月 100 万次读、1000 万次写，个人博客绰绰有余。
+不需要给桶开公开访问——图片统一通过你的 Worker 的 <code>/images/xxx</code> 路径带缓存头输出，桶保持私有更安全。</p>
+</blockquote>
+<p><code>wrangler.jsonc</code> 里的 <code>&quot;bucket_name&quot;: &quot;xwblog-images&quot;</code> 若改名请同步修改。</p>
+<h2 id="3-首次部署">3. 首次部署</h2><div class="codeblock" data-lang="bash"><pre><code>npm run deploy</code></pre></div><p>成功后 wrangler 会输出你的访问地址，例如：</p>
+<div class="codeblock"><pre><code>Published xwblog v1.0.0
+https://xwblog.&lt;你的子域&gt;.workers.dev</code></pre></div><h2 id="4-初始化管理员">4. 初始化管理员</h2><p>浏览器打开：</p>
+<div class="codeblock"><pre><code>https://你的域名/admin/</code></pre></div><p>首次访问会显示「创建管理员」页面：</p>
+<ol>
+<li>填用户名（2-24 位字母、数字、_ 或 -）、密码（≥ 8 位）、昵称</li>
+<li>点击「创建并进入」</li>
+<li>系统自动生成一篇欢迎文章，你可以在后台删掉它，开始写自己的第一篇</li>
+</ol>
+<blockquote>
+<p>该入口只在数据库没有任何用户时开放，之后重复访问就是普通登录页。</p>
+</blockquote>
+<h2 id="5-基本设置">5. 基本设置</h2><p>后台 →「设置」：</p>
+<ul>
+<li><strong>站点名称 / 描述 / 页脚</strong>：出现在首页刊头、浏览器标题、RSS</li>
+<li><strong>站点链接</strong>：填写最终访问域名（本站即 <code>https://blog.xiaowuleyi.com</code>），用于 RSS 和 sitemap 里的绝对链接。绑定了自定义域名就<strong>务必填上</strong></li>
+<li><strong>站点头像 / 网站图标</strong>：都从后台上传、存进 R2 图床，改即时生效</li>
+<li><strong>外观</strong>：六套主题即点即换</li>
+<li><strong>评论</strong>：可开关留言、可开启「先审后展」</li>
+</ul>
+<h2 id="6-绑定自定义域名">6. 绑定自定义域名</h2><p>workers.dev 域名在国内部分地区不稳定，正式使用建议绑一个自己的域名（本站绑的就是 <code>blog.xiaowuleyi.com</code>）。<strong>前提</strong>：这个域名已托管在同一个 Cloudflare 账号下（即域名的 DNS 由 Cloudflare 管理）。</p>
+<p>方法一（面板操作，推荐）：Cloudflare Dashboard → Workers &amp; Pages → <code>xwblog</code> → Settings → Domains &amp; Routes → <strong>Add → Custom domain</strong>，填入 <code>blog.你的域名.com</code>，证书自动签发，几分钟内生效。</p>
+<p>方法二（命令行）：在 <code>wrangler.jsonc</code> 增加后重新 <code>npm run deploy</code>：</p>
+<div class="codeblock" data-lang="jsonc"><pre><code>&quot;routes&quot;: [{ &quot;pattern&quot;: &quot;blog.xiaowuleyi.com&quot;, &quot;custom_domain&quot;: true }]</code></pre></div><p>绑定完成后还有一步别漏：后台「设置 → 站点链接」改成新域名（如 <code>https://blog.xiaowuleyi.com</code>）——RSS、sitemap、OG 分享卡里的绝对链接都取这个值。</p>
+<h2 id="7-推上-github--push-自动部署命令行部署适用">7. 推上 GitHub + push 自动部署（命令行部署适用）</h2><blockquote>
+<p>一键部署的副本<strong>已经</strong>由 Cloudflare Workers Builds 接管 push 自动部署，这节可以跳过。</p>
+</blockquote>
+<div class="codeblock" data-lang="bash"><pre><code>git init
+git add .
+git commit -m &quot;feat: bloghao 初始化&quot;
+# GitHub 上新建空仓库后：
+git remote add origin git@github.com:&lt;你&gt;/bloghao.git
+git branch -M main
+git push -u origin main</code></pre></div><p>仓库已内置 <code>.github/workflows/deploy.yml</code>。要启用它：</p>
+<ol>
+<li>Cloudflare 面板 → My Profile → API Tokens → Create Token → 使用「Edit Cloudflare Workers」模板，并<strong>额外勾选 D1 Edit 与 R2 Edit 权限</strong></li>
+<li>GitHub 仓库 → Settings → Secrets and variables → Actions，添加两个 secret：<ul>
+<li><code>CLOUDFLARE_API_TOKEN</code>：上一步的令牌</li>
+<li><code>CLOUDFLARE_ACCOUNT_ID</code>：面板首页右侧可以看到</li>
+</ul>
+</li>
+<li>之后每次 push 到 <code>main</code>，GitHub Actions 会自动：类型检查 → 安装依赖 → 执行 schema.sql（幂等）→ <code>wrangler deploy</code>。另有内置的 <code>ci.yml</code> 与部署并行，跑类型检查 + 回归测试（<code>tests/</code> 30+ 用例），防止已修复的 bug 悄悄复发</li>
+</ol>
+<blockquote>
+<p>更省事的替代：不配任何密钥，在 Cloudflare 面板 → 你的 Worker → Settings → Git 支持（Builds）连接 GitHub 仓库，push 即自动部署（一键部署的副本默认就是这条路）。</p>
+</blockquote>
+<h2 id="方式三docker-自托管自有服务器">方式三：Docker 自托管（自有服务器）</h2><p>不想把代码跑在 Cloudflare 上、手头有 VPS 时，仓库内的 <code>docker-poc/</code> 提供零改动的自托管方案：业务代码原样跑进一个 Node 容器，文章存进内置 SQLite（单文件、WAL 模式），图片存本地磁盘目录，也可以继续用 Cloudflare R2 桶（零出口流量费，备份自动异地）。单进程按域名同时托管多个完全独立的博客站，Cloudflare 退回只做 DNS + CDN。</p>
+<div class="codeblock" data-lang="bash"><pre><code>git clone https://github.com/bloghao/bloghao.git
+cd bloghao/docker-poc
+docker compose up --build -d     # 镜像约 70MB（node:26-alpine），数据落在 ./data/&lt;域名&gt;/</code></pre></div><p>要点：</p>
+<ul>
+<li><strong>站点配置</strong>：把真实域名写进 <code>docker-poc/tenants.json</code>（<code>*.localhost</code> 只在本地有意义），重启容器生效；首次访问 <code>/admin/</code> 创建管理员，与 Workers 版完全一致</li>
+<li><strong>端口与反代</strong>：默认监听 <code>8787</code>；<code>XWLBLOG_PORT=80</code> 可直接挂 80，<code>XWLBLOG_BIND=127.0.0.1</code> 只绑回环、交给 nginx / Caddy / 1Panel 反代分流——多站点靠 Host 头识别，反代必须透传 Host</li>
+<li><strong>HTTPS</strong>：域名套 Cloudflare 橙云代理时，先用「灵活 SSL」回源源站 80 最快跑通；正式期建议前置 Caddy 终结 TLS，SSL 模式改「完全（严格）」</li>
+<li><strong>图片存储二选一</strong>：默认本地磁盘；tenants.json 里 <code>storage: &quot;r2&quot;</code> 切换到共享 R2 桶（按域名前缀隔离），启动日志出现「[r2] 自检通过」即配置正确，<code>--copy-local-to-r2</code> 幂等迁移存量图片</li>
+<li><strong>定时任务</strong>：定时发布（每分钟扫描）与北京时间 00:30 的备份 / 回收站清理随容器自动运行；图床桶在 R2 上时，备份快照同步变成异地备份</li>
+</ul>
+<p>容量参考：4核8G / 200G NVMe 舒适跑 100 个站点（实测 3 租户单进程内存约 64MB，天花板在磁盘图片量而非 CPU / 内存）。完整部署清单（含国内镜像加速、验收明细）见 <a href="https://github.com/bloghao/bloghao/blob/main/docker-poc/DEPLOY.md">docker-poc/DEPLOY.md</a>，架构与适配层说明见 <a href="https://github.com/bloghao/bloghao/blob/main/docker-poc/README.md">docker-poc/README.md</a>。</p>
+<h2 id="8-日常运维备忘">8. 日常运维备忘</h2><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>事项</th>
+<th>命令 / 操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>看实时日志</td>
+<td><code>npx wrangler tail</code></td>
+</tr>
+<tr>
+<td>手动备份 D1（导出 SQL）</td>
+<td><code>npx wrangler d1 export xwblog-db --remote --output=backup.sql</code></td>
+</tr>
+<tr>
+<td>恢复备份</td>
+<td><code>npx wrangler d1 execute xwblog-db --remote --file=backup.sql</code></td>
+</tr>
+<tr>
+<td>浏览数据</td>
+<td>Dashboard → Storage &amp; Databases → D1 → xwblog-db → Console</td>
+</tr>
+<tr>
+<td>重置管理员（清空用户重新创建）</td>
+<td><code>npx wrangler d1 execute DB --remote --command &quot;DELETE FROM users; DELETE FROM sessions;&quot;</code>，再访问 <code>/admin/</code></td>
+</tr>
+<tr>
+<td>查看图片占用量</td>
+<td>Dashboard → R2 → xwblog-images，或后台「媒体」页 / 概览页</td>
+</tr>
+</tbody></table></div>
+<h2 id="9-本地开发">9. 本地开发</h2><div class="codeblock" data-lang="bash"><pre><code>npm run db:init:local   # 初始化 .wrangler/state 下的本地 D1
+npm run dev             # http://127.0.0.1:8787（本地 D1/R2 全模拟，不花钱）
+npm run typecheck       # TypeScript 类型检查，提交前必须通过
+npm test                # 回归测试（tests/，30+ 用例），提交前必须通过
+npm run smoke           # 本地冒烟：起 wrangler dev 逐路由断言 200，改 SQL 拼接/渲染后必跑</code></pre></div><p>本地与线上行为一致（同一套 Workers runtime）。上传的测试图片存放在本地模拟的 R2 里，不会占用线上额度。</p>
+<h2 id="10-常见问题">10. 常见问题</h2><p><strong>Q：一键部署时要求添加支付方式？</strong>
+A：R2 图床开通的前提——免费额度（10GB 存储）内不扣费，只是账号验证，放心添加。</p>
+<p><strong>Q：一键部署后往副本 push，GitHub Actions 出现黄字警告「缺少 secrets」？</strong>
+A：正常现象。部署已由 Cloudflare Workers Builds 接管，<code>deploy.yml</code> 检测到没配密钥会自动跳过，不影响任何功能；想改用 Actions 部署再按第 7 节配置。</p>
+<p><strong>Q：一键部署按钮点了没反应 / 授权失败？</strong>
+A：Deploy to Cloudflare 只支持公开仓库（本仓库即是）；确认浏览器没有拦截弹窗，GitHub 授权页里勾选仓库访问权限后重试。</p>
+<p><strong>Q：部署时报 <code>database_id</code> 无效？</strong>
+A：确认你填的是 <code>wrangler d1 create</code> 返回的 UUID，且 <code>database_name</code> 与实际一致（本仓库为 <code>xwblog-db</code>）。</p>
+<p><strong>Q：访问首页 500？</strong>
+A：多半是没执行 <code>d1 execute DB --remote --file schema.sql</code>，或 <code>wrangler.jsonc</code> 里 D1 的 binding 名被改了（必须叫 <code>DB</code>）。</p>
+<p><strong>Q：图片上传失败？</strong>
+A：确认 R2 桶名与 <code>wrangler.jsonc</code> 一致（<code>xwblog-images</code>）；确认文件类型是 JPG/PNG/WebP/GIF 或 MP4/WebM，且 ≤ 25MB。</p>
+<p><strong>Q：workers.dev 域名在国内访问慢/被墙？</strong>
+A：绑定一个自己的域名（第 6 步）通常即可解决，本站的 <code>blog.xiaowuleyi.com</code> 就是这么来的。</p>
+<p><strong>Q：绑定自定义域名后 RSS / 分享卡片里还是旧的 workers.dev 链接？</strong>
+A：把后台「设置 → 站点链接」改成新域名并保存。</p>
+<p><strong>Q：想改端口/项目名？</strong>
+A：项目名改 <code>wrangler.jsonc</code> 的 <code>name</code>；本地端口 <code>npm run dev -- --port 9000</code>。</p>
+<h2 id="11-附官网bloghaocom是怎么部署的维护者备忘">11. 附：官网（bloghao.com）是怎么部署的（维护者备忘）</h2><p>博客号官网是与博客系统互相独立的纯静态站点，源码在仓库 <code>website/</code> 目录，部署在 Cloudflare <strong>Pages</strong> 项目 <code>bloghao</code>（即 bloghao.pages.dev），自定义域绑定为 <code>bloghao.com</code>：</p>
+<ul>
+<li><strong>改动发布</strong>：修改 <code>website/public/</code> 后 push 到 GitHub，Pages 项目连着 <code>bloghao</code> 仓库（构建输出目录 <code>website/public</code>）会自动部署；也可手动 <code>cd website &amp;&amp; npx wrangler pages deploy public</code></li>
+<li><strong>「博客号目录」</strong>：数据在 <code>website/public/data/showcase.json</code>，访客通过官网入口向 <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener noreferrer">bloghao</a> 提 Issue 申请上榜，审核通过后把站点加进 JSON 即可</li>
+<li><strong>在线示例</strong>：官网指向的演示站（Worker 名 xwblog-demo，地址以部署输出为准）是引擎的另一套独立 Worker 部署，专供访客体验；作者实例 blog.xiaowuleyi.com 不作演示用</li>
+<li>官网与本博客 Worker 互不影响，部署 / 回滚都在 Workers &amp; Pages 的 <code>bloghao</code> 项目里操作</li>
+</ul>
+
+    </article>
+  
+  <nav class="docs-pager">
+    <span></span>
+    <a class="docs-pager-link is-next" href="guide.html"><span>下一篇 →</span><b>📖 使用手册</b></a>
+  </nav>
+  </main>
+  
+    <aside class="docs-toc">
+      <div class="docs-toc-title">本页目录</div>
+      <ul class="docs-toc-list">
+        <li class="toc-d2"><a href="#方式一一键部署推荐全程不碰命令行" data-toc="方式一一键部署推荐全程不碰命令行">方式一：一键部署（推荐，全程不碰命令行）</a></li>
+        <li class="toc-d2"><a href="#0-准备工作" data-toc="0-准备工作">0. 准备工作</a></li>
+        <li class="toc-d2"><a href="#1-创建-d1-数据库" data-toc="1-创建-d1-数据库">1. 创建 D1 数据库</a></li>
+        <li class="toc-d2"><a href="#2-创建-r2-存储桶图床" data-toc="2-创建-r2-存储桶图床">2. 创建 R2 存储桶（图床）</a></li>
+        <li class="toc-d2"><a href="#3-首次部署" data-toc="3-首次部署">3. 首次部署</a></li>
+        <li class="toc-d2"><a href="#4-初始化管理员" data-toc="4-初始化管理员">4. 初始化管理员</a></li>
+        <li class="toc-d2"><a href="#5-基本设置" data-toc="5-基本设置">5. 基本设置</a></li>
+        <li class="toc-d2"><a href="#6-绑定自定义域名" data-toc="6-绑定自定义域名">6. 绑定自定义域名</a></li>
+        <li class="toc-d2"><a href="#7-推上-github--push-自动部署命令行部署适用" data-toc="7-推上-github--push-自动部署命令行部署适用">7. 推上 GitHub + push 自动部署（命令行部署适用）</a></li>
+        <li class="toc-d2"><a href="#方式三docker-自托管自有服务器" data-toc="方式三docker-自托管自有服务器">方式三：Docker 自托管（自有服务器）</a></li>
+        <li class="toc-d2"><a href="#8-日常运维备忘" data-toc="8-日常运维备忘">8. 日常运维备忘</a></li>
+        <li class="toc-d2"><a href="#9-本地开发" data-toc="9-本地开发">9. 本地开发</a></li>
+        <li class="toc-d2"><a href="#10-常见问题" data-toc="10-常见问题">10. 常见问题</a></li>
+        <li class="toc-d2"><a href="#11-附官网bloghaocom是怎么部署的维护者备忘" data-toc="11-附官网bloghaocom是怎么部署的维护者备忘">11. 附：官网（bloghao.com）是怎么部署的（维护者备忘）</a></li>
+      </ul>
+    </aside>
+</div>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="../index.html">官网首页</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+    </span>
+  </div>
+</footer>
+<script src="../docs.js" defer></script>
+</body>
+</html>

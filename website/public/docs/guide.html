@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>使用手册 - 博客号文档</title>
+<meta name="description" content="后台导览、写文章全流程、快捷键、评论与媒体管理、设置逐项说明。">
+<meta property="og:title" content="使用手册 - 博客号文档">
+<meta property="og:description" content="后台导览、写文章全流程、快捷键、评论与媒体管理、设置逐项说明。">
+<meta property="og:type" content="article">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">
+      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">文档中心</a>
+      <a href="../index.html">返回官网</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="docs-shell docs-shell-toc">
+  
+    <aside class="docs-sidebar">
+      <a class="docs-side-title" href="index.html">📚 文档中心</a>
+      <ul class="docs-side-list">
+      <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a class="is-active" href="guide.html">📖 使用手册</a></li>
+      <li><a href="plaza.html">🧭 广场</a></li>
+      <li><a href="themes.html">🎨 主题开发</a></li>
+      <li><a href="plugins.html">🧩 插件开发</a></li>
+      <li><a href="api.html">🔌 API 参考</a></li>
+      <li><a href="typography.html">🩺 排版规范</a></li>
+      <li><a href="demo.html">🎪 演示站指南</a></li>
+      <li><a href="roadmap.html">🗺️ 路线图</a></li>
+      </ul>
+      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+    </aside>
+  <main class="docs-main">
+    <div class="docs-crumbs">
+      <a href="index.html">文档中心</a><span>/</span><b>📖 使用手册</b>
+      <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/GUIDE.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
+    </div>
+    <article class="doc-md">
+<h1 id="博客号使用手册">博客号使用手册</h1><blockquote>
+<p>面向站长本人：从第一次进后台，到每天顺手写文章、发随手记。部署相关问题见 <a href="deploy.html">DEPLOY.md</a>。</p>
+<p>在线示例：<strong><a href="https://blog.xiaowuleyi.com" target="_blank" rel="noopener noreferrer">https://blog.xiaowuleyi.com</a></strong> · 后台：<strong><a href="https://blog.xiaowuleyi.com/admin/" target="_blank" rel="noopener noreferrer">https://blog.xiaowuleyi.com/admin/</a></strong></p>
+</blockquote>
+<h2 id="目录">目录</h2><ol>
+<li><a href="#1-站点地址一览">站点地址一览</a></li>
+<li><a href="#2-第一次进入后台">第一次进入后台</a></li>
+<li><a href="#3-后台导览">后台导览</a></li>
+<li><a href="#4-写一篇文章完整流程">写一篇文章：完整流程</a></li>
+<li><a href="#5-编辑器技巧">编辑器技巧</a></li>
+<li><a href="#6-采集公众号文章">采集公众号文章</a></li>
+<li><a href="#7-排版体检">排版体检</a></li>
+<li><a href="#8-发微博随手记">发微博（随手记）</a></li>
+<li><a href="#9-媒体库图床">媒体库（图床）</a></li>
+<li><a href="#10-评论管理">评论管理</a></li>
+<li><a href="#11-友情链接">友情链接</a></li>
+<li><a href="#12-分类与标签">分类与标签</a></li>
+<li><a href="#13-独立页面页面管理">独立页面（页面管理）</a></li>
+<li><a href="#14-回收站">回收站</a></li>
+<li><a href="#15-会员与积分">会员与积分</a></li>
+<li><a href="#16-设置逐项说明">设置逐项说明</a></li>
+<li><a href="#17-皮肤切换">皮肤切换</a></li>
+<li><a href="#18-账号与安全">账号与安全</a></li>
+<li><a href="#19-升级备份与数据导出">升级、备份与数据导出</a></li>
+</ol>
+<hr>
+<h2 id="1-站点地址一览">1. 站点地址一览</h2><p> 所有页面手机端都已适配，顶部导航（六套主题一致）：<strong>首页 · 微博 · 归档 · 留言板 · 分类话题（折叠菜单）· 友情链接 · 自建页面 · 关于我 · 随机</strong>（自建页面在后台「页面」创建并选择是否上导航）。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>地址</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="https://blog.xiaowuleyi.com/" target="_blank" rel="noopener noreferrer">/</a></td>
+<td><strong>首页</strong>：微博入口卡（最新随手记摘要）→ 搜索框 → 排序条（最新 / 最多阅读 / 最多点赞 / 最多留言 / 随机）→ 文章列表</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/weibo" target="_blank" rel="noopener noreferrer">/weibo</a></td>
+<td><strong>微博</strong>：随手记图文时间线，每页 15 条，置顶在前；点正文里的 <code>#话题#</code> 可筛选同一话题（此时页头会列出全部话题，方便退出筛选）</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/archives" target="_blank" rel="noopener noreferrer">/archives</a></td>
+<td><strong>文章归档</strong>：全部已发布文章按年份分组，一页看尽所有文章（独立页面，利于搜索引擎收录）</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/guestbook" target="_blank" rel="noopener noreferrer">/guestbook</a></td>
+<td><strong>留言板</strong>：独立留言墙，不分文章，想聊什么直接留；作者回复带「作者」徽标，管理规则与文章评论一致</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/links" target="_blank" rel="noopener noreferrer">/links</a></td>
+<td><strong>友情链接</strong>：友链卡片 + 访客在线申请收录表单</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/" target="_blank" rel="noopener noreferrer">/post/:slug</a></td>
+<td><strong>文章页</strong>：正文、点赞、留言、分享、楼中楼评论、相关文章；自动输出 OG 分享标签与 schema.org JSON-LD 结构化数据（搜索引擎收录基本盘，无需配置）；草稿只有本人登录后加 <code>?preview=1</code> 才能看到</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/" target="_blank" rel="noopener noreferrer">/category/:slug</a></td>
+<td><strong>分类归档页</strong>（顶部「分类话题」菜单里点分类进入）</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/" target="_blank" rel="noopener noreferrer">/tag/:tag</a></td>
+<td><strong>标签归档页</strong>（菜单里点话题进入，带文章计数）</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/search" target="_blank" rel="noopener noreferrer">/search?q=</a></td>
+<td><strong>搜索页</strong>：全文关键词搜索（FTS5 索引，结果按相关度排序），文章展示前 50 条、站内微博一并纳入（前 20 条）；不足 3 个字的短词自动退回普通匹配</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/about" target="_blank" rel="noopener noreferrer">/about</a></td>
+<td><strong>关于我</strong>：独立的作者介绍页，内容在后台「页面」维护（页面系统承载）</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/random" target="_blank" rel="noopener noreferrer">/random</a></td>
+<td><strong>随机阅读</strong>：随机跳到一篇已发布文章</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/rss.xml" target="_blank" rel="noopener noreferrer">/rss.xml</a> · <a href="https://blog.xiaowuleyi.com/sitemap.xml" target="_blank" rel="noopener noreferrer">/sitemap.xml</a></td>
+<td>RSS 全文订阅与站点地图（自动生成）</td>
+</tr>
+<tr>
+<td><a href="https://blog.xiaowuleyi.com/admin/" target="_blank" rel="noopener noreferrer">/admin/</a></td>
+<td><strong>管理后台</strong>（下文的主角）</td>
+</tr>
+</tbody></table></div>
+<h2 id="2-第一次进入后台">2. 第一次进入后台</h2><p>浏览器打开 <code>https://blog.xiaowuleyi.com/admin/</code>：</p>
+<ul>
+<li><strong>第一次</strong>会显示「创建管理员」页面：填用户名（2-24 位字母、数字、_ 或 -）、密码（≥ 8 位）、昵称 → 创建并进入。系统会自动生成一篇欢迎文章（教你怎么用，看完可删）。</li>
+<li><strong>之后</strong>就是普通登录页，登录状态保留 30 天。</li>
+</ul>
+<blockquote>
+<p>这个「创建管理员」入口只在数据库没有任何用户时开放，所以放心，别人打不开你的后台。</p>
+</blockquote>
+<p><strong>已经建过号了</strong>：直接登录即可。管理员登录后在前台还有几个隐形福利——文章 / 微博的评论表单<strong>免填昵称</strong>，以作者身份发言（带「作者」徽标、即时展示、不受限流）；<strong>微博页顶部直接有发微博框</strong>，不用进后台就能随手发（见第 8 节）；每条微博卡片上还有<strong>编辑 / 置顶 / 删除</strong>按钮，前台直接管；草稿可以预览；后台侧栏随处有「查看主页」入口。</p>
+<h2 id="3-后台导览">3. 后台导览</h2><p>左侧导航栏按「数据 / 内容 / 系统」分组（顶部是「查看主页」外链和高亮的「写作」按钮），共十五个入口：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>分组</th>
+<th>页面</th>
+<th>干什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>—</td>
+<td><strong>查看主页 / 写作</strong></td>
+<td>新标签页打开前台；写作是高亮按钮，直达编辑器</td>
+</tr>
+<tr>
+<td>数据</td>
+<td><strong>概览</strong></td>
+<td>已发布文章数 / 总阅读 / 收到的赞 / 待审评论（附草稿数），最近发布的文章，媒体库占用</td>
+</tr>
+<tr>
+<td>数据</td>
+<td><strong>统计</strong></td>
+<td>访客数据：浏览量 / 访客数趋势、今日小时分布、受欢迎的页面、来源、设备 / 浏览器 / 国家地区分布</td>
+</tr>
+<tr>
+<td>内容</td>
+<td><strong>文章</strong></td>
+<td>全部文章的管理列表：搜索、按状态筛选、查看 / 编辑 / 置顶 / 下架 / 删除</td>
+</tr>
+<tr>
+<td>内容</td>
+<td><strong>微博</strong></td>
+<td>随手记发布器 + 全部微博的管理列表（编辑 / 置顶 / 下架 / 删除）</td>
+</tr>
+<tr>
+<td>内容</td>
+<td><strong>评论</strong></td>
+<td>访客留言的管理：按「全部 / 文章 / 微博 / 留言板」和状态筛选，通过 / 隐藏 / 回复 / 删除（待审数量红点提示）</td>
+</tr>
+<tr>
+<td>内容</td>
+<td><strong>媒体</strong></td>
+<td>R2 图床里的文件网格：预览、复制地址、上传、删除</td>
+</tr>
+<tr>
+<td>内容</td>
+<td><strong>分类</strong></td>
+<td>文章分类的增删改 + 全站标签的预建与删除</td>
+</tr>
+<tr>
+<td>内容</td>
+<td><strong>页面</strong></td>
+<td>独立页面管理：自建项目页 / 书单页 / 隐私政策等，可上顶部导航、可排序；「关于我」也在这里维护（见<a href="#13-独立页面页面管理">第 13 节</a>）</td>
+</tr>
+<tr>
+<td>内容</td>
+<td><strong>友链</strong></td>
+<td>友情链接管理：添加、审核访客申请、排序、图标维护（待审数量红点提示）</td>
+</tr>
+<tr>
+<td>内容</td>
+<td><strong>回收站</strong></td>
+<td>删除的文章 / 微博 / 页面的兜底：保留 30 天，可恢复或彻底删除，到期自动清除（见<a href="#14-回收站">第 14 节</a>）</td>
+</tr>
+<tr>
+<td>系统</td>
+<td><strong>会员</strong></td>
+<td>会员列表 / 搜索 / 改档位 / 封禁（即刻踢下线），见<a href="#15-会员与积分">第 15 节</a></td>
+</tr>
+<tr>
+<td>系统</td>
+<td><strong>皮肤</strong></td>
+<td>主题切换（选中即刻生效）+ 皮肤市场精选目录，见<a href="#17-皮肤切换">第 17 节</a></td>
+</tr>
+<tr>
+<td>系统</td>
+<td><strong>插件</strong></td>
+<td>编辑器插件的启停管理 + 插件市场精选目录，开发见 <a href="plugins.html">PLUGINS.md</a></td>
+</tr>
+<tr>
+<td>系统</td>
+<td><strong>设置</strong></td>
+<td>站点信息、头像与图标、站点模式（博客+微博 / 纯博客 / 纯微博）、站点状态（灰度 / 闭站）、评论规则、访客统计开关、数据导出、改密码</td>
+</tr>
+</tbody></table></div>
+<p>关于「统计」页的口径，两件事要知道：</p>
+<ul>
+<li><strong>文章列表里的「阅读量」和统计页数字不是一回事</strong>：前者是 <code>posts.views</code> 累计值（服务端按 IP+文章 1 小时去重自增，展示在文章卡片上）；统计页是独立的访客日志（前台页面打点采集，含首页 / 微博 / 归档等全部页面），两边各记各的。</li>
+<li><strong>隐私与保留</strong>：只记匿名访客号、来源域名与国家码，不存 IP 和原始 UA，访客日志保留 180 天（每晚自动清理）；「设置 → 访客统计」开关关闭后前台不再采集，已有数据保留。数据从功能上线起才开始积累。</li>
+</ul>
+<p>两个顺手的小设计：</p>
+<ul>
+<li><strong>侧栏可收起</strong>：点侧栏顶部「博客号」旁的折叠按钮，收成图标窄条（仅桌面端），状态会记住，下次进来保持原样。</li>
+<li><strong>手机访问</strong>时底部是固定标签栏（概览 / 写作 / 文章 / 评论），其余入口点「<strong>更多</strong>」在底部抽屉里展开（待审申请会以红点聚合提醒）；编辑器顶栏两行、工具栏横滑，写作体验专门做过移动端适配。</li>
+</ul>
+<h2 id="4-写一篇文章完整流程">4. 写一篇文章：完整流程</h2><ol>
+<li>点侧栏「<strong>写作</strong>」（或概览页右上角「✍️ 写文章」）</li>
+<li><strong>输入标题</strong> —— 按回车直接跳到正文</li>
+<li><strong>写正文</strong>：<ul>
+<li>直接打字，回车分段</li>
+<li><strong>截图粘贴</strong>：截完图在正文里 <code>⌘/Ctrl + V</code>，图片自动上传 R2 并插入，无需任何操作</li>
+<li><strong>拖拽上传</strong>：把图片 / 视频文件拖进正文</li>
+<li>工具栏：标题（H2/H3/H4）、加粗、斜体、下划线、删除线、引用、代码块、行内代码、列表、分割线、链接、图片、视频、清除格式</li>
+</ul>
+</li>
+<li>右侧「<strong>信息</strong>」抽屉（默认收起给写作让位，点顶栏「信息」展开；开关状态会记住，桌面端抽屉右上角有 × 可关闭）：<ul>
+<li><strong>摘要</strong>：留空则自动截取正文前 80 字</li>
+<li><strong>封面图</strong>：点击上传，会显示在首页卡片和文章头图（封面与正文首图重复时会自动去重，不会一图两现）</li>
+<li><strong>标签</strong>：输入后回车，最多 8 个，支持历史标签补全</li>
+<li><strong>分类</strong>：下拉选择（一篇文章只归一个分类），分类本身在后台「分类」页维护</li>
+<li><strong>Slug</strong>：留空自动生成——英文标题转短横线格式（<code>my-first-post</code>），中文标题用「发布日期 + 4 位随机位」（如 <code>20261007-k3fx</code>，按北京时间）；重名自动加序号不会发布失败。想自定义就填字母 / 数字 / 中文 / 短横线</li>
+<li><strong>置顶</strong>：打开后文章在首页列表置顶</li>
+<li><strong>定时发布</strong>：打开后选一个北京时间（默认一小时后），点「发布」文章进入定时状态——顶栏徽章显示「定时 月-日 时:分」，后台「文章」列表也会归到「定时」标签下。到点后 1 分钟内自动发布并推送 Telegram，前台在此之前完全不可见。取消定时：关掉开关再保存即回草稿</li>
+<li><strong>访问密码</strong>：打开「加密访问」并填一个密码（最多 64 位），这篇文章就上了锁——访客打开只看到密码输入框，输对才能读全文，解锁状态保留 30 天。密码只在服务端做单向哈希、不会回显；已加密的文章留空保存即保持原密码，直接输入新密码即更换，取消勾选并保存即解除加密。锁定期间正文不进 RSS 全文、搜索也搜不到这篇文章（标题与你自己写的摘要照常展示）</li>
+<li><strong>分享卡图</strong>：点「生成分享卡图」把标题 + 封面（无封面则深色渐变底）绘成 1200×630 的专属卡图，分享到微信 / Telegram 时显示这张图而不是光秃秃的链接；「移除卡图」回退到封面图</li>
+</ul>
+</li>
+<li>顶栏「<strong>体检</strong>」跑一遍排版规范检查（见 <a href="#7-排版体检">第 7 节</a>）</li>
+<li>「<strong>存草稿</strong>」（或 <code>⌘/Ctrl + S</code>）随时保存；不点它也会<strong>每 1.5 秒自动保存</strong></li>
+<li>「<strong>预览</strong>」在新标签页以真实主题打开文章（草稿也可以预览，仅自己可见）</li>
+<li>没问题了点绿色按钮「<strong>发布</strong>」—— 完成，文章即时出现在首页和 RSS；勾了「定时发布」则到点自动发</li>
+</ol>
+<p>已发布的文章再编辑时，绿色按钮变成「更新」，保存即生效；想下架去「文章」列表点「下架」转回草稿。定时中的文章在列表里点「发布」会<strong>立即发出</strong>（同时清掉定时时间）。</p>
+<p><strong>文章分享</strong>：文章页底部「赞 / 留言」旁还有一个「分享」按钮，点开是分享面板——<strong>复制链接</strong>（一键复制本文永久链接，老浏览器自动降级）、<strong>分享给朋友</strong>（手机上唤起系统分享面板，能带图带图、带不动图分享纯链接）、<strong>保存图片 / 复制图片</strong>（生成一张竖版文章卡：站名头像 + 标题 + 摘要 + 封面 + <strong>二维码</strong>，收到图的人扫码直达本文，适合发朋友圈 / 微信群）。卡片图同为纯前端生成，二维码由服务端随页面下发（无外部依赖）。</p>
+<blockquote>
+<p>从「采集公众号文章」来的草稿会<strong>保留原文的发布时间</strong>，自动保存不会把它抹掉；发布时沿用这个时间。</p>
+</blockquote>
+<h2 id="5-编辑器技巧">5. 编辑器技巧</h2><p><strong>快捷键</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>快捷键</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>⌘/Ctrl + S</code></td>
+<td>保存</td>
+</tr>
+<tr>
+<td><code>⌘/Ctrl + B / I / U</code></td>
+<td>加粗 / 斜体 / 下划线</td>
+</tr>
+<tr>
+<td><code>⌘/Ctrl + Z / Shift+Z</code></td>
+<td>撤销 / 重做</td>
+</tr>
+<tr>
+<td>选中文字后点工具栏</td>
+<td>对选区生效（链接、行内代码等同理）</td>
+</tr>
+</tbody></table></div>
+<p><strong>行首快捷排版（Markdown 爱好者福音）</strong>：富文本模式下在空段落行首输入标记后按空格，自动转成对应格式——<code>&gt; </code> 引用、<code># </code> 或 <code>## </code> H2、<code>### </code> H3、<code>#### </code> H4、<code>- </code> 或 <code>* </code> 无序列表、<code>1. </code> 有序列表；整段只有 <code>```</code> 或 <code>---</code> 时按回车，直接变代码块 / 分割线。只在普通段落触发（标题、引用、代码块里继续输入原字符），输入法选词的空格回车不误触。</p>
+<p><strong>微信表情</strong>：工具栏「😊」打开微信默认表情面板（[微笑] ~ [转圈] 共 117 个），点一个插入一个、可连续选，点面板外或 Esc 关闭。插入的是 <code>[微笑]</code> 这类<strong>文本码</strong>——正文里所见即所得显示小图（编辑器内直接显示表情图，Markdown 模式显示文本码），发布后前台渲染成行内小图；正文里手打的 <code>[微笑]</code> 也会自动渲染。图源为开源 Twemoji（CC-BY 4.0），映射表在 <code>src/emoji.ts</code>。微博发布器（后台 + 前台）同款「😊 表情」按钮；评论区手打文本码同样渲染。</p>
+<p><strong>图片自动压缩</strong>：粘贴 / 拖拽 / 选文件上传的 JPEG、PNG、WebP，超过 150KB 或最长边超过 2000px 会先在本地压一遍（最长边 2000px、WebP 质量 75%——WebP 压缩率高，75% 已是业内通行的视觉无损甜点）并<strong>统一转成 WebP</strong> 再传 R2——同画质比 JPEG 约再省三成体积，透明 PNG / 带透明的 WebP 转过去也不丢透明；旧浏览器不支持 WebP 编码时自动回退 JPEG / PNG 口径（质量 82%）。微博九图、截图帖加载更快，流量更省。GIF 动图会压丢帧所以原样直传，压不小则用原图。</p>
+<p><strong>前台图片灯箱</strong>：文章正文和微博配图点击即全屏查看——双指捏合 / 滚轮缩放，拖动平移，双击放大复原，左右滑动或方向键切换同组图片，<code>Esc</code> 或点 × 关闭。头像和小图标不受影响。</p>
+<p><strong>Markdown 模式</strong>：点底栏「Markdown」进入纯文本模式，支持 <code># 标题</code>、<code>**加粗**</code>、<code>*斜体*</code>、<code>`行内代码`</code>、<code>``` 代码块 ```</code>、<code>&gt; 引用</code>、<code>- 列表</code>、<code>1. 列表</code>、<code>[链接](url)</code>、<code>![图](url)</code>、<code>---</code> 分隔线。再点一次「Markdown」转回富文本（自动渲染）。</p>
+<p><strong>粘贴富文本</strong>：从网页、Word、公众号编辑器复制的内容粘贴时，会先经过服务端白名单净化——脚本、危险属性被剥除，排版样式（颜色、字号、对齐、边框）保留。<strong>外链图片自动转存</strong>：粘贴内容里的外链图（公众号 <code>mmbiz.qpic.cn</code> 等有防盗链、随时会失效）会自动抓取转存进站内 R2 图床并替换地址（单篇上限 30 张，与采集同口径），转存失败的图保留原地址。</p>
+<p><strong>外链跳转提醒</strong>：正文里指向第三方网站的链接（微博正文同理，见第 8 节），访客点击时会先经过本站的「即将离开本站」提醒页——展示目标域名与完整链接、附免责声明，由访客自行决定是否继续，防钓鱼防误触。主流官方大站（苹果 / 谷歌 / X / GitHub / 微博 / 知乎 / B 站等，清单在 <code>src/outlink.ts</code> 的 <code>TRUSTED_OUT_DOMAINS</code>）与本站自身域名不受影响、直接跳转；存库与 RSS / 导出内容里的链接保持原始地址，提醒页只在浏览器渲染层生效。</p>
+<p><strong>自动保存去哪了</strong>：编辑器顶部「已保存 HH:MM」是最后一次保存时间；显示「保存失败」时点一下文字即可重试。关页面前有未保存更改会弹浏览器确认。<strong>本地备份兜底</strong>：还没保存成功的输入会同时留在浏览器本地（每 2 秒一份），断网、崩溃、误关标签页后重新打开这篇文章，会问你要不要恢复本地备份——正常保存成功后备份自动清掉，不会打扰。</p>
+<p><strong>查找替换</strong>：顶栏「查找」按钮或 <code>⌘/Ctrl + F</code>，支持逐个替换（Enter 下一个、Shift+Enter 上一个）、全部替换、区分大小写；Markdown 模式下同样可用（直接定位纯文本）。当前命中的文字会高亮标记，关闭查找条或保存时自动还原，不会写进正文。</p>
+<p><strong>表格</strong>：工具栏「表格」按钮插入 3×3 表格（首行是表头）；光标点进任意单元格，上方浮现操作条——上下插行、删行、左右插列、删列、首行表头/正文互换、删表。Markdown 模式下表格转成 <code>| 列 | 列 |</code> 管道写法（<code>| --- |</code> 分隔行），往返切换不丢表。</p>
+<p><strong>链接卡片与插入站内文章</strong>：工具栏「链接」按钮现在是三个页签——① <strong>网址卡片</strong>：填任意网页地址，自动抓取该页的标题、摘要与配图生成一张漂亮的引用卡片（编辑器里实时预览，抓不到时用域名占位，不会失败）；② <strong>普通链接</strong>：传统的蓝色超链接（老行为，选区文字会自动带进文字框）；③ <strong>站内文章</strong>：搜索标题或翻页浏览自己已发布的文章，选中后可再选「卡片 / 超链接」两种样式，卡片带封面图与摘要、标题带 🔒 标记提醒加密文。卡片在前台六套主题下各有贴合主题配色的样式，外链照常走「即将离开本站」提醒页。Markdown 模式下「链接」按钮退化为纯 Markdown 链接插入（卡片是富文本能力）。</p>
+<p><strong>图片点一下就能改</strong>：点正文里的图片弹出设置——改 <strong>alt 描述</strong>（无障碍与 SEO，读屏软件会朗读）、调<strong>显示宽度</strong>（75% / 50% / 35%，按微信排版规范的原始像素宽度口径），也可以直接删除这张图。</p>
+<p><strong>专注模式</strong>：底栏「专注」一键隐藏顶栏、工具栏、信息抽屉，只剩写作纸面；<code>Esc</code> 退出，开关状态会记住。</p>
+<h2 id="6-采集公众号文章">6. 采集公众号文章</h2><p>编辑器工具栏末尾有个<strong>微信双气泡图标</strong>的按钮——「采集公众号文章」。用途：看到一篇不错的公众号内容想存到自己站上（或转载），不用手动复制粘贴。普通图文和**贴图（图片消息）**都支持——贴图采集后图片在前、文字分段在后，与原页面版式一致。</p>
+<p><strong>怎么用</strong>：</p>
+<ol>
+<li>复制公众号文章的链接（形如 <code>https://mp.weixin.qq.com/s/…</code>，在微信里点「复制链接」即可）</li>
+<li>点工具栏上的采集按钮，粘贴链接，确认</li>
+<li>服务端抓取正文，把<strong>所有配图和封面转存进自己的 R2 图床</strong>（不依赖微信的图床，防失效），生成一篇<strong>保留原发布时间</strong>的草稿，并自动跳转到编辑器</li>
+<li>核对排版和图片，顺手改改摘要 / 标签，点「发布」即可</li>
+</ol>
+<blockquote>
+<p>公众号的封面图通常是<strong>正文首图的裁切版</strong>（同一张图、不同尺寸）。采集时会自动认出这种情况：封面只放到草稿的封面位，正文里不再重复收这张图，发布后文章页不会一图两现。此前采集的旧文章不受影响，发现重复的话在编辑器里删掉正文里那张即可。</p>
+</blockquote>
+<p><strong>限制（防滥用，都是自动的）</strong>：</p>
+<ul>
+<li>每分钟最多采集 10 篇（同一 IP）</li>
+<li>单篇最多转存 30 张配图，单图 ≤ 25MB，正文 ≤ 约 900KB</li>
+<li>只接受 <code>mp.weixin.qq.com</code> 的文章链接；公众号<strong>内嵌视频暂不支持</strong>（采集后该段会被丢弃，需要的话请在编辑器手动补）</li>
+</ul>
+<h2 id="7-排版体检">7. 排版体检</h2><p>点顶栏「体检」，编辑器会按《微信公众平台编辑器插件开发规范》对正文做静态检查，输出一份报告：⚠️ 建议修复项、💡 优化建议，每条注明规范编号。部分问题支持「一键修复」（如 <code>!important</code>、<code>text-align: start/end</code>）。</p>
+<p>常见提示怎么改：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>提示</th>
+<th>改法</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>固定宽度</td>
+<td>编辑器产出的内容一般没有；从外部粘贴的图片/表格若被提示，把 <code>width: 500px</code> 改成 <code>width: 100%</code>，或确认有意为之后在节点加 <code>data-ignore-width</code></td>
+</tr>
+<tr>
+<td>图片缺 data-w</td>
+<td>用编辑器上传的图会自动带；外链图可手动补 <code>data-w=&quot;原始像素宽度&quot;</code></td>
+</tr>
+<tr>
+<td>pre 包正文</td>
+<td>把普通段落从代码块里挪出来</td>
+</tr>
+</tbody></table></div>
+<p>完整规则表见 <a href="typography.html">wechat-typography-spec.md</a>。没有红字就是好排版，放心发布。</p>
+<h2 id="8-发微博随手记">8. 发微博（随手记）</h2><p>不是每句话都值得起标题、配摘要——短想法、生活记录、看到的图片，走后台「<strong>微博</strong>」页的发布器：<strong>写上字（或直接配图）就能发</strong>。</p>
+<p>发布框里有「😊 表情」按钮，点开微信默认表情面板选表情插入（存的是 <code>[微笑]</code> 文本码，前台渲染成行内小图；评论区手打文本码同样渲染）。</p>
+<p><strong>前台也能直接发、直接管</strong>：管理员登录后打开 <code>/weibo</code>，时间线顶部就有同一个发布器（访客看不到），加图 / 粘贴 / 拖拽 / 话题 / 草稿全部支持，点「发布」后页面自动刷新出新微博；每张卡片的底栏右侧还有<strong>编辑 / 置顶（取消置顶）/ 删除</strong>三个管理按钮（同样只有你能看到）——编辑就地展开、改完保存立即生效（文字和图都能改），置顶取消置顶不用刷新，删除有二次确认。下架转草稿仍回后台操作。</p>
+<p><strong>发布器怎么用</strong>：</p>
+<ul>
+<li>输入框里打字，最多 <strong>5000 字</strong>，右下角实时计数</li>
+<li><strong>加图三种方式</strong>：点「加图」选文件、把图片<strong>拖进</strong>输入框、在输入框里直接 <strong><code>⌘/Ctrl + V</code> 粘贴截图</strong>（发截图最顺手的姿势）。最多 <strong>9 张</strong>，多出的自动忽略，只支持 JPG / PNG / WebP / GIF</li>
+<li>想归类就写<strong>话题</strong>：正文里带 <code>#话题#</code> 即可，如 <code>#晚餐日记#</code>，发布后自动提取归类（单条微博最多 10 个话题，每个话题最长 24 字）。也兼容 <code>#话题</code>（结尾不带 #）和 Memos 式层级标签 <code>#软件/apple/mac</code>，整个词算一个话题</li>
+<li><strong>发布</strong>或<strong>存草稿</strong>随时选；草稿不出现在前台</li>
+</ul>
+<p><strong>发出去之后</strong>（前台 <code>/weibo</code> 时间线）：</p>
+<ul>
+<li>每页 15 条，<strong>置顶的排最前</strong>；访客可以点赞、在卡片里展开评论区留言</li>
+<li>正文里贴的<strong>链接自动变成可点击的超链</strong>（中英文都认，句尾标点不会粘进链接）；指向第三方网站的链接会先经过「即将离开本站」提醒页（见第 5 节），主流大站直接跳转</li>
+<li>从卡片正文的 <code>#话题#</code> 链接点进去，可筛选同一话题的全部微博（未筛选时页头不显示话题条，保持干净）</li>
+<li>微博页有独立的翻页，首页的「微博入口卡」展示最新随手记摘要并链接过来</li>
+</ul>
+<p><strong>分享卡片</strong>：每条微博底栏的「分享」按钮可以一键把这条随手记生成一张精美的图片卡（站名头像 + 正文带话题高亮 + 配图九宫格 + 时间与站点域名），支持 <code>navigator.share</code> 的手机（iOS 15+ / 安卓主流浏览器）直接唤起系统分享面板发朋友圈，桌面端「保存图片」直接下载；支持剪贴板写入的浏览器（Chrome / Edge / Safari 16+ / Firefox 127+）还有「复制图片」，可直接粘贴到公众号编辑器、微信聊天等支持粘贴图片的输入框，不支持的浏览器自动隐藏该按钮；微信等内置浏览器里长按预览图也能保存转发。纯前端生成（点击时才加载生成器），不经过服务端。</p>
+<p><strong>管理已有微博</strong>（后台「微博」页列表，或前台 <code>/weibo</code> 卡片上的编辑 / 置顶 / 删除按钮）：</p>
+<ul>
+<li><strong>编辑</strong>：回到发布器修改（文字和图都能改）</li>
+<li><strong>置顶 / 取消置顶</strong>：最多同时置顶 <strong>3 条</strong>；草稿不能置顶</li>
+<li><strong>下架 / 发布</strong>：下架转回草稿（转草稿会自动取消置顶），再发布就恢复</li>
+<li><strong>删除</strong>：移入回收站（30 天内可在后台「回收站」恢复；到期自动清除或手动彻底删除时，评论才会一并清除，见<a href="#14-回收站">第 14 节</a>）</li>
+</ul>
+<h3 id="81-从外面发微博telegram-机器人推荐">8.1 从外面发微博：Telegram 机器人（推荐）</h3><p>两步接好之后，<strong>在 Telegram 里给机器人发消息 = 发微博</strong>——文字、图片、图片+文字都可以，最适合手机上随手记。</p>
+<p><strong>第 1 步：创建机器人</strong>（一分钟）：</p>
+<ol>
+<li>Telegram 搜索 <strong>@BotFather</strong>，发送 <code>/newbot</code></li>
+<li>按提示给机器人起名（显示名）和用户名（必须以 <code>bot</code> 结尾）</li>
+<li>BotFather 会回复一串 <strong>Bot Token</strong>，形如 <code>123456789:AAH8x…</code>，复制它</li>
+</ol>
+<p><strong>第 2 步：后台配置</strong>（后台「设置 → 外部发布」）：</p>
+<ol>
+<li>把 Bot Token 粘进「<strong>Telegram Bot Token</strong>」，点右上角「<strong>保存全部</strong>」</li>
+<li>点「<strong>保存并一键设置 Webhook</strong>」——显示 <code>✅ 已绑定 @你的机器人</code> 即接入完成（这一步会自动生成 Webhook 密钥并注册到 Telegram，不需要手动操作 BotFather）</li>
+</ol>
+<p><strong>第 3 步：授权你自己</strong>：</p>
+<ol>
+<li>在 Telegram 里给机器人发一条 <code>/start</code>，它会回复你的 <strong>Chat ID</strong>（一串数字）</li>
+<li>把这串数字填进「<strong>允许发布的 Chat ID</strong>」，再点「保存全部」</li>
+</ol>
+<p>完成。现在直接给机器人发消息即可：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>你发的</th>
+<th>得到的</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>文字</td>
+<td>文字微博（正文带 <code>#话题#</code> 照常归类）</td>
+</tr>
+<tr>
+<td>图片（caption 可写字）</td>
+<td>图文微博，最多 9 张</td>
+</tr>
+<tr>
+<td>一次多选几张的相册</td>
+<td>自动<strong>合并成一条</strong>多图微博</td>
+</tr>
+<tr>
+<td>消息开头写 <code>/draft </code></td>
+<td>存为草稿（<code>/draft 今天先记一笔</code>）</td>
+</tr>
+<tr>
+<td><code>/start</code> 或 <code>/help</code></td>
+<td>查看帮助与自己的 Chat ID</td>
+</tr>
+</tbody></table></div>
+<p>发布成功机器人会回复 <code>✅ 已发布到微博</code> 并附上链接；图片经机器人中转<strong>存进你的 R2 图床</strong>，和手动上传一致。发错了去后台「微博」页改或删。</p>
+<blockquote>
+<p><strong>安全</strong>：Webhook 地址带随机密钥，伪造请求会被拒；不在白名单里的会话发了消息只会收到「未授权」提示，不能发布。所以机器人可以放心用。</p>
+<p><strong>注意</strong>：Bot Token 等同于发布权限，只填在自己后台；想撤销某个工具的权限，点「重新生成」API Token 或在 BotFather 里 <code>/revoke</code> 换新 Token。</p>
+</blockquote>
+<h3 id="82-程序化发布开放-api">8.2 程序化发布：开放 API</h3><p>任何能发 HTTP 请求的工具——iOS 快捷指令、n8n /影刀自动化、脚本、其他网站——都能发微博。先在「设置 → 外部发布」点「<strong>生成 Token</strong>」并复制，然后：</p>
+<div class="codeblock" data-lang="bash"><pre><code>TOKEN=你生成的Token
+
+# 纯文字（含话题）
+curl -X POST https://blog.xiaowuleyi.com/api/external/weibo \
+  -H &quot;Authorization: Bearer $TOKEN&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;content&quot;:&quot;从终端发的第一条微博 #折腾#&quot;}'
+
+# 图片文件（multipart，可重复 images 字段传多张）
+curl -X POST https://blog.xiaowuleyi.com/api/external/weibo \
+  -H &quot;Authorization: Bearer $TOKEN&quot; \
+  -F &quot;content=配图微博&quot; \
+  -F &quot;images=@/path/to/photo.jpg&quot;
+
+# base64 图片（JSON 里直接给 data URL，适合快捷指令 / 截图上传）
+curl -X POST https://blog.xiaowuleyi.com/api/external/weibo \
+  -H &quot;Authorization: Bearer $TOKEN&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;content&quot;:&quot;截图&quot;, &quot;images&quot;:[&quot;data:image/png;base64,iVBORw0…&quot;]}'</code></pre></div><p><strong>规则与后台发布器完全一致</strong>：文字 ≤ 5000 字、图片 ≤ 9 张（JPG / PNG / WebP / GIF，文件走接口上传 ≤ 25MB）、话题从正文 <code>#话题#</code> 自动提取、<code>&quot;status&quot;:&quot;draft&quot;</code> 存草稿、限频 30 次/分钟。返回 <code>{ok, id, url, status, images}</code>，<code>url</code> 直接指向这条微博。接口参数详见 <a href="api.html">API.md</a>。</p>
+<h2 id="9-媒体库图床">9. 媒体库（图床）</h2><p>侧栏「媒体」：所有上传过的图片和视频按时间倒序展示，点击可预览、复制访问地址（<code>/images/u/202610/xxx.png</code>）、删除。写文章、发微博、传头像图标、采集公众号配图——都存在这一个桶里。</p>
+<ul>
+<li>上传限制：JPG / PNG / WebP / GIF / MP4 / WebM，单文件 ≤ 25MB</li>
+<li><strong>隐私：EXIF / GPS 自动抹除</strong>：所有进入图床的图片（手动上传、编辑器粘贴、采集与外部转存）在落库前自动剥掉 EXIF / GPS / XMP 等元数据——手机照片的拍摄位置与设备信息不会随图公开。纯字节摘除、零画质损失，颜色配置（ICC）保留；带旋转标记（orientation ≠ 1）的照片为防显示颠倒会整体保留，属小概率例外</li>
+<li>删除前想一下：如果文章 / 微博里引用了这张图，删除后图会裂</li>
+<li>占用统计在概览页底部</li>
+</ul>
+<p><strong>体检</strong>：页头「体检」按钮对图床做一次全面检查，报告三类问题，操作前先出报告、确认后才执行——</p>
+<ul>
+<li><strong>未引用</strong>：站内任何地方（文章正文、封面、页面、微博配图、头像、友链图标、站点设置）都没用到的文件，勾选后可一键清理，删除不影响前台显示。注意：如果某张图被站外文章当作图床热链，站内检测不到，删掉后对方页面会挂图。</li>
+<li><strong>重复</strong>：内容完全相同（按文件指纹比对）的文件分成一组，点某张的「保留这张」，其余副本的引用会自动改写到它再删除，文章照常显示。</li>
+<li><strong>失踪记录</strong>：图床里文件已不在（多半是手动清过 R2）只剩登记条目的，可一键清理；仍被正文引用的会标出来——那些图片本身已是死链，建议先修复正文。</li>
+</ul>
+<p>首次体检会先为老文件计算指纹（自动分批进行，几百个文件也就十几秒）；之后上传的文件在入库时就带指纹，体检即时出结果。</p>
+<h2 id="10-评论管理">10. 评论管理</h2><p><strong>前台规则</strong>：访客在文章页底部、微博卡片里和<strong>留言板</strong>（<code>/guestbook</code>）都能留言；文章与留言板评论支持<strong>楼中楼</strong>——你（作者）可以回复某条留言，回复挂在同一层并带「作者」徽标。访客默认即时展示，可在设置改为先审后展。</p>
+<p><strong>你登录着的时候</strong>在前台发言：免填昵称、直接展示、不受限流，同样带「作者」徽标。所以看完文章顺手回一条留言，前台就能完成，不用去后台。</p>
+<p><strong>后台「评论」页</strong>：</p>
+<ul>
+<li>顶部按类型切换：<strong>全部 / 文章 / 微博 / 留言板</strong>，另有状态筛选（全部 / 待审 / 已通过）</li>
+<li>每条留言可：<strong>通过</strong>（展示）、<strong>隐藏</strong>（暂不展示）、<strong>回复</strong>（以作者身份回一条，直接展示）、<strong>删除</strong>（该条与其下的回复一起删）</li>
+<li>管理员在前台也可以直接点留言旁的「回复」按钮，效果一致</li>
+</ul>
+<p><strong>防垃圾三件套已内置</strong>：蜜罐字段（机器人会填，直接静默丢弃）、同 IP 限流（10 分钟 5 条）、内容长度限制（昵称 ≤ 24 字、内容 ≤ 1000 字）。友链申请另有独立限流。</p>
+<p><strong>新留言 Telegram 推送</strong>：在「设置 → 外部发布」打开「新留言推送到 Telegram」（默认开）。文章、微博或留言板一来新留言，你的发布机器人会立刻把来源、昵称、内容摘要和直达链接推到 Telegram（发给白名单第一个 Chat ID，即你自己）。需要先按 8.1 配好 Bot Token 与 Webhook；开启先审后展时，消息里会标「⏳ 待审核」。你自己以作者身份发言不推送。</p>
+<h2 id="11-友情链接">11. 友情链接</h2><p>前台 <code>/links</code> 页展示所有已收录的友链，并在页尾提供<strong>申请收录</strong>表单——访客填站名和网址即可提交，进入待审核队列（同 IP 10 分钟限 3 次，网址去重，蜜罐防机器人）。</p>
+<p><strong>后台「友链」页</strong>分两个标签：<strong>已收录</strong> / <strong>待审核</strong>。</p>
+<ul>
+<li><strong>审核</strong>：待审核列表里点「通过」即收录上线；如果对方没提供图标，通过后服务端会<strong>在后台自动去抓对方的网站图标</strong>，不卡你操作</li>
+<li><strong>添加友链</strong>：点右上角「添加友链」，填站名、网址、简介（可选）。<strong>图标</strong>有四种给法，随意选：<ol>
+<li><strong>自动获取</strong>——填完网址点一下，自动抓对方 favicon 存进图床</li>
+<li><strong>上传图片</strong>——本地选一张（PNG / JPG / WebP / GIF / ICO，走 R2 图床）</li>
+<li><strong>贴图片地址</strong>——在图标输入框里粘一个 <code>https://…</code> 图片链接</li>
+<li><strong>直接粘贴</strong>——把复制的图片在弹窗里 <code>Ctrl + V</code>，自动传图床</li>
+</ol>
+<ul>
+<li>都不给也行，前台会显示<strong>站名首字</strong>的占位图标</li>
+</ul>
+</li>
+<li><strong>排序</strong>：已收录列表里有 ↑ / ↓ 按钮上下移动；编辑里也可直接填排序数字（小的靠前）</li>
+<li><strong>隐藏</strong>：把已收录的友链移回待审核（不下架数据，前台不再展示）</li>
+<li><strong>图标</strong>按钮：已收录的友链想重新抓一次图标，点它</li>
+<li><strong>删除</strong>：彻底移除</li>
+</ul>
+<h2 id="12-分类与标签">12. 分类与标签</h2><p>两者互补：<strong>分类是文章的大归类</strong>（一篇文章只属于一个分类，如「技术」「生活」），<strong>标签是自由的关键词</strong>（一篇文章最多 8 个）。</p>
+<p>后台「分类」页：</p>
+<ul>
+<li><strong>添加分类</strong>：填名称即可，标识（slug，出现在 <code>/category/</code> 后面）留空就用名称本身；支持字母、数字、中文和短横线，不可重复</li>
+<li><strong>编辑 / 删除</strong>：删除分类后，原属文章变为「未分类」，文章本身不受影响</li>
+<li><strong>标签管理</strong>（同页下半部分）：展示全站标签及使用计数。在这里可以<strong>预建</strong>还没被用到的标签（会出现在编辑器补全和后台列表里；顶部「分类话题」菜单只展示已被至少一篇已发布文章使用的标签），也可以<strong>删除</strong>标签——会从所有文章里一并移除</li>
+</ul>
+<p>顶部导航的「分类话题」折叠菜单：上半区是分类，下半区是按热度排序的标签（带计数），点击即进入对应归档页。</p>
+<h2 id="13-独立页面页面管理">13. 独立页面（页面管理）</h2><p>侧栏「内容 → <strong>页面</strong>」：在这里创建不属于文章流的自建页面，渲染在 <code>/page/&lt;链接标识&gt;</code>——项目页、书单页、工具页、隐私政策都靠它。</p>
+<ul>
+<li><strong>新建 / 编辑</strong>：右上角「新建页面」或行内「编辑」。标题必填；链接标识留空会按标题自动生成（重复自动加 <code>-2</code> 后缀）；正文是 HTML 源码（与文章正文同一套白名单净化，排版安全）。v1 用弹窗编辑 HTML 源码，和迁移前的「关于我」编辑方式一致。</li>
+<li><strong>已发布 / 草稿</strong>：开关关掉就是草稿，前台直接 404，只有你能通过后台看到。</li>
+<li><strong>显示在顶部导航</strong>：开启后前台导航「友情链接」与「关于我」之间会出现此页面（按行内 ↑↓ 按钮排序）；隐私政策这类不想上导航的页面，保持关闭即可，链接可以放页脚或文章里。</li>
+<li><strong>关于我</strong>：「关于我」已从设置页迁到这里（slug 固定为 <code>about</code>），仍渲染在专属短链 <strong><code>/about</code></strong>——升级后第一次进入后台时自动迁移，内容不变；<code>/page/about</code> 会自动跳回 <code>/about</code>，sitemap 与旧链接都不受影响。</li>
+<li>删除页面会移入回收站（前台立即 404，30 天内可在<a href="#14-回收站">回收站</a>恢复）。</li>
+</ul>
+<h2 id="14-回收站">14. 回收站</h2><p>删除<strong>不等于消失</strong>。文章、微博、独立页面（含「关于我」）的「删除」都是先移入回收站：前台与后台各列表立即不可见，但内容原封不动躺在这里，<strong>保留 30 天</strong>，随时可以反悔。</p>
+<p>侧栏「内容 → <strong>回收站</strong>」：</p>
+<ul>
+<li><strong>恢复</strong>：点一下内容就回到删除前的原处——文章回到原来的状态（已发布 / 草稿 / 定时），微博和页面同理，评论也原样跟回来。恢复的定时文章如果发布时间已过，会自动转为草稿（不会一恢复就发出去）</li>
+<li><strong>彻底删除</strong>：从回收站里真正删掉（其下评论一并删除），这一步不可恢复</li>
+<li><strong>清空回收站</strong>：右上角按钮，一键彻底删除全部（可先按文章 / 微博 / 页面筛选）</li>
+</ul>
+<p>几点说明：</p>
+<ul>
+<li>每项显示删除时间，<strong>30 天后由系统在每晚维护时自动彻底清除</strong>，不用手动管理；到期前数据仍在每日自动备份里，双保险</li>
+<li>回收站里的文章占用的 slug 不会被新文章抢走，恢复后链接照旧；RSS / sitemap / 归档 / 搜索等前台位置在删除瞬间就会同步移除，不会有残留</li>
+<li>数据导出（Markdown 包 / WXR）只包含未删除的内容，回收站里的不计入；整站备份则照常包含</li>
+</ul>
+<h2 id="15-会员与积分">15. 会员与积分</h2><p>访客可以注册成站内会员：登录后评论自动带身份与积分，积分排行榜给互动一个看得见的反馈。全部能力由一个总开关控制，<strong>默认关闭</strong>——不开就当这套功能不存在，站点行为与从前完全一致。</p>
+<h3 id="开关与入口">开关与入口</h3><p>后台「设置 → 会员功能」：</p>
+<ul>
+<li><strong>会员功能</strong>（默认关）：关闭时前台没有任何会员入口，<code>/member</code>、<code>/rank</code> 都是 404；开启后顶部导航出现「会员」「排行榜」两项（位于「关于我」之前）</li>
+<li><strong>排行榜条数</strong>：榜单页（<code>/rank</code>）展示的人数上限（1-50，默认 10）</li>
+</ul>
+<h3 id="会员侧">会员侧</h3><ul>
+<li><strong>注册 / 登录</strong>：「会员中心」（<code>/member</code>）里注册（用户名 + 密码 + 可选昵称与邮箱，蜜罐 + 限流防机器人）、登录、退出；密码 8-64 位，服务端 PBKDF2 单向哈希存储，与站长账号完全隔离</li>
+<li><strong>个人资料</strong>：登录后会员中心出身份卡（昵称 / 档位 / 积分 / 注册时间）与两张修改卡——<strong>昵称</strong>中英文均可（注册时选填，仅作展示不做唯一），<strong>每 30 天可修改一次</strong>，冷却中卡片会写明下次可改日期；<strong>密码</strong>修改需验证当前密码，成功后其他设备全部退出登录（当前设备保持登录）。<strong>本站不提供密码找回</strong>——注册与改密表单旁都有提醒，请务必记好密码，遗失无法找回</li>
+<li><strong>评论带身份</strong>：登录后文章 / 留言板 / 微博三处评论表单都显示「以会员 xxx 的身份发言」并免填昵称，发出的评论自动带会员昵称与档位徽标；表单里填的昵称 / 邮箱 / 网站字段会被忽略</li>
+<li><strong>QQ 头像</strong>：会员中心「QQ 头像」卡里绑定自己的 QQ 号（选填），评论区与排行榜会显示你的 QQ 头像（服务端抓取后转存到自己站内图床，国内直连零成本）；QQ 号本身不会公开展示，仅用于抓取头像。头像没抓到时同一张卡可一键重试；没绑定的用户在评论区显示昵称首字图标</li>
+<li><strong>游客也能亮头像</strong>：文章 / 留言板 / 微博的评论表单都有「QQ 号（选填）」一栏，填了就展示 QQ 头像，不填不影响留言；填错格式会提示但不会拦住评论。QQ 号同样不公开展示，且同一 QQ 只抓一次头像（本机也会记住，下次不用重填）</li>
+<li><strong>积分</strong>：发表留言 / 评论 <strong>+2</strong>（先审后展模式下过审才计，同一条评论只计一次）、每日登录 <strong>+1</strong>；评论积分单日上限 10 条，防刷由蜜罐与限流叠加兜底</li>
+<li><strong>排行榜</strong>（<code>/rank</code>）：按积分倒序的总榜，自己的名次会高亮；只展示正常状态的会员，积分为 0 不上榜</li>
+</ul>
+<h3 id="站长侧">站长侧</h3><p>后台「会员」页：列表与搜索（用户名 / 邮箱）、改档位（普通 / 咖啡 / 顶级，档位决定「谁能看」文章档位）、封禁 / 解封——<strong>封禁即刻踢下线</strong>（该会员全部会话作废），历史评论保留。</p>
+<h3 id="会员专属文章">会员专属文章</h3><p>编辑器侧栏「<strong>谁能看</strong>」四档：公开（默认）/ 仅登录会员 / 咖啡会员 / 顶级会员。非目标读者打开文章只看到开头试读段（服务端截断约 200 字）与升级遮挡卡——<strong>截断在服务端完成，浏览器拿不到的才是真拿不到</strong>；RSS 全文、公开接口、卡片摘要同步收敛为摘要口径，关键词搜索可按标题命中。锁定文章的评论区照常开放。</p>
+<blockquote>
+<p>与「访问密码」（见第 4 节）可以同时使用：密码墙优先——访客先输对文章密码，再按会员档位判定可见性。</p>
+</blockquote>
+<h2 id="16-设置逐项说明">16. 设置逐项说明</h2><p>后台「设置」页改完记得点右上角「<strong>保存全部</strong>」。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>设置</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>站点模式</strong></td>
+<td>不爱写长文可以只写微博：<strong>博客 + 微博</strong>（默认，两者都展示，可选打开首页先看博客还是先看微博——「微博在前」时首页直接渲染完整微博卡片流，文章列表跟在后面）、<strong>纯博客</strong>（隐藏全部微博模块：导航与页脚都去掉「微博」入口、首页不出随手记、「历史上的今天」只留文章、<code>/weibo</code> 跳回首页、sitemap 不再收录微博页）、<strong>纯微博</strong>（打开首页就是微博时间线，导航隐藏归档 / 分类话题 / 随机等博客模块，<code>/weibo</code> 仍是完整微博页）。只影响前台展示，文章与微博数据都不会动，随时可切换</td>
+</tr>
+<tr>
+<td><strong>站点名称</strong></td>
+<td>浏览器标题、首页刊头、文章作者位、RSS 都用它</td>
+</tr>
+<tr>
+<td><strong>站点链接</strong></td>
+<td>填 <code>https://blog.xiaowuleyi.com</code>。用于 RSS / sitemap / OG 分享的绝对链接，绑定自定义域名后<strong>务必填上</strong>；不填则自动取当前访问域名</td>
+</tr>
+<tr>
+<td><strong>站点描述</strong></td>
+<td>首页刊头副标题 + SEO description</td>
+</tr>
+<tr>
+<td><strong>页脚文字</strong></td>
+<td>每页底部的灰字，可以放 ICP 备案号</td>
+</tr>
+<tr>
+<td><strong>站点头像</strong></td>
+<td>显示在首页刊头、微博页与后台。点「上传头像」传一张（存 R2 图床），「恢复默认」则显示站名首字</td>
+</tr>
+<tr>
+<td><strong>网站图标</strong></td>
+<td>浏览器标签页上的小图（favicon），上传 PNG / ICO / WebP，同样存图床</td>
+</tr>
+<tr>
+<td><strong>分享卡图</strong></td>
+<td>分享到社交平台（X / 微信 / Telegram…）时的卡片大图，建议 1200×630 的 PNG / JPG。文章设了封面会优先用封面；没设封面的文章、首页与各列表页用这张兜底，都没上传则用内置卡图</td>
+</tr>
+<tr>
+<td><strong>灰度模式</strong></td>
+<td>全站去色显示（黑白），用于哀悼、纪念等特殊时刻；后台不受影响，关掉随时恢复</td>
+</tr>
+<tr>
+<td><strong>关闭站点</strong></td>
+<td>一键闭站：保存后所有访客（含搜索引擎）只能看到一张闭站页，RSS、sitemap、评论 / 点赞 / 友链申请等也一并停用；后台、登录、图床不受影响，<strong>已登录的你仍可正常浏览全站</strong>检查效果。闭站页返回 503 + Retry-After，搜索引擎会暂时保留收录而不是把站点当 404 摘掉。开启瞬间会弹确认框，防手滑</td>
+</tr>
+<tr>
+<td><strong>闭站公告</strong></td>
+<td>展示在闭站页上的一段话（支持换行，≤1000 字），留空则显示默认文案「本站暂时关闭，请稍后再来。」</td>
+</tr>
+<tr>
+<td><strong>开启留言</strong></td>
+<td>关掉后文章页、微博卡片与留言板的评论表单一起隐藏，已有评论仍展示</td>
+</tr>
+<tr>
+<td><strong>留言先审后展</strong></td>
+<td>开启后新留言进「待审核」，你通过后才展示（你自己以作者身份发言的不受影响）</td>
+</tr>
+<tr>
+<td><strong>会员功能</strong></td>
+<td>会员体系总开关（默认关，详见第 15 节）：开启后前台出现「会员」「排行榜」入口，访客可注册登录、评论带身份攒积分；关闭时 <code>/member</code>、<code>/rank</code> 一并 404，已锁文章仍按「谁能看」档位生效</td>
+</tr>
+<tr>
+<td><strong>排行榜条数</strong></td>
+<td>榜单页（<code>/rank</code>）展示的人数上限（1-50，默认 10）</td>
+</tr>
+<tr>
+<td><strong>每页文章数</strong></td>
+<td>首页 / 分类列表分页大小（1-50）</td>
+</tr>
+<tr>
+<td><strong>访客统计</strong></td>
+<td>开关前台访问数据采集（喂给「统计」页）。关闭后前台页面不再上报，已有数据保留；详见第 3 节的口径说明</td>
+</tr>
+<tr>
+<td><strong>外部发布</strong></td>
+<td>Telegram 机器人与开放 API 的配置（Token 生成、Bot Token、Chat ID 白名单、一键设置 Webhook），详见 8.1 / 8.2 节；「新留言推送到 Telegram」开关与「同步频道 / 群 ID」（服务端插件「发布同步 Telegram 频道」用）也在这里</td>
+</tr>
+<tr>
+<td><strong>服务端插件</strong></td>
+<td>随内核运行的官方插件（发布同步 TG 频道 / 广场同步 / 评论 Webhook / 页脚自定义代码，启停在「插件」页）的配置项：评论 Webhook 地址、页脚自定义 HTML（挂件 / 徽章等，受 CSP 保护外部脚本不执行）、Buffer API Key 与渠道、<strong>广场地址与站点 Token</strong>（在官网广场 bloghao.com/plaza 登记站点拿到 Token 后填入并开启「广场同步」插件，发布文章/微博自动同步上广场，加密文与会员专属文不上）；开发新插件见 docs/PLUGINS.md，广场机制见 docs/PLAZA.md</td>
+</tr>
+<tr>
+<td><strong>订阅与备份</strong></td>
+<td>「RSS 输出全文」开启时订阅器不点开就能读完（关闭则只输出摘要）；「每晚自动备份」每天北京时间 00:30 把数据库快照存进 R2 的 <code>backups/</code> 目录（滚动保留 30 份），点「立即备份」马上来一份，旁边显示上次备份时间与体积</td>
+</tr>
+<tr>
+<td><strong>修改密码</strong></td>
+<td>页面底部「账号」区，旧密码 + 新密码（8-64 位）</td>
+</tr>
+</tbody></table></div>
+<h2 id="17-皮肤切换">17. 皮肤切换</h2><p>后台「<strong>皮肤</strong>」页（侧栏「系统」分组）点主题卡片<strong>即刻生效</strong>，无需保存；「皮肤市场」标签页收录精选主题。六套主题，<strong>每套都完整适配</strong>首页 / 文章 / 微博 / 友链 / 关于我 / 归档 / 留言板七类页面和手机端：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>主题</th>
+<th>风格</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>微信公众号</strong></td>
+<td>明亮清爽，订阅号卡片流 + 公众号文章排版（默认）</td>
+</tr>
+<tr>
+<td><strong>纸墨</strong></td>
+<td>宋体排印、印章红点缀，纸面读书感</td>
+</tr>
+<tr>
+<td><strong>极简</strong></td>
+<td>黑白灰、大标题、大留白</td>
+</tr>
+<tr>
+<td><strong>夜航</strong></td>
+<td>深色星图蓝，开发者日志风</td>
+</tr>
+<tr>
+<td><strong>手账</strong></td>
+<td>奶油纸面、和纸胶带、拍立得与贴纸，自动夜光暗色</td>
+</tr>
+<tr>
+<td><strong>比特币</strong></td>
+<td>比特币橙 × 暖白纸面，描边分层、衬线大标题与等宽眉题的品牌 kit 风</td>
+</tr>
+</tbody></table></div>
+<p>想上新主题？照着 <a href="themes.html">THEMES.md</a> 注册即可，改完 <code>git push</code> 自动上线。</p>
+<h2 id="18-账号与安全">18. 账号与安全</h2><ul>
+<li><strong>改密码</strong>：设置页底部「账号」区，旧密码 + 新密码（≥ 8 位）</li>
+<li><strong>忘记密码</strong>：见 <a href="deploy.html">DEPLOY.md</a>「日常运维备忘」，一条 SQL 清空用户后重新创建，文章数据不受影响</li>
+<li><strong>登录态</strong>：30 天有效，过期重新登录即可</li>
+<li>你可以放心把后台地址告诉朋友——他们只能看到登录页；「创建管理员」入口只在库里没有任何用户时开放</li>
+</ul>
+<h2 id="19-升级备份与数据导出">19. 升级、备份与数据导出</h2><p><strong>升级</strong>（本仓库 push 到 <code>main</code> 会经 GitHub Actions 自动部署，无需手动操作；手动部署则）：</p>
+<div class="codeblock" data-lang="bash"><pre><code>git pull &amp;&amp; npm install &amp;&amp; npm run deploy
+# 如果 schema.sql 有更新，补一句：
+npx wrangler d1 execute DB --remote --file schema.sql   # 幂等，安全</code></pre></div><p><strong>自动备份（已内置，无需配置）</strong>：Worker 自带 Cron Trigger——每分钟扫一次「定时发布」（见 <a href="#4-写一篇文章完整流程">第 4 节</a>），每天<strong>北京时间 00:30</strong> 把数据库（文章 / 微博 / 评论 / 友链 / 设置等全部业务表）导成 JSON 存进 R2 图床的 <code>backups/</code> 目录，按日期命名（<code>xwblog-YYYY-MM-DD.json</code>），滚动保留最近 30 份。后台「设置 → 订阅与备份」可以关掉它、查看上次备份时间与体积、或点「立即备份」马上来一份；备份失败时若配了 Telegram 机器人会收到提醒。</p>
+<p><strong>手动备份</strong>（每月一次或大版本前）：</p>
+<div class="codeblock" data-lang="bash"><pre><code>npx wrangler d1 export xwblog-db --remote --output=backup-$(date +%F).sql   # 文章/微博/评论/友链/设置
+npx wrangler r2 object get xwblog-images/ --file=?   # 图片按需从媒体库下载</code></pre></div><p>恢复：<code>npx wrangler d1 execute xwblog-db --remote --file=backup.sql</code>。自动备份的 JSON 想恢复时，把其中 <code>tables</code> 里的数据导回 D1 即可（每张表一条 <code>INSERT</code>，或需要时写个小脚本）。</p>
+<p><strong>数据导出</strong>（后台「设置 → 数据导出」，随时可点）：</p>
+<ul>
+<li><strong>导出 Markdown 包</strong>：<code>xwblog-markdown-&lt;日期&gt;.zip</code>，内含全部文章（含草稿，front-matter 带 <code>title/slug/date/status/tags/category/cover/summary</code>，正文转成 Markdown）、<code>weibo.md</code>、全部独立页面、以及正文 / 封面 / 微博引用到的站内图片（包内 <code>images/</code> 目录，正文链接已改写为相对路径可直接本地渲染），<code>manifest.json</code> 记录数量与缺失图片清单。未被引用的图床文件不打包（可在「媒体」查看）。</li>
+<li><strong>导出 WordPress WXR</strong>：<code>xwblog-wxr-&lt;日期&gt;.xml</code>，WordPress / emlog 等系统的标准导入格式（含 HTML 正文、发布状态、分类与标签）；微博不进 WXR，用 Markdown 包携带。</li>
+</ul>
+<p>数据始终是你的：SQL 备份（上面）、Markdown 包、WXR 三条路，随时搬家不留钳制。</p>
+<hr>
+<p>遇到没覆盖到的问题？先看看 <a href="deploy.html">DEPLOY.md</a> 的 FAQ，再不行去仓库提 Issue 🙂</p>
+
+    </article>
+  
+  <nav class="docs-pager">
+    <a class="docs-pager-link is-prev" href="deploy.html"><span>← 上一篇</span><b>🚀 部署教程</b></a>
+    <a class="docs-pager-link is-next" href="plaza.html"><span>下一篇 →</span><b>🧭 广场</b></a>
+  </nav>
+  </main>
+  
+    <aside class="docs-toc">
+      <div class="docs-toc-title">本页目录</div>
+      <ul class="docs-toc-list">
+        <li class="toc-d2"><a href="#目录" data-toc="目录">目录</a></li>
+        <li class="toc-d2"><a href="#1-站点地址一览" data-toc="1-站点地址一览">1. 站点地址一览</a></li>
+        <li class="toc-d2"><a href="#2-第一次进入后台" data-toc="2-第一次进入后台">2. 第一次进入后台</a></li>
+        <li class="toc-d2"><a href="#3-后台导览" data-toc="3-后台导览">3. 后台导览</a></li>
+        <li class="toc-d2"><a href="#4-写一篇文章完整流程" data-toc="4-写一篇文章完整流程">4. 写一篇文章：完整流程</a></li>
+        <li class="toc-d2"><a href="#5-编辑器技巧" data-toc="5-编辑器技巧">5. 编辑器技巧</a></li>
+        <li class="toc-d2"><a href="#6-采集公众号文章" data-toc="6-采集公众号文章">6. 采集公众号文章</a></li>
+        <li class="toc-d2"><a href="#7-排版体检" data-toc="7-排版体检">7. 排版体检</a></li>
+        <li class="toc-d2"><a href="#8-发微博随手记" data-toc="8-发微博随手记">8. 发微博（随手记）</a></li>
+        <li class="toc-d3"><a href="#81-从外面发微博telegram-机器人推荐" data-toc="81-从外面发微博telegram-机器人推荐">8.1 从外面发微博：Telegram 机器人（推荐）</a></li>
+        <li class="toc-d3"><a href="#82-程序化发布开放-api" data-toc="82-程序化发布开放-api">8.2 程序化发布：开放 API</a></li>
+        <li class="toc-d2"><a href="#9-媒体库图床" data-toc="9-媒体库图床">9. 媒体库（图床）</a></li>
+        <li class="toc-d2"><a href="#10-评论管理" data-toc="10-评论管理">10. 评论管理</a></li>
+        <li class="toc-d2"><a href="#11-友情链接" data-toc="11-友情链接">11. 友情链接</a></li>
+        <li class="toc-d2"><a href="#12-分类与标签" data-toc="12-分类与标签">12. 分类与标签</a></li>
+        <li class="toc-d2"><a href="#13-独立页面页面管理" data-toc="13-独立页面页面管理">13. 独立页面（页面管理）</a></li>
+        <li class="toc-d2"><a href="#14-回收站" data-toc="14-回收站">14. 回收站</a></li>
+        <li class="toc-d2"><a href="#15-会员与积分" data-toc="15-会员与积分">15. 会员与积分</a></li>
+        <li class="toc-d3"><a href="#开关与入口" data-toc="开关与入口">开关与入口</a></li>
+        <li class="toc-d3"><a href="#会员侧" data-toc="会员侧">会员侧</a></li>
+        <li class="toc-d3"><a href="#站长侧" data-toc="站长侧">站长侧</a></li>
+        <li class="toc-d3"><a href="#会员专属文章" data-toc="会员专属文章">会员专属文章</a></li>
+        <li class="toc-d2"><a href="#16-设置逐项说明" data-toc="16-设置逐项说明">16. 设置逐项说明</a></li>
+        <li class="toc-d2"><a href="#17-皮肤切换" data-toc="17-皮肤切换">17. 皮肤切换</a></li>
+        <li class="toc-d2"><a href="#18-账号与安全" data-toc="18-账号与安全">18. 账号与安全</a></li>
+        <li class="toc-d2"><a href="#19-升级备份与数据导出" data-toc="19-升级备份与数据导出">19. 升级、备份与数据导出</a></li>
+      </ul>
+    </aside>
+</div>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="../index.html">官网首页</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+    </span>
+  </div>
+</footer>
+<script src="../docs.js" defer></script>
+</body>
+</html>

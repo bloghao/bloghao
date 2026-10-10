@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>插件开发 - 博客号文档</title>
+<meta name="description" content="一个 JS 文件扩展编辑器，window.BlogHao 插件 API 与加载机制，无需构建。">
+<meta property="og:title" content="插件开发 - 博客号文档">
+<meta property="og:description" content="一个 JS 文件扩展编辑器，window.BlogHao 插件 API 与加载机制，无需构建。">
+<meta property="og:type" content="article">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">
+      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">文档中心</a>
+      <a href="../index.html">返回官网</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="docs-shell docs-shell-toc">
+  
+    <aside class="docs-sidebar">
+      <a class="docs-side-title" href="index.html">📚 文档中心</a>
+      <ul class="docs-side-list">
+      <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a href="guide.html">📖 使用手册</a></li>
+      <li><a href="plaza.html">🧭 广场</a></li>
+      <li><a href="themes.html">🎨 主题开发</a></li>
+      <li><a class="is-active" href="plugins.html">🧩 插件开发</a></li>
+      <li><a href="api.html">🔌 API 参考</a></li>
+      <li><a href="typography.html">🩺 排版规范</a></li>
+      <li><a href="demo.html">🎪 演示站指南</a></li>
+      <li><a href="roadmap.html">🗺️ 路线图</a></li>
+      </ul>
+      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+    </aside>
+  <main class="docs-main">
+    <div class="docs-crumbs">
+      <a href="index.html">文档中心</a><span>/</span><b>🧩 插件开发</b>
+      <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/PLUGINS.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
+    </div>
+    <article class="doc-md">
+<h1 id="插件开发指南">插件开发指南</h1><p>博客号编辑器内置一个极简插件系统：一个插件 = 一个 JS 文件 + manifest 里的一行。无需构建、无需重新部署后台。</p>
+<h2 id="快速上手写一个每日一句按钮">快速上手：写一个「每日一句」按钮</h2><ol>
+<li>新建 <code>public/plugins/quote-of-day.js</code>：</li>
+</ol>
+<div class="codeblock" data-lang="js"><pre><code>window.BlogHao &amp;&amp;
+  window.BlogHao.registerPlugin({
+    name: 'quote-of-day',            // 全局唯一
+    title: '插入每日一句',            // 悬停提示
+    icon: '&lt;svg viewBox=&quot;0 0 24 24&quot; width=&quot;18&quot; height=&quot;18&quot;&gt;&lt;path d=&quot;M6 14c0-4 2-7 6-9l1 2c-2 1-3 3-3 5h3v6H6zm9 0c0-4 2-7 6-9l1 2c-2 1-3 3-3 5h3v6h-7z&quot; fill=&quot;currentColor&quot;/&gt;&lt;/svg&gt;',
+    onClick(ctx) {
+      ctx.insertHTML(
+        '&lt;blockquote style=&quot;border-left:3px solid #07c160;padding:8px 14px;color:#666;&quot;&gt;' +
+          '今天也是适合写作的一天 ✍️' +
+        '&lt;/blockquote&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;'
+      )
+      ctx.notify('已插入每日一句 ✅')
+    },
+  })</code></pre></div><ol start="2">
+<li>在 <code>public/plugins/manifest.json</code> 中登记（对象格式，带元数据；<code>id</code> 建议与 <code>registerPlugin</code> 的 <code>name</code> 一致）：</li>
+</ol>
+<div class="codeblock" data-lang="json"><pre><code>[
+  { &quot;id&quot;: &quot;quote-of-day&quot;, &quot;file&quot;: &quot;quote-of-day.js&quot;, &quot;title&quot;: &quot;插入每日一句&quot;, &quot;description&quot;: &quot;正文里插入一枚鼓励签&quot;, &quot;version&quot;: &quot;1.0.0&quot;, &quot;author&quot;: &quot;你&quot; }
+]</code></pre></div><blockquote>
+<p>兼容旧格式：纯文件名字符串数组 <code>[&quot;quote-of-day.js&quot;]</code> 依然有效，只是后台「插件」页会缺少标题/描述/版本展示。<code>id</code> 只能包含字母、数字、<code>_</code>、<code>-</code>。</p>
+</blockquote>
+<ol start="3">
+<li>刷新编辑器页面，工具栏末尾出现新按钮。</li>
+</ol>
+<h2 id="插件-apiwindowbloghao">插件 API（<code>window.BlogHao</code>）</h2><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>成员</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>registerPlugin(def)</code></td>
+<td>注册插件；<code>def = { name, title?, icon?, onClick(ctx) }</code>，<code>icon</code> 是 SVG 字符串</td>
+</tr>
+<tr>
+<td><code>insertHTML(html)</code></td>
+<td>在当前光标处插入 HTML（自动恢复选区、触发自动保存）</td>
+</tr>
+<tr>
+<td><code>getHTML()</code> / <code>setHTML(html)</code></td>
+<td>读取 / 替换正文 HTML</td>
+</tr>
+<tr>
+<td><code>exec(cmd, value?)</code></td>
+<td>执行 <code>document.execCommand</code>（如 <code>bold</code>、<code>formatBlock</code>）</td>
+</tr>
+<tr>
+<td><code>notify(msg)</code></td>
+<td>弹出 toast 提示</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>插件 API 版本，当前 <code>&#39;1.0&#39;</code></td>
+</tr>
+</tbody></table></div>
+<p><code>onClick(ctx)</code> 的 <code>ctx</code> 与 <code>window.BlogHao</code> 上的方法相同，直接用 <code>ctx.insertHTML(...)</code> 即可。</p>
+<h2 id="加载机制">加载机制</h2><p>编辑器初始化时读取 <code>/plugins/manifest.json</code>（数组，按序加载），逐个 <code>import(&#39;/plugins/&lt;file&gt;&#39;)</code>。单个插件加载失败只会在控制台告警，不影响编辑器与其他插件。</p>
+<p><strong>启停</strong>：后台「插件」页可以随时停用某个插件（写入 settings 的 <code>pluginsDisabled</code> 名单），编辑器加载时跳过名单内的 id，下次打开编辑器生效——不再需要手改 manifest 重新部署。</p>
+<p><strong>市场</strong>：<code>public/market/catalog.json</code> 是后台「皮肤 / 插件」页「市场」标签页的数据源（内置精选目录，<code>{ themes: [...], plugins: [...] }</code>，条目 <code>{ id, name, description, link }</code>）。收录新作品 = 往里加一条；未来切换成远程目录时前端只需换数据来源。</p>
+<p><strong>建议</strong>：插件自己的状态（如设置项）存 <code>localStorage</code>（加前缀 <code>bloghao-plugin-&lt;name&gt;-</code>），不要请求外部服务——CSP 与规范都鼓励完全本地化。</p>
+<h2 id="注意事项">注意事项</h2><ul>
+<li>插入的 HTML 会<strong>在保存时经过服务端白名单净化</strong>（防 XSS）：脚本、事件属性、<code>javascript:</code> 链接等会被剥除；排版类内联样式、<code>data-w</code>、<code>data-ignore-width</code>、<code>data-no-dark</code> 等规范属性会保留。</li>
+<li>遵循<a href="typography.html">微信排版规范</a>：别插入固定宽度节点、别用 <code>!important</code>。</li>
+<li>插件只影响编辑器；想改公开页展示逻辑请走<a href="themes.html">主题</a>。</li>
+</ul>
+<h2 id="内置插件公众号采集wechat-collect">内置插件：公众号采集（wechat-collect）</h2><p>编辑器工具栏末尾的「采集公众号文章」按钮（微信双气泡图标）：粘贴 <code>mp.weixin.qq.com</code> 的文章链接，服务端抓取正文、把配图与封面转存进 R2 图床，并生成一篇<strong>保留原发布时间</strong>的草稿，随后自动跳转到编辑器——核对无误后点「发布」即可。支持两种内容类型：</p>
+<ul>
+<li><strong>普通图文</strong>：解析 <code>js_content</code> DOM，保留段内加粗/斜体；</li>
+<li><strong>贴图（图片消息）</strong>：页面没有 <code>js_content</code>，数据埋在内嵌 JS 里（<code>parseImagePost</code>）——图片列表取 <code>picture_page_info_list</code> 各条目顶层的 <code>cdn_url</code>（排除 <code>share_cover</code>/<code>watermark_info</code> 等嵌套图），全文取 <code>window.desc</code>/<code>content_noencode</code>（<code>\x0a</code> 反转义后按空行分段），草稿沿用原页面版式：图片在前、文字分段在后。</li>
+</ul>
+<p>公众号封面（<code>msg_cdn_url</code>）常是正文首图的<strong>衍生裁切</strong>（同一媒体 ID、不同尺寸/格式段，字符串比对不出来）。普通图文采集时会按媒体 ID（<code>mmbizAssetId</code>）识别这种情况，正文里去掉那张图——封面只放封面位，文章页不再一图两现；贴图不适用（其封面本就取自首图，图即内容）。</p>
+<p>服务端实现见 <code>src/collect.ts</code>（<code>POST /api/admin/collect/wechat</code>，需登录）。限制：每分钟 10 篇 / IP，单篇最多转存 30 张图，单次抓取（页面/图片）超时 15 秒，正文 ≤ 约 900KB；公众号<strong>内嵌视频暂不支持</strong>。</p>
+<p>面向使用者的完整说明见 <a href="guide.html">GUIDE.md</a> 第 6 节。</p>
+<h2 id="服务端插件随内核运行">服务端插件（随内核运行）</h2><p>编辑器插件跑在浏览器，服务端插件跑在 Worker 里：内核在关键动作处广播事件（钩子），插件订阅处理。当前钩子四个——</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>钩子</th>
+<th>触发时机</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>onPostPublished</code></td>
+<td>文章从草稿/定时<strong>跃迁</strong>为已发布（后台发布与定时到点两条路都触发；重复编辑已发布文章不重推）</td>
+<td>同步到 TG 频道、广场同步</td>
+</tr>
+<tr>
+<td><code>onWeiboPublished</code></td>
+<td>微博<strong>发布</strong>（后台新建即发 / 草稿转发布 / 开放 API / TG 机器人四条路都触发；编辑已发布微博不重推）</td>
+<td>同步到 X 等社交平台、广场同步</td>
+</tr>
+<tr>
+<td><code>onCommentCreated</code></td>
+<td>访客在文章 / 微博 / 留言板发表留言（作者自己的回复不触发）</td>
+<td>Webhook 通知（飞书 / 企微 / Bark）、同步到审核流</td>
+</tr>
+<tr>
+<td><code>footerHtml</code></td>
+<td>每个公开页渲染时（同步）</td>
+<td>页脚注入挂件、徽章、自定义代码</td>
+</tr>
+</tbody></table></div>
+<p>内置五个官方插件（源码与注册表都在 <code>src/hooks.ts</code>）：<strong>发布同步 Telegram 频道</strong>（复用「外部发布」的 Bot Token，频道 ID 在「设置 → 外部发布」）、<strong>微博同步 Buffer（X 等）</strong>（Buffer 是社交排程平台，免费档 3 渠道并含 API 访问，替用户承担 X API 按量计费；API Key 与渠道 ID 在「设置 → 服务端插件」，渠道 ID 可一键拉取，X 免费档 280 字符超出自动截断，<code>#话题#</code> 转 X 话题格式，站内配图走公链直传）、<strong>评论 Webhook 推送</strong>（地址在「设置 → 服务端插件」）、<strong>页脚自定义代码</strong>（同在「设置 → 服务端插件」，受 CSP 保护外部脚本不执行）、<strong>广场同步</strong>（发布时把公开文章/微博推给官网广场 bloghao.com/plaza，Token 与地址在「设置 → 服务端插件」，加密文与会员锁文自动跳过，机制见 <a href="plaza.html">PLAZA.md</a>）。后台「插件」页的「服务端插件」区可随时启停（存 settings 的 <code>serverPluginsDisabled</code>，立即生效）。</p>
+<p><code>onPostPublished</code> 的 payload 带可选 <code>locked</code> 布尔（发布的是加密访问文或会员专属文）——同步类插件必须据此跳过，别把锁文标题捅到公开面。</p>
+<p><strong>铁律</strong>：插件抛错绝不影响主流程——fire 函数统一吞错，发文 / 评论 / 渲染照常。</p>
+<p><strong>写一个自己的</strong>：在 <code>src/hooks.ts</code> 的 <code>SERVER_PLUGINS</code> 注册表加一个对象即可（<code>id/title/description/version/author</code> + 一个或多个钩子函数），随部署生效。第三方服务端插件目前以「提交 PR 进注册表」的方式分发（与主题注册表同模式，Workers 无法运行时安装代码文件）；需要配置项的插件，约定用 <code>settings</code> 键并在后台「设置」页放对应输入框（参考官方三个的实现）。</p>
+<h2 id="路线图">路线图</h2><p>后续计划（欢迎 PR）：</p>
+<ul>
+<li>远程市场目录与更顺畅的安装体验（Workers 无法运行时写代码文件，主题/插件安装仍以源码方式为主）</li>
+<li>更多服务端钩子：微博发布、友链申请通过等事件</li>
+</ul>
+
+    </article>
+  
+  <nav class="docs-pager">
+    <a class="docs-pager-link is-prev" href="themes.html"><span>← 上一篇</span><b>🎨 主题开发</b></a>
+    <a class="docs-pager-link is-next" href="api.html"><span>下一篇 →</span><b>🔌 API 参考</b></a>
+  </nav>
+  </main>
+  
+    <aside class="docs-toc">
+      <div class="docs-toc-title">本页目录</div>
+      <ul class="docs-toc-list">
+        <li class="toc-d2"><a href="#快速上手写一个每日一句按钮" data-toc="快速上手写一个每日一句按钮">快速上手：写一个「每日一句」按钮</a></li>
+        <li class="toc-d2"><a href="#插件-apiwindowbloghao" data-toc="插件-apiwindowbloghao">插件 API（window.BlogHao）</a></li>
+        <li class="toc-d2"><a href="#加载机制" data-toc="加载机制">加载机制</a></li>
+        <li class="toc-d2"><a href="#注意事项" data-toc="注意事项">注意事项</a></li>
+        <li class="toc-d2"><a href="#内置插件公众号采集wechat-collect" data-toc="内置插件公众号采集wechat-collect">内置插件：公众号采集（wechat-collect）</a></li>
+        <li class="toc-d2"><a href="#服务端插件随内核运行" data-toc="服务端插件随内核运行">服务端插件（随内核运行）</a></li>
+        <li class="toc-d2"><a href="#路线图" data-toc="路线图">路线图</a></li>
+      </ul>
+    </aside>
+</div>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="../index.html">官网首页</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+    </span>
+  </div>
+</footer>
+<script src="../docs.js" defer></script>
+</body>
+</html>

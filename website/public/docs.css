@@ -1,0 +1,193 @@
+/* ===== 官网文档页 —— 与官网同源配色变量（style.css 提供），双栏布局 + Markdown 排版 ===== */
+
+/* ---------- 布局骨架 ---------- */
+.docs-shell {
+  max-width: 1160px; margin: 0 auto; padding: 92px 24px 56px;
+  display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 44px;
+  min-height: 60vh;
+}
+.docs-shell-toc { grid-template-columns: 216px minmax(0, 1fr) 196px; }
+
+/* ---------- 侧栏 ---------- */
+.docs-sidebar { position: sticky; top: 92px; align-self: start; }
+.docs-side-title {
+  display: block; font-weight: 800; font-size: 15px; margin-bottom: 14px;
+  color: var(--ink);
+}
+.docs-side-title:hover { color: var(--accent); }
+.docs-side-list { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.docs-side-list a {
+  display: block; font-size: 14px; color: var(--sub);
+  padding: 8px 12px; border-radius: 10px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.docs-side-list a:hover { background: var(--accent-soft); color: var(--ink); }
+.docs-side-list a.is-active {
+  background: var(--accent-soft); color: var(--accent); font-weight: 700;
+}
+.docs-side-extra {
+  display: block; margin-top: 18px; font-size: 12.5px; color: var(--sub);
+  border-top: 1px solid var(--line); padding-top: 14px;
+}
+.docs-side-extra:hover { color: var(--accent); }
+
+/* ---------- 面包屑 ---------- */
+.docs-crumbs {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 13.5px; color: var(--sub); margin-bottom: 26px;
+}
+.docs-crumbs a { color: var(--sub); }
+.docs-crumbs a:hover { color: var(--accent); }
+.docs-crumbs b { color: var(--ink); font-weight: 700; }
+.doc-edit {
+  margin-left: auto; font-size: 12.5px; font-weight: 600;
+  color: var(--sub); border: 1px solid var(--line); border-radius: 999px;
+  padding: 4px 12px; background: var(--card);
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+.doc-edit:hover { color: var(--accent); border-color: rgba(178, 58, 41, 0.4); }
+
+/* ---------- Markdown 排版 ---------- */
+.doc-md { font-size: 15.5px; line-height: 1.85; color: var(--ink); }
+.doc-md h1 {
+  font-size: 30px; font-weight: 800; line-height: 1.3;
+  margin: 0 0 8px; letter-spacing: 0.01em;
+}
+.doc-md h2 {
+  font-size: 23px; font-weight: 800; line-height: 1.35;
+  margin: 2.4em 0 0.7em; padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  scroll-margin-top: 86px;
+}
+.doc-md h3 { font-size: 18.5px; font-weight: 700; margin: 1.9em 0 0.6em; scroll-margin-top: 86px; }
+.doc-md h4 { font-size: 16px; font-weight: 700; margin: 1.6em 0 0.5em; scroll-margin-top: 86px; }
+.doc-md p { margin: 0.9em 0; }
+.doc-md a { color: var(--accent); }
+.doc-md a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.doc-md del { color: var(--sub); }
+.doc-md ul, .doc-md ol { padding-left: 1.5em; margin: 0.9em 0; }
+.doc-md li { margin: 0.35em 0; }
+.doc-md li > ul, .doc-md li > ol { margin: 0.35em 0; }
+.doc-md hr { border: 0; border-top: 1px solid var(--line); margin: 2.2em 0; }
+.doc-md img {
+  display: block; max-width: 100%; margin: 1.2em 0;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--card);
+}
+.doc-md blockquote {
+  margin: 1.2em 0; padding: 12px 18px;
+  border-left: 3px solid var(--accent); border-radius: 0 12px 12px 0;
+  background: var(--accent-soft); color: var(--sub); font-size: 14.5px;
+}
+.doc-md blockquote p { margin: 0.4em 0; }
+.doc-md blockquote code { font-size: 0.88em; }
+
+/* 表格：窄屏横向滚动 */
+.doc-md .table-wrap { overflow-x: auto; margin: 1.1em 0; -webkit-overflow-scrolling: touch; }
+.doc-md table {
+  width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.65;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  overflow: hidden;
+}
+.doc-md th, .doc-md td { padding: 9px 13px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+.doc-md thead th { background: var(--tint); border-top: 0; font-weight: 700; white-space: nowrap; }
+.doc-md tbody tr:nth-child(even) { background: rgba(244, 239, 231, 0.45); }
+.doc-md td code { word-break: break-all; }
+
+/* 代码块：与官网「快速开始」步骤同款深色 */
+.doc-md pre {
+  background: #26201b; color: #eee3d3;
+  border-radius: 12px; padding: 15px 18px; overflow-x: auto;
+  font-size: 13px; line-height: 1.75; margin: 1em 0;
+}
+.doc-md pre code {
+  background: none; color: inherit; padding: 0; border-radius: 0;
+  font-size: 13px; white-space: pre; word-break: normal;
+}
+.codeblock { position: relative; margin: 1em 0; }
+.codeblock pre { margin: 0; }
+.codeblock[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute; top: 9px; right: 46px;
+  font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(238, 227, 211, 0.45); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  pointer-events: none;
+}
+.code-copy {
+  position: absolute; top: 8px; right: 8px; z-index: 1;
+  border: 1px solid rgba(238, 227, 211, 0.25); border-radius: 7px;
+  background: rgba(38, 32, 27, 0.85); color: rgba(238, 227, 211, 0.8);
+  font-size: 11.5px; padding: 3px 9px; cursor: pointer;
+  opacity: 0; transition: opacity 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.codeblock:hover .code-copy, .code-copy:focus-visible { opacity: 1; }
+.code-copy:hover { color: #fff; border-color: rgba(238, 227, 211, 0.5); }
+@media (hover: none) { .code-copy { opacity: 1; } }
+
+/* ---------- 本页目录（右侧，桌面端） ---------- */
+.docs-toc { position: sticky; top: 92px; align-self: start; font-size: 13px; }
+.docs-toc-title {
+  font-size: 12.5px; font-weight: 800; color: var(--sub);
+  letter-spacing: 0.08em; margin-bottom: 10px;
+}
+.docs-toc-list { list-style: none; border-left: 1px solid var(--line); }
+.docs-toc-list li { margin: 0; }
+.docs-toc-list a {
+  display: block; padding: 4px 0 4px 14px; color: var(--sub);
+  border-left: 2px solid transparent; margin-left: -1.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.docs-toc-list a:hover { color: var(--ink); }
+.docs-toc-list a.is-active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.docs-toc-list .toc-d3 a { padding-left: 26px; }
+
+/* ---------- 上下篇 ---------- */
+.docs-pager {
+  display: flex; justify-content: space-between; gap: 14px;
+  margin-top: 48px; padding-top: 26px; border-top: 1px solid var(--line);
+}
+.docs-pager-link {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 14px 20px; min-width: 0; max-width: 48%;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.docs-pager-link span { font-size: 12px; color: var(--sub); }
+.docs-pager-link b { font-size: 14.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docs-pager-link:hover { border-color: rgba(178, 58, 41, 0.4); box-shadow: var(--shadow); transform: translateY(-2px); }
+.docs-pager-link:hover b { color: var(--accent); }
+.docs-pager-link.is-next { text-align: right; margin-left: auto; }
+
+/* ---------- 文档中心落地页 ---------- */
+.docs-hero { padding-bottom: 26px; }
+.docs-hero .hero-sub br { display: inline; }
+.docs-home-grid { padding-top: 30px; }
+.docs-home-note { text-align: center; margin-top: 30px; font-size: 14px; color: var(--sub); }
+.docs-home-note a { color: var(--accent); font-weight: 600; }
+.docs-home-note a:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 1100px) {
+  .docs-shell-toc { grid-template-columns: 200px minmax(0, 1fr); }
+  .docs-toc { display: none; }
+}
+@media (max-width: 960px) {
+  .docs-shell, .docs-shell-toc { grid-template-columns: 1fr; gap: 0; padding-top: 86px; }
+  .docs-sidebar { position: static; margin-bottom: 22px; }
+  .docs-side-title { margin-bottom: 10px; }
+  .docs-side-list {
+    flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 6px;
+    padding-bottom: 8px; -webkit-overflow-scrolling: touch;
+    border-bottom: 1px solid var(--line);
+  }
+  .docs-side-list a { white-space: nowrap; padding: 7px 14px; background: var(--card); border: 1px solid var(--line); }
+  .docs-side-list a.is-active { border-color: rgba(178, 58, 41, 0.45); }
+  .docs-side-extra { display: none; }
+  .docs-crumbs { margin-bottom: 20px; }
+  .doc-md h1 { font-size: 25px; }
+  .doc-md h2 { font-size: 20px; }
+  .doc-md h3 { font-size: 17px; }
+  .doc-md { font-size: 15px; }
+  .docs-pager { flex-direction: column; }
+  .docs-pager-link, .docs-pager-link.is-next { max-width: 100%; text-align: left; margin-left: 0; }
+}

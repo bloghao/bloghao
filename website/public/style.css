@@ -54,8 +54,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; ba
 .nav-links a:hover { color: var(--ink); }
 .nav-cta { display: flex; align-items: center; gap: 12px; }
 .nav-demo { font-size: 13px; color: var(--accent); font-weight: 600; }
-.nav-links a.nav-plaza { color: var(--accent); font-weight: 700; }
-.nav-links a.nav-plaza:hover { color: var(--accent-dark); }
+.nav-links a.nav-plaza {
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 13px;
+  border-radius: 999px; padding: 5px 15px;
+  box-shadow: 0 4px 12px rgba(178, 58, 41, 0.3);
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+.nav-links a.nav-plaza:hover {
+  background: var(--accent-dark); color: #fff; transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(178, 58, 41, 0.35);
+}
 .nav-demo:hover { opacity: 0.8; }
 
 /* ---------- 按钮 ---------- */

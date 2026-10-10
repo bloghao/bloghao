@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>文档中心 - 博客号 BlogHao</title>
+<meta name="description" content="博客号 BlogHao 全部中文文档：部署教程、使用手册、主题开发、插件开发、API 参考、排版规范、演示站指南与路线图。">
+<meta property="og:title" content="文档中心 - 博客号 BlogHao">
+<meta property="og:description" content="博客号 BlogHao 全部中文文档：部署教程、使用手册、主题开发、插件开发、API 参考、排版规范、演示站指南与路线图。">
+<meta property="og:type" content="article">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">
+      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">文档中心</a>
+      <a href="../index.html">返回官网</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero docs-hero">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <span class="hero-badge">📖 博客号文档中心 · 与仓库 docs/ 同步</span>
+      <h1>文档，读了就会用。</h1>
+      <p class="hero-sub">部署、写作、主题、插件、API——全部中文，直接在官网读，不用去 GitHub。<br class="pc-only">想改哪里？每篇右上角「编辑此页」欢迎 PR。</p>
+    </div>
+  </section>
+  <section class="section docs-home-grid">
+    <div class="wrap">
+      <div class="grid-3 grid-docs">
+        <a class="card card-link" href="deploy.html">
+          <h3>🚀 部署教程</h3><p>从注册 Cloudflare 到部署 Worker、绑定自定义域名、自动部署、备份与恢复，含 Docker 自托管。</p>
+        </a>
+        <a class="card card-link" href="guide.html">
+          <h3>📖 使用手册</h3><p>后台导览、写文章全流程、快捷键、评论与媒体管理、设置逐项说明。</p>
+        </a>
+        <a class="card card-link" href="plaza.html">
+          <h3>🧭 广场</h3><p>内容聚合流：三步接入官方广场，让每篇文章与微博被更多博主看到；含混排口径与自建 hub。</p>
+        </a>
+        <a class="card card-link" href="themes.html">
+          <h3>🎨 主题开发</h3><p>一套主题 = 八个必需渲染函数（+ 可选 member / rank）+ 全局 CSS，三步注册新主题。</p>
+        </a>
+        <a class="card card-link" href="plugins.html">
+          <h3>🧩 插件开发</h3><p>一个 JS 文件扩展编辑器，window.BlogHao 插件 API 与加载机制，无需构建。</p>
+        </a>
+        <a class="card card-link" href="api.html">
+          <h3>🔌 API 参考</h3><p>全部公开 / 管理接口与 HTML 净化白名单摘要，写自己的客户端。</p>
+        </a>
+        <a class="card card-link" href="typography.html">
+          <h3>🩺 排版规范</h3><p>微信编辑器插件开发规范的落地对照表与体检规则。</p>
+        </a>
+        <a class="card card-link" href="demo.html">
+          <h3>🎪 演示站指南</h3><p>官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫。</p>
+        </a>
+        <a class="card card-link" href="roadmap.html">
+          <h3>🗺️ 路线图</h3><p>已上线能力与近期计划，按 A / B / C 优先级管理的开发方向。</p>
+        </a>
+        <a class="card card-link" href="../llms.txt" target="_blank" rel="noopener">
+          <h3>🤖 AI 索引</h3><p>llms.txt 文档索引：AI 助手与智能体从这里一步读到全部开发文档的 Markdown 源文件。</p>
+        </a>
+      </div>
+      <p class="docs-home-note">没找到想看的？去 <a href="https://github.com/bloghao/bloghao/issues" target="_blank" rel="noopener noreferrer">仓库提 Issue</a>，或先去 <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a> 转一圈。</p>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="../index.html">官网首页</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+    </span>
+  </div>
+</footer>
+<script src="../docs.js" defer></script>
+</body>
+</html>

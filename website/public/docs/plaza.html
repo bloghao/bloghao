@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>广场 - 博客号文档</title>
+<meta name="description" content="内容聚合流：三步接入官方广场，让每篇文章与微博被更多博主看到；含混排口径与自建 hub。">
+<meta property="og:title" content="广场 - 博客号文档">
+<meta property="og:description" content="内容聚合流：三步接入官方广场，让每篇文章与微博被更多博主看到；含混排口径与自建 hub。">
+<meta property="og:type" content="article">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">
+      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">文档中心</a>
+      <a href="../index.html">返回官网</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="docs-shell docs-shell-toc">
+  
+    <aside class="docs-sidebar">
+      <a class="docs-side-title" href="index.html">📚 文档中心</a>
+      <ul class="docs-side-list">
+      <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a href="guide.html">📖 使用手册</a></li>
+      <li><a class="is-active" href="plaza.html">🧭 广场</a></li>
+      <li><a href="themes.html">🎨 主题开发</a></li>
+      <li><a href="plugins.html">🧩 插件开发</a></li>
+      <li><a href="api.html">🔌 API 参考</a></li>
+      <li><a href="typography.html">🩺 排版规范</a></li>
+      <li><a href="demo.html">🎪 演示站指南</a></li>
+      <li><a href="roadmap.html">🗺️ 路线图</a></li>
+      </ul>
+      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+    </aside>
+  <main class="docs-main">
+    <div class="docs-crumbs">
+      <a href="index.html">文档中心</a><span>/</span><b>🧭 广场</b>
+      <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/PLAZA.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
+    </div>
+    <article class="doc-md">
+<h1 id="广场博客号内容聚合">广场（博客号内容聚合）</h1><p>广场是官网 <strong><a href="https://bloghao.com/plaza/" target="_blank" rel="noopener noreferrer">bloghao.com/plaza</a></strong> 上的内容聚合流：所有开通同步的博客号，其公开文章与微博在这里汇成一条河，按「<strong>权重 + 新文推荐 + 随机展示</strong>」混排——新文有曝光，权重高的站靠前，随机抖动让每次刷新都可能撞见新东西。</p>
+<div class="codeblock"><pre><code>┌─ 你的博客号 ────────────┐         ┌─ 广场 hub（独立 Worker）─┐         ┌─ 官网 bloghao.com ─┐
+│ 发布文章 / 微博          │  push   │ 签名校验 → 入库          │  feed   │ /plaza/ 页面        │
+│ 「广场同步」插件自动上报  │ ──────→ │ RSS pull 补漏（cron）    │ ──────→ │ 拉取渲染（ES5）      │
+│ 加密/会员锁文自动跳过    │         │ 混排评分 → /api/feed     │  CORS   │                     │
+└────────────────────────┘         └─────────────────────────┘         └────────────────────┘</code></pre></div><h2 id="给博客号站长三步接入">给博客号站长：三步接入</h2><ol>
+<li><strong>联系官方</strong>（<a href="https://github.com/bloghao/bloghao/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 或社区群）提供你的站点地址，审核通过后拿到一枚 <strong>32 位站点 Token</strong></li>
+<li><strong>后台填配置</strong>：「设置 → 服务端插件」→ 广场站点 Token 粘贴进去，保存（广场地址保持默认 <code>https://plaza.bloghao.com</code>，自建 hub 才改）</li>
+<li><strong>开启插件</strong>：「插件」页 → 服务端插件 → <strong>广场同步（bloghao.com）</strong> 打开</li>
+</ol>
+<p>之后<strong>每次发布</strong>（文章 / 微博，后台、定时、开放 API、TG 机器人四条路都算）会自动推一条到广场；重复编辑已发布内容不重推。不想同步了，把插件关掉即可，hub 里的历史内容可请管理员清除。</p>
+<p><strong>不会上广场的内容</strong>：加密访问的文章、会员专属（付费墙）文章——这两类在发布事件里带锁标志，插件直接跳过，标题摘要也不出。微博配图取首图（站内图自动补站点域名转绝对地址）。</p>
+<h2 id="广场-hub自建--运维">广场 hub（自建 / 运维）</h2><p>hub 是独立 Worker，源码在仓库 <code>plaza/</code> 目录（<code>src/core.ts</code> 纯函数 + <code>src/index.ts</code> 路由，零 npm 依赖，hono 单文件）。官方部署在 <code>https://plaza.bloghao.com</code>（D1 库 <code>plaza-db</code>），<strong>与博客主站完全独立</strong>，不部署也不影响博客系统。</p>
+<div class="codeblock" data-lang="bash"><pre><code># 部署自己的 hub（自托管场景）
+npx wrangler d1 create plaza-db          # database_id 填进 plaza/wrangler.jsonc
+npx wrangler d1 execute DB --remote --file plaza/schema.sql
+npx wrangler secret put PLAZA_ADMIN_TOKEN
+npx wrangler deploy -c plaza/wrangler.jsonc</code></pre></div><p>自建 hub 的博客站把「设置 → 服务端插件 → 广场地址」改成自己的 hub 域名即可，协议完全一致。</p>
+<h3 id="管理端点bearer-plazaadmintoken">管理端点（Bearer PLAZA_ADMIN_TOKEN）</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>端点</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>POST /api/admin/sites</code></td>
+<td>注册站点 <code>{&quot;url&quot;:&quot;https://…&quot;,&quot;name&quot;:&quot;显示名&quot;}</code>，<strong>token 明文只在此返回一次</strong></td>
+</tr>
+<tr>
+<td><code>GET /api/admin/sites</code></td>
+<td>站点列表（含 token、心跳、条数）</td>
+</tr>
+<tr>
+<td><code>PATCH /api/admin/sites/:id</code></td>
+<td>局部更新：<code>name</code> / <code>verified</code>（认证徽标）/ <code>weight</code>（0-10）/ <code>disabled</code> / <code>pullEnabled</code> / <code>rotateToken:true</code></td>
+</tr>
+<tr>
+<td><code>DELETE /api/admin/sites/:id</code></td>
+<td>删站并级联清内容</td>
+</tr>
+<tr>
+<td><code>PATCH /api/admin/items/:kind/:ref?siteId=N</code></td>
+<td>body <code>{&quot;hidden&quot;:true}</code> 下架单条（违规处置）</td>
+</tr>
+</tbody></table></div>
+<h3 id="公开端点">公开端点</h3><ul>
+<li><code>GET /api/feed?limit=30&amp;kind=post|weibo</code>——混排 feed（CORS 全开，官网直接消费）</li>
+<li><code>GET /api/sites</code>——站点名录（认证标、条数）</li>
+<li><code>POST /api/ingest</code>——博客端上报（协议见下）</li>
+</ul>
+<h3 id="混排口径">混排口径</h3><p><code>score = recency + weight + jitter</code>，三因素都压在 0~1.5 区间，没有谁能一票定序：</p>
+<ul>
+<li><strong>recency</strong> <code>1/(1 + 龄期天数/2)</code>：今天 ≈ 1，一周 ≈ 0.22，一月 ≈ 0.06（衰减平缓，老文不永沉）</li>
+<li><strong>weight</strong>：站点权重 0-10 × 0.05/档（管理员按内容质量定档）</li>
+<li><strong>jitter</strong>：0~0.3 随机抖动（每次刷新换序，「逛」的感觉）</li>
+</ul>
+<h2 id="ingest-协议第三方博客系统也能接">ingest 协议（第三方博客系统也能接）</h2><p>请求：<code>POST {hub}/api/ingest</code>，头三件套 + JSON body：</p>
+<div class="codeblock"><pre><code>X-Plaza-Token: &lt;32位站点token&gt;
+X-Plaza-Timestamp: &lt;毫秒时间戳，±10分钟窗口&gt;
+X-Plaza-Signature: &lt;hex(HMAC-SHA256(token, timestamp + &quot;.&quot; + rawBody))&gt;</code></pre></div><div class="codeblock" data-lang="json"><pre><code>{
+  &quot;items&quot;: [{
+    &quot;kind&quot;: &quot;post&quot;,            // post | weibo
+    &quot;ref&quot;: &quot;slug 或微博 id&quot;,    // 站内唯一引用，重发同一 ref = 更新（幂等）
+    &quot;title&quot;: &quot;标题（≤200字）&quot;,
+    &quot;summary&quot;: &quot;摘要（≤500字）&quot;,
+    &quot;url&quot;: &quot;https://…&quot;,        // 必须 https 绝对地址
+    &quot;image&quot;: &quot;https://…&quot;,      // 可选封面，https
+    &quot;publishedAt&quot;: 1728000000000
+  }],
+  &quot;deleted&quot;: [{ &quot;kind&quot;: &quot;post&quot;, &quot;ref&quot;: &quot;…&quot; }]   // 源站删除时通知 hub 下架
+}</code></pre></div><ul>
+<li>单次最多 50 条 items / 50 条 deleted，body 超 256KB 拒收</li>
+<li>形状不对的字段按没传处理，url 非 https 的条目丢弃</li>
+<li>签名算法与校验都在 <code>plaza/src/core.ts</code>（<code>hmacHex</code> / <code>verifyPlazaSignature</code>），Node 18+ 与 Workers 通用，<code>tests/plaza-hub.test.ts</code> 有双端镜像用例可对照</li>
+</ul>
+<h2 id="pull-补漏路">pull 补漏路</h2><p>hub cron（每 6 小时）会抓各站 <code>/rss.xml</code> 给没接插件的老站兜底：只灌 <strong>30 天内</strong>的文章（RSS 没有微博）、单站单次 20 条、<code>source=&#39;pull&#39;</code> 标记且<strong>绝不覆盖</strong> push 数据；站点注册时默认开启，管理端点可按站关闭。180 天无 push 心跳的站点 cron 自动休眠（不删站，重新启用即恢复）。</p>
+<h2 id="与认证roadmap-b18的关系">与认证（ROADMAP B18）的关系</h2><p><code>sites.verified</code> 徽标位与 feed / 名录出参的 <code>siteVerified</code> 已就位（官网展示「✔︎ 认证」），v1 由 hub 管理员在站点所有权验证通过后手工打开；签名凭据自动化签发（token 化验证文件 / DNS 校验）是 B18 的启动范围，届时只扩 hub 管理端点，协议与出参形状不变。</p>
+<h2 id="隐私与边界">隐私与边界</h2><ul>
+<li>广场只收<strong>公开内容</strong>的标题 / 摘要 / 链接 / 封面，不收正文、不收评论、不收任何访客数据</li>
+<li>hub 的 items 表是<strong>派生数据</strong>：源站删了推 <code>deleted</code> 即清，hub 被删也不影响任何博客站</li>
+<li>官网广场页所有动态字段走 <code>esc</code> / <code>textContent</code> 渲染，feed 内容属半可信（来自各站站长），hub 端另有 https-only 与长度截断两道闸</li>
+</ul>
+
+    </article>
+  
+  <nav class="docs-pager">
+    <a class="docs-pager-link is-prev" href="guide.html"><span>← 上一篇</span><b>📖 使用手册</b></a>
+    <a class="docs-pager-link is-next" href="themes.html"><span>下一篇 →</span><b>🎨 主题开发</b></a>
+  </nav>
+  </main>
+  
+    <aside class="docs-toc">
+      <div class="docs-toc-title">本页目录</div>
+      <ul class="docs-toc-list">
+        <li class="toc-d2"><a href="#给博客号站长三步接入" data-toc="给博客号站长三步接入">给博客号站长：三步接入</a></li>
+        <li class="toc-d2"><a href="#广场-hub自建--运维" data-toc="广场-hub自建--运维">广场 hub（自建 / 运维）</a></li>
+        <li class="toc-d3"><a href="#管理端点bearer-plazaadmintoken" data-toc="管理端点bearer-plazaadmintoken">管理端点（Bearer PLAZA_ADMIN_TOKEN）</a></li>
+        <li class="toc-d3"><a href="#公开端点" data-toc="公开端点">公开端点</a></li>
+        <li class="toc-d3"><a href="#混排口径" data-toc="混排口径">混排口径</a></li>
+        <li class="toc-d2"><a href="#ingest-协议第三方博客系统也能接" data-toc="ingest-协议第三方博客系统也能接">ingest 协议（第三方博客系统也能接）</a></li>
+        <li class="toc-d2"><a href="#pull-补漏路" data-toc="pull-补漏路">pull 补漏路</a></li>
+        <li class="toc-d2"><a href="#与认证roadmap-b18的关系" data-toc="与认证roadmap-b18的关系">与认证（ROADMAP B18）的关系</a></li>
+        <li class="toc-d2"><a href="#隐私与边界" data-toc="隐私与边界">隐私与边界</a></li>
+      </ul>
+    </aside>
+</div>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="../index.html">官网首页</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+    </span>
+  </div>
+</footer>
+<script src="../docs.js" defer></script>
+</body>
+</html>

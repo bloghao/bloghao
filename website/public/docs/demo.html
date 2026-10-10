@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>演示站指南 - 博客号文档</title>
+<meta name="description" content="官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫。">
+<meta property="og:title" content="演示站指南 - 博客号文档">
+<meta property="og:description" content="官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫。">
+<meta property="og:type" content="article">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">
+      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">文档中心</a>
+      <a href="../index.html">返回官网</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="docs-shell docs-shell-toc">
+  
+    <aside class="docs-sidebar">
+      <a class="docs-side-title" href="index.html">📚 文档中心</a>
+      <ul class="docs-side-list">
+      <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a href="guide.html">📖 使用手册</a></li>
+      <li><a href="plaza.html">🧭 广场</a></li>
+      <li><a href="themes.html">🎨 主题开发</a></li>
+      <li><a href="plugins.html">🧩 插件开发</a></li>
+      <li><a href="api.html">🔌 API 参考</a></li>
+      <li><a href="typography.html">🩺 排版规范</a></li>
+      <li><a class="is-active" href="demo.html">🎪 演示站指南</a></li>
+      <li><a href="roadmap.html">🗺️ 路线图</a></li>
+      </ul>
+      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+    </aside>
+  <main class="docs-main">
+    <div class="docs-crumbs">
+      <a href="index.html">文档中心</a><span>/</span><b>🎪 演示站指南</b>
+      <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/DEMO.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
+    </div>
+    <article class="doc-md">
+<h1 id="官方演示站体验站指南">官方演示站（体验站）指南</h1><blockquote>
+<p>给项目跑一个「随便看、随便玩」的在线体验站：预置一年跨度的仿真数据，任何人的操作都落在
+独立资源上，每 2 小时自动重置——与生产站完全隔离，互不影响。
+站点性质全站公示（顶部横幅 / 登录页 / 关于页）：<strong>演示体验版 · 非最新正式版 · 仅供测试体验 ·
+数据每 2 小时自动清空重置</strong>。</p>
+<p>官方演示站地址：<strong><a href="https://demo.bloghao.com" target="_blank" rel="noopener noreferrer">https://demo.bloghao.com</a></strong>（官网 bloghao.com 的演示入口都指向这里）</p>
+</blockquote>
+<h2 id="它是什么">它是什么</h2><p>演示站 = <strong>同一份代码、第二套 Cloudflare 资源、定时自动重置</strong>：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>生产站</th>
+<th>演示站</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Worker</td>
+<td><code>xwblog</code>（wrangler.jsonc）</td>
+<td><code>xwblog-demo</code>（wrangler.demo.jsonc）</td>
+</tr>
+<tr>
+<td>D1 / R2</td>
+<td>生产库与图床</td>
+<td>独立的 demo 库与图床</td>
+</tr>
+<tr>
+<td>数据</td>
+<td>真实内容</td>
+<td>种子数据（54 篇文章、31 条微博、85+ 评论、演示会员、60 天访客统计），每 2 小时清库重灌</td>
+</tr>
+<tr>
+<td>DEMO_MODE</td>
+<td>未设置（所有演示逻辑惰性）</td>
+<td><code>&quot;1&quot;</code>（播种 / 重置 / 演示守卫生效）</td>
+</tr>
+</tbody></table></div>
+<p>体验者的一切操作——发文章、传图、换主题、改设置——都只落在 demo 资源上；重置后自动恢复
+「刚出厂」状态，下一位体验者看到的永远是一样的完整站点。</p>
+<h2 id="演示站专属行为demomode-门控">演示站专属行为（DEMO_MODE 门控）</h2><ul>
+<li><strong>自动播种</strong>：首次请求发现空库，自动建表（执行 schema.sql）并灌入种子数据（<code>src/demo.ts</code>）</li>
+<li><strong>自动重置</strong>：cron <code>23 */2 * * *</code>（每 2 小时的第 23 分钟）清空全部业务表 + R2，重新播种</li>
+<li><strong>登录页公示账号</strong>：账号 <code>demo</code> / 密码 <code>demo1234</code>，自动填充，无需向站长索取</li>
+<li><strong>全站体验版横幅</strong>：所有公开页顶部公示「演示体验版（非最新正式版）· 仅供测试体验 · 数据每 2 小时自动清空重置」</li>
+<li><strong>会员体系开着</strong>（<code>membersEnabled=1</code>）：演示会员账号同款公示——<code>demo</code> / <code>demo1234</code>（普通会员），
+可体验会员卡、每日登录 +1 积分、评论积分、排行榜与<strong>会员专享文付费墙</strong>（文章《会员专享：博客
+第二年的完整运营数据》，登录会员解锁）；另有一名 coffee 档背景板会员撑排行榜与评论徽标</li>
+<li><strong>访问密码演示文</strong>：文章《加密演练：这篇文章带访问密码》，密码 <code>demo1234</code> 在摘要里公示，
+体验密码解锁流程（密码墙与付费墙是两套独立的门）</li>
+<li><strong>禁改密码</strong>：<code>PUT /api/admin/password</code> 返回 403（改掉会让整个重置周期内其他体验者进不了后台）</li>
+<li><strong>禁闭站</strong>：设置里的 <code>siteClosed</code> 被服务端强制回 <code>0</code>，开关在后台 UI 禁用（防止有人把体验站关掉）</li>
+<li><strong>禁外发通知</strong>：发布/评论钩子（TG 频道、评论 Webhook）整段短路，demo Worker 不对外发任何请求</li>
+<li><strong>不进搜索引擎</strong>：robots.txt 返回全站 <code>Disallow: /</code>，所有公开页带 <code>noindex</code></li>
+<li><strong>不备份</strong>：demo 配置没有备份 cron，settings 里备份默认关闭</li>
+<li>侧栏显示橙色「演示」徽标；灰度模式、主题切换、编辑器、插件等其余功能照常可玩</li>
+</ul>
+<h2 id="部署自己的演示站">部署自己的演示站</h2><p>前提：本机已 <code>wrangler login</code>（与生产同一账号即可，demo 资源同样在免费额度内）。</p>
+<div class="codeblock" data-lang="bash"><pre><code># 1. 创建 demo 专属资源（名字可自定，与 wrangler.demo.jsonc 保持一致）
+npx wrangler d1 create xwblog-demo-db
+npx wrangler r2 bucket create xwblog-demo-images
+
+# 2. 把上一步输出的 database_id 填进 wrangler.demo.jsonc（替换占位符）
+
+# 3. 部署
+npm run deploy:demo</code></pre></div><p>部署完成后命令行会给出 <code>https://xwblog-demo.&lt;你的子域&gt;.workers.dev</code> 地址，<strong>打开即自动播种</strong>，
+无需任何初始化命令。<code>wrangler.demo.jsonc</code> 里已声明 <code>routes</code>（官方站绑 <code>demo.bloghao.com</code>），
+部署时自动完成 Custom Domain 绑定与证书签发；自建演示站不需要这个域名的话，删掉 <code>routes</code>
+一条再部署即可，或在 Cloudflare 后台该 Worker 的 Settings → Domains &amp; Routes 手动管理。</p>
+<blockquote>
+<p>配额说明：演示站与生产站共享账号的免费额度（Workers 10 万请求/天、D1 5M 行读取/天），
+演示站流量很小可忽略；若想完全隔离配额，用另一个免费 Cloudflare 账号 <code>wrangler login</code> 后
+执行同样的三步即可。</p>
+</blockquote>
+<h2 id="本地预览">本地预览</h2><div class="codeblock" data-lang="bash"><pre><code>npm run dev:demo</code></pre></div><p>无需创建任何资源（本地模拟库），首次打开页面自动建表 + 播种，直接预览演示站全貌。</p>
+<h2 id="独立-docker-体验站仓库">独立 Docker 体验站仓库</h2><p>演示站也可以脱离 Cloudflare 自托管：仓库 <strong><code>bloghao-demo</code></strong>（与官方仓库分开维护）把演示站
+抽成独立仓库，用 Docker 在任意服务器上跑同一套 DEMO_MODE 逻辑（自动播种 + 定时重置 +
+演示守卫），适合给服务器侧的体验环境用。本仓库与它只保持「代码快照」关系——体验站的功能
+以这里为准，改种子内容后按该仓库内的同步脚本重新导出即可。</p>
+<h2 id="改种子内容">改种子内容</h2><p>种子数据全部在代码里（重置时可从代码原样重建，不依赖外部服务）：</p>
+<ul>
+<li><code>src/demo-posts.ts</code> —— 文章（标题/正文/标签/发布时间/浏览点赞数，含草稿与定时）</li>
+<li><code>src/demo-content.ts</code> —— 微博、评论（含楼中楼与待审）、友链、独立页面、settings、访客统计</li>
+<li><code>src/demo-images.ts</code> —— 程序化生成的 SVG 配图（打进 bundle，重置时写入 R2）</li>
+</ul>
+<p>改完后 <code>npm run deploy:demo</code> 重新部署生效；本地 <code>npm run dev:demo</code> 刷新即可看到新版种子。
+<code>tests/demo.test.ts</code> 守着种子数据的不变量（slug 唯一、正文安全、评论树合法、图片引用存在等），
+改内容后跑一遍 <code>npm test</code>。</p>
+<h2 id="常见问题">常见问题</h2><ul>
+<li><strong>演示站会被仓库更新自动刷新吗？</strong> 不会。演示站代码只在你手动 <code>npm run deploy:demo</code> 时更新；
+生产站的自动部署链路（Workers Builds / deploy.yml）只认 <code>wrangler.jsonc</code>，不碰 demo 配置。</li>
+<li><strong>两次重置之间有人把站改乱了怎么办？</strong> 等下一个整点周期自动恢复；最恶劣的行为
+（改密码、闭站、外发通知）已被 DEMO_MODE 直接禁止。</li>
+<li><strong>体验者上传的图片会撑爆 R2 吗？</strong> 每次重置会清空 R2 只保留种子图；上传另有大小与类型限制。</li>
+<li><strong>重置时正在写文章的体验者会丢稿吗？</strong> 会——草稿箱内容随重置清空，登录页与站点描述里已注明
+「数据每 2 小时自动重置」。想更保守可把 cron 改成 <code>23 */6 * * *</code>（每 6 小时）。</li>
+</ul>
+
+    </article>
+  
+  <nav class="docs-pager">
+    <a class="docs-pager-link is-prev" href="typography.html"><span>← 上一篇</span><b>🩺 排版规范</b></a>
+    <a class="docs-pager-link is-next" href="roadmap.html"><span>下一篇 →</span><b>🗺️ 路线图</b></a>
+  </nav>
+  </main>
+  
+    <aside class="docs-toc">
+      <div class="docs-toc-title">本页目录</div>
+      <ul class="docs-toc-list">
+        <li class="toc-d2"><a href="#它是什么" data-toc="它是什么">它是什么</a></li>
+        <li class="toc-d2"><a href="#演示站专属行为demomode-门控" data-toc="演示站专属行为demomode-门控">演示站专属行为（DEMO_MODE 门控）</a></li>
+        <li class="toc-d2"><a href="#部署自己的演示站" data-toc="部署自己的演示站">部署自己的演示站</a></li>
+        <li class="toc-d2"><a href="#本地预览" data-toc="本地预览">本地预览</a></li>
+        <li class="toc-d2"><a href="#独立-docker-体验站仓库" data-toc="独立-docker-体验站仓库">独立 Docker 体验站仓库</a></li>
+        <li class="toc-d2"><a href="#改种子内容" data-toc="改种子内容">改种子内容</a></li>
+        <li class="toc-d2"><a href="#常见问题" data-toc="常见问题">常见问题</a></li>
+      </ul>
+    </aside>
+</div>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="../index.html">官网首页</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+    </span>
+  </div>
+</footer>
+<script src="../docs.js" defer></script>
+</body>
+</html>

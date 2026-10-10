@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>API 参考 - 博客号文档</title>
+<meta name="description" content="全部公开 / 管理接口与 HTML 净化白名单摘要，写自己的客户端。">
+<meta property="og:title" content="API 参考 - 博客号文档">
+<meta property="og:description" content="全部公开 / 管理接口与 HTML 净化白名单摘要，写自己的客户端。">
+<meta property="og:type" content="article">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">
+      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">文档中心</a>
+      <a href="../index.html">返回官网</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="docs-shell docs-shell-toc">
+  
+    <aside class="docs-sidebar">
+      <a class="docs-side-title" href="index.html">📚 文档中心</a>
+      <ul class="docs-side-list">
+      <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a href="guide.html">📖 使用手册</a></li>
+      <li><a href="plaza.html">🧭 广场</a></li>
+      <li><a href="themes.html">🎨 主题开发</a></li>
+      <li><a href="plugins.html">🧩 插件开发</a></li>
+      <li><a class="is-active" href="api.html">🔌 API 参考</a></li>
+      <li><a href="typography.html">🩺 排版规范</a></li>
+      <li><a href="demo.html">🎪 演示站指南</a></li>
+      <li><a href="roadmap.html">🗺️ 路线图</a></li>
+      </ul>
+      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+    </aside>
+  <main class="docs-main">
+    <div class="docs-crumbs">
+      <a href="index.html">文档中心</a><span>/</span><b>🔌 API 参考</b>
+      <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/API.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
+    </div>
+    <article class="doc-md">
+<h1 id="api-参考">API 参考</h1><p>所有接口前缀 <code>/api</code>，JSON 交互。管理接口需要会话 Cookie（浏览器登录后台后自动携带）。</p>
+<p>写爬虫/客户端时注意：非 GET 请求必须<strong>同源</strong>携带 <code>Origin</code> 头或直接不携带，跨源一律 403。</p>
+<h2 id="公开接口">公开接口</h2><h3 id="get-apihealth">GET /api/health</h3><p><code>{&quot;ok&quot;:true,&quot;time&quot;:...}</code></p>
+<h3 id="get-apipublicemoji">GET /api/public/emoji</h3><p>微信默认表情映射表（文本码 → 站内小图码点），单一来源 <code>src/emoji.ts</code>：<code>{ base: &quot;/emoji/&quot;, codes: { &quot;微笑&quot;: &quot;1f60a&quot;, ... } }</code>。静态数据，浏览器缓存一天（<code>Cache-Control: public, max-age=86400</code>）；闭站时随公开 API 一律 503（编辑器表情面板降级为空，文本码插入与渲染不受影响）。正文 / 微博 / 评论区渲染层把 <code>[微笑]</code> 替换成 <code>&lt;img class=&quot;wxq-emoji&quot; src=&quot;/emoji/1f60a.png&quot; alt=&quot;[微笑]&quot;&gt;</code>（查表不到原样保留），存库永远是文本码。图源 Twemoji（CC-BY 4.0，归属见 public/emoji/README.md）。</p>
+<h3 id="get-apipublicpostspage1limit10tag生活">GET /api/public/posts?page=1&amp;limit=10&amp;tag=生活</h3><p>已发布文章分页（摘要视图），返回 <code>{items, total, page, totalPages}</code>，<code>items</code> 元素含 <code>slug/title/summary/cover/tags/published_at/views/likes/pinned</code>。</p>
+<blockquote>
+<p>列表排序（最新/最多阅读/最多点赞/最多留言/随机）目前只由 SSR 页面（首页 / 分类 / 搜索）使用，本接口固定按最新（置顶优先）返回。</p>
+</blockquote>
+<h3 id="post-apipubliccomments">POST /api/public/comments</h3><p>文章留言。Body：</p>
+<div class="codeblock" data-lang="json"><pre><code>{ &quot;slug&quot;: &quot;hello-bloghao&quot;, &quot;nickname&quot;: &quot;路人甲&quot;, &quot;content&quot;: &quot;写得真好&quot;, &quot;link&quot;: &quot;&quot; }</code></pre></div><ul>
+<li><code>link</code> 是蜜罐字段，正常客户端永远传空字符串/不传</li>
+<li>受限流（同 IP 10 分钟 5 条）与站点「开启留言 / 先审后展」设置约束</li>
+<li><code>nickname</code> ≤ 24 字，<code>content</code> ≤ 1000 字，均为纯文本存储</li>
+<li><strong>作者回复（楼中楼）</strong>：登录管理员携带 <code>parentId</code>（被回复的评论 id）即以作者身份回复，免昵称、免限流、绕过「关闭留言」开关、直接展示并带「作者」徽标；未登录携带 <code>parentId</code> 一律 403</li>
+<li>响应 <code>{ok:true}</code> 或 <code>{ok:true, pending:true}</code>（先审后展开启时，前端据此刻意不刷新）</li>
+</ul>
+<h3 id="post-apipubliclikeslug">POST /api/public/like/:slug</h3><p>Body <code>{&quot;delta&quot;: 1}</code> 或 <code>{&quot;delta&quot;: -1}</code>，返回 <code>{&quot;ok&quot;:true,&quot;likes&quot;:7}</code>。计数不会为负。</p>
+<h3 id="post-apipubliclikeweiboid">POST /api/public/like/weibo/:id</h3><p>微博点赞，同上。</p>
+<h3 id="post-apipublicguestbook">POST /api/public/guestbook</h3><p>留言板留言（<code>/guestbook</code> 页）。Body 与规则同 <code>POST /api/public/comments</code>（<code>nickname</code> / <code>content</code> / 蜜罐 <code>link</code> / 限流 / 审核），无 <code>slug</code>；管理员带 <code>parentId</code> 即以作者身份回复（楼中楼）。存储上留言板留言是 <code>post_id = 0 AND weibo_id = 0</code> 的评论。响应 <code>{ok, pending?}</code>。</p>
+<h3 id="get-apipublicweiboidcomments">GET /api/public/weibo/:id/comments</h3><p>微博的已展示评论（平铺 ASC，最多 200 条），元素含 <code>id/parent_id/is_admin/nickname/content/created_at</code>；前端按 <code>parent_id</code> 组装楼中楼。响应 <code>{comments, allowComments, adminAvatar}</code>——<code>adminAvatar</code> 是站点头像（settings.avatarUrl，可为空串），前端给 <code>is_admin</code> 评论的作者头像位用，与会员 <code>member_avatar</code> 同一展示位。</p>
+<h3 id="post-apipublicweiboidcomments">POST /api/public/weibo/:id/comments</h3><p>微博评论。规则同 <code>POST /api/public/comments</code>（蜜罐 / 限流 / 审核 / 管理员 <code>parentId</code> 回复），<code>nickname</code>/<code>content</code> 约束一致。</p>
+<h3 id="post-apipubliclinksapply">POST /api/public/links/apply</h3><p>友链申请（访客提交，进入待审核）。Body：</p>
+<div class="codeblock" data-lang="json"><pre><code>{ &quot;name&quot;: &quot;朋友的博客&quot;, &quot;url&quot;: &quot;blog.example.com&quot;, &quot;description&quot;: &quot;一句话介绍&quot;, &quot;link&quot;: &quot;&quot; }</code></pre></div><ul>
+<li><code>link</code> 为蜜罐字段；同 IP 10 分钟限 3 次</li>
+<li><code>url</code> 自动补全 <code>https://</code> 前缀并做 URL 规整，非法返回错误；同名网址去重</li>
+<li><code>name</code> ≤ 40 字，<code>description</code> ≤ 120 字；成功入库 <code>status=&#39;pending&#39;</code>、<code>source=&#39;user&#39;</code></li>
+</ul>
+<h3 id="post-apipublictrack">POST /api/public/track</h3><p>访客统计打点（<code>site.js</code> 在所有公开页面自动上报，一般无需手动调用）。Body：</p>
+<div class="codeblock" data-lang="json"><pre><code>{ &quot;p&quot;: &quot;/post/hello?utm=x&quot;, &quot;r&quot;: &quot;https://www.google.com/&quot;, &quot;v&quot;: &quot;匿名访客id&quot;, &quot;t&quot;: &quot;页面标题&quot; }</code></pre></div><ul>
+<li>服务端清洗：<code>p</code> 必须以 <code>/</code> 开头（剥控制字符，截 300），<code>r</code> 只留域名，<code>v</code> 只放行 <code>[A-Za-z0-9_-]</code>，<code>t</code> 截 200；路径不合法直接静默丢弃</li>
+<li>设备 / 浏览器族由服务端按 User-Agent 解析，国家取 <code>CF-IPCountry</code>；不存 IP 与原始 UA</li>
+<li>同 IP 10 分钟限 120 次；设置 <code>statsEnabled=0</code> 时接口返回 <code>{ok:true}</code> 但不入库</li>
+<li>始终返回 <code>{&quot;ok&quot;:true}</code>（失败静默，不打扰页面）</li>
+</ul>
+<h3 id="post-apimemberregister">POST /api/member/register</h3><p>会员注册（站点「会员功能」关闭时整组 <code>/api/member/*</code> 返回 404）。Body：</p>
+<div class="codeblock" data-lang="json"><pre><code>{ &quot;username&quot;: &quot;xiaoke&quot;, &quot;password&quot;: &quot;至少8位&quot;, &quot;nickname&quot;: &quot;选填昵称&quot;, &quot;email&quot;: &quot;可选&quot;, &quot;link&quot;: &quot;&quot; }</code></pre></div><ul>
+<li><code>link</code> 是蜜罐字段，正常客户端永远传空字符串/不传；限流同 IP 10 分钟 5 次</li>
+<li>用户名 2-24 位字母/数字/<code>_</code>/<code>-</code>，密码 8-64 位；用户名占用或校验失败 400</li>
+<li><code>nickname</code> 选填（中英文均可，剥控制字符后 ≤24 字符，仅展示不做唯一约束）；注册填写<strong>不占用</strong> 30 天修改窗口</li>
+<li>成功即登录：<code>{ok:true, member:{nickname,tier,points,...}}</code> 并签发 <code>xw_member_session</code> Cookie（HttpOnly，30 天，与管理员会话完全独立）</li>
+</ul>
+<h3 id="post-apimemberlogin">POST /api/member/login</h3><p><code>{username, password}</code> → <code>{ok:true, member:{...}}</code>；口令错误 401（响应耗时恒定防用户名枚举），账号被封禁 403 <code>{&quot;error&quot;:&quot;banned&quot;}</code>。</p>
+<h3 id="post-apimemberlogout">POST /api/member/logout</h3><p>清除会员会话 → <code>{ok:true}</code>。</p>
+<h3 id="get-apimemberme">GET /api/member/me</h3><p><code>{member: {...} | null}</code>，恒 200（未登录为 <code>null</code>，前端据此渲染登录表单或会员卡）；本人视角额外含 <code>username</code> / <code>email</code> / <code>createdAt</code> / <code>displayNameChangedAt</code>（上次改昵称时间戳，null = 从未改过）。会员发言走上方评论三路接口即可：带会员 Cookie 时服务端自动挂身份，<code>nickname</code>/<code>email</code>/<code>website</code> 字段被忽略。</p>
+<h3 id="post-apimemberprofile">POST /api/member/profile</h3><p>修改昵称 / 绑定 QQ 头像（需登录；会员功能关闭时 404）。Body：<code>{ &quot;nickname&quot;?: &quot;新昵称&quot;, &quot;qq&quot;?: &quot;12345&quot; }</code>，两键至少一个；<code>qq</code> 不带键 = 不碰。</p>
+<ul>
+<li><strong>昵称</strong>：清洗口径与注册一致（剥控制字符、trim、≤24 字符），空值 400「昵称不能为空」；<strong>30 天一次</strong>——冷却中 403（消息含解禁日期，如「昵称每 30 天只能修改一次，2026年11月6日后可再改」）；窗口判定下沉为 SQL 条件更新（<code>display_name_changed_at IS NULL OR &lt;= now-30d</code>），并发双开同时过前置检查时只有一动能落库；成功 <code>{ok:true, nickname, displayNameChangedAt}</code></li>
+<li><strong>QQ 头像</strong>（评论头像 C2）：<code>qq</code> 校验 <code>^[1-9][0-9]{4,10}$</code>（<code>utils.ts isValidQQ</code>，每会员 10 次/分钟限流）；服务端抓 <code>q1/q2.qlogo.cn</code>（s=140）→ 魔数识别 → 站内 R2 转存（EXIF 剥离同款兜底）→ 回写 <code>members.avatar</code>。<strong>抓取失败容忍</strong>：只记 qq 号，出参 <code>avatarFailed:true</code>，重发同一请求即重试头像；成功出参含 <code>avatarUrl</code>（站内 <code>/images/</code> 地址）。<strong><code>qq</code> 号本体只进本人视角出参</strong>（<code>/api/member/me</code> 的 self 视图），评论 / 排行榜等公开面一律不携带</li>
+<li><strong>游客也可选填</strong> <code>qq</code>（评论头像 C2 扩展）：三路评论接口的 body 都收 <code>qq</code> 字段——校验 <code>^[1-9][0-9]{4,10}$</code>，<strong>格式不对按没填处理</strong>（不拦评论）；合法则服务端抓取腾讯头像转存 R2（同号历史头像直接复用，不重复抓取）。qq 号本体任何接口都不返回，评论行只带 <code>avatar</code>（站内 <code>/images/</code> 地址）</li>
+<li>微博评论 JSON（<code>GET /api/public/weibo/:id/comments</code>）与文章 / 留言板评论渲染新增 <code>member_avatar</code>（会员头像）与 <code>avatar</code>（游客自填 QQ 抓取的站内头像）字段，前端按 会员 → 作者站点头像 → 游客 → 昵称首字块 取值</li>
+<li>评论头像位优先级：会员 <code>member_avatar</code> → 作者评论（<code>is_admin=1</code>）用 <code>adminAvatar</code>（站点头像，与微博卡同源）→ 昵称首字块</li>
+</ul>
+<h3 id="post-apimemberpassword">POST /api/member/password</h3><p>修改密码（需登录；会员功能关闭时 404）。Body：<code>{ &quot;currentPassword&quot;: &quot;当前密码&quot;, &quot;newPassword&quot;: &quot;新密码&quot; }</code>。</p>
+<ul>
+<li>新密码 8-64 位；当前密码错误 400（PBKDF2 验证，按 IP 10 分钟 10 次限流防滥用）</li>
+<li>成功后<strong>其他设备的会员会话全部失效</strong>（当前会话保留）；本站不提供密码找回，表单旁有固定提醒</li>
+</ul>
+<h3 id="get-gouurlssr-页面">GET /go?u=<url>（SSR 页面）</h3><p>外链中间页（机制见 <code>src/outlink.ts</code>）：白名单域名（<code>TRUSTED_OUT_DOMAINS</code>，子域名自动跟随）与本站同源地址 302 直跳；其余第三方 http(s) 地址渲染「即将离开本站」确认页（展示目标域名与完整链接、附免责声明，<code>noindex</code>，无 JS、不自动跳转，故不构成开放重定向）。目标缺失 / 非 http(s) / 超 2048 字符一律 302 回首页。正文外链在渲染层包装进来：文章 / 页面 / 关于我走 <code>sanitizeHtml(html, { origin })</code>，微博文本走 <code>weiboTextHtml</code>（客户端镜像在 site.js）——存库与 RSS / 导出保持原始 URL。</p>
+<h2 id="认证">认证</h2><h3 id="get-apiauthstate">GET /api/auth/state</h3><p><code>{&quot;needsSetup&quot;: true, &quot;user&quot;: null}</code> —— <code>needsSetup=true</code> 表示尚无任何用户，可调用 setup。</p>
+<h3 id="post-apiauthsetup-仅首次">POST /api/auth/setup （仅首次）</h3><div class="codeblock" data-lang="json"><pre><code>{ &quot;username&quot;: &quot;demo&quot;, &quot;password&quot;: &quot;至少8位&quot;, &quot;displayName&quot;: &quot;小吴&quot; }</code></pre></div><p>创建管理员 + 欢迎文章，响应 Set-Cookie 会话（30 天）。</p>
+<h3 id="post-apiauthlogin">POST /api/auth/login</h3><p><code>{ &quot;username&quot;, &quot;password&quot; }</code>。同 IP 10 分钟内最多尝试 10 次。</p>
+<h3 id="post-apiauthlogout">POST /api/auth/logout</h3><p>销毁会话。</p>
+<h2 id="管理接口需登录">管理接口（需登录）</h2><h3 id="get-apiadminstats">GET /api/admin/stats</h3><p>概览统计：<code>{posts, views, likes, drafts, pendingComments, pendingLinks, uploads:{count,bytes}, recent:[…]}</code></p>
+<h3 id="get-apiadminvisitsdays30">GET /api/admin/visits?days=30</h3><p>访客统计聚合（后台「统计」页），<code>days</code> 1-365 默认 30（含今天共 N 天，北京时间）。响应：</p>
+<div class="codeblock" data-lang="json"><pre><code>{
+  &quot;days&quot;: 30, &quot;pv&quot;: 0, &quot;uv&quot;: 0, &quot;todayPv&quot;: 0, &quot;todayUv&quot;: 0,
+  &quot;series&quot;:   [{ &quot;day&quot;: &quot;2026-10-01&quot;, &quot;pv&quot;: 0, &quot;uv&quot;: 0 }],
+  &quot;topPages&quot;: [{ &quot;path&quot;: &quot;/post/hello&quot;, &quot;title&quot;: &quot;…&quot;, &quot;pv&quot;: 0, &quot;uv&quot;: 0 }],
+  &quot;topRefs&quot;:  [{ &quot;ref&quot;: &quot;www.google.com&quot;, &quot;pv&quot;: 0, &quot;uv&quot;: 0 }],
+  &quot;devices&quot;:  [{ &quot;name&quot;: &quot;mobile&quot;, &quot;pv&quot;: 0 }],
+  &quot;browsers&quot;: [{ &quot;name&quot;: &quot;wechat&quot;, &quot;pv&quot;: 0 }],
+  &quot;countries&quot;:[{ &quot;name&quot;: &quot;CN&quot;, &quot;pv&quot;: 0 }],
+  &quot;hourly&quot;:   [{ &quot;h&quot;: 0, &quot;pv&quot;: 0 }]
+}</code></pre></div><p><code>series</code> 按天补零；UV 为去重匿名访客号（<code>COUNT(DISTINCT vid)</code>）；数据表 <code>visit_log</code> 保留 180 天、不进备份。</p>
+<h3 id="文章">文章</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/admin/posts?status=all|published|scheduled|draft&amp;q=关键词&amp;page=1&amp;limit=20</code></td>
+<td>列表（不含 content；元素附 <code>tagList</code>、<code>categoryName</code>）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/posts</code></td>
+<td>新建</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/admin/posts/lookup?q=关键词&amp;page=1</code></td>
+<td>站内文章选择器（编辑器「插入链接 → 站内文章」）：仅已发布，轻出参 <code>{items:[{id, slug, title, summary, cover, published_at, hasPassword, minTier}], total, page, totalPages}</code>，无正文无口令；<strong>注册在 <code>/:id</code> 之前</strong>（否则 lookup 被 id 参数吞掉）</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/admin/posts/:id</code></td>
+<td>详情（含 content、categoryId）</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/admin/posts/:id</code></td>
+<td>更新（autosave 用；已发布时间不会被草稿保存抹掉）。<strong>缺键即保留</strong>：Body 里没出现的字段（content/tags/categoryId/title 等）一律沿用旧值——列表页状态切换只发 <code>{status}</code> 不会误清正文；显式传空串/空数组/<code>null</code> 才是清空</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/posts/:id/pin</code></td>
+<td>Body <code>{pinned:true/false}</code></td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/admin/posts/:id</code></td>
+<td>删除：<strong>移入回收站</strong>（软删，30 天后由 cron 自动彻底清除；评论与分类关联保留，恢复时一并跟回；彻底删除见下方「回收站」）</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/admin/tags</code></td>
+<td>全站标签聚合（编辑器补全用，见下方「标签」）</td>
+</tr>
+</tbody></table></div>
+<p>文章 Body 字段：</p>
+<div class="codeblock" data-lang="json"><pre><code>{
+  &quot;title&quot;: &quot;标题&quot;,
+  &quot;content&quot;: &quot;&lt;p&gt;富文本 HTML，服务端会白名单净化&lt;/p&gt;&quot;,
+  &quot;summary&quot;: &quot;摘要，可空&quot;,
+  &quot;cover&quot;: &quot;/images/u/202610/xxx.jpg&quot;,
+  &quot;tags&quot;: [&quot;生活&quot;, &quot;Cloudflare&quot;],
+  &quot;categoryId&quot;: 1,
+  &quot;status&quot;: &quot;draft | published | scheduled&quot;,
+  &quot;publishAt&quot;: 1791121500000,
+  &quot;pinned&quot;: false,
+  &quot;slug&quot;: &quot;留空自动生成，可自定义&quot;,
+  &quot;password&quot;: &quot;访问密码，可空&quot;
+}</code></pre></div><p>约束：title ≤ 150 字；content ≤ 1MB；tags ≤ 8 个、每个 ≤ 20 字；cover 必须以 <code>/</code> 或 <code>http(s)://</code> 开头；<code>categoryId</code> 为 null/空表示未分类，不存在分类 id 时被忽略；<code>password</code> ≤ 64 位。<code>status:&quot;scheduled&quot;</code> 时 <code>publishAt</code> 为毫秒时间戳（到点由每分钟 Cron 翻成 published 并把 <code>published_at</code> 设为该时刻，同时推 Telegram；转 published/draft 时 <code>publishAt</code> 自动清空）。</p>
+<p><strong>访问密码（文章加密码）</strong>：<code>password</code> 缺键 = 保持现状（自动保存安全），非空 = 设置 / 更换（服务端 PBKDF2 单向哈希落库，明文与哈希都不回显），空串 = 解除加密。响应里只有 <code>hasPassword</code> 布尔，<code>password_hash</code> 永不出现。加密文章的前台行为（机制见 <code>src/protect.ts</code>）：文章页在密码验证通过前只渲染密码表单（正文、评论区、自动摘要、JSON-LD 描述一概不出，管理员登录除外）；解锁走表单 <code>POST /post/:slug/unlock</code>（<code>application/x-www-form-urlencoded</code>，Body <code>password=…</code>，非 JSON API）——成功 303 回文章页并签发 HttpOnly 解锁 Cookie <code>bloghao_pp</code>（HMAC key 即该文 password_hash，30 天有效、改密即失效），失败 303 回 <code>?pwerr=1</code>，限流触发 303 回 <code>?pwerr=slow</code>（每 IP 每文 10 次 / 10 分钟）。防泄漏口径：RSS 不出该文 <code>content:encoded</code> 全文；关键词搜索不命中加密文章；<code>/random</code> 不进加密文章。</p>
+<h3 id="微博随手记">微博（随手记）</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/admin/weibo?status=all|published|draft&amp;page=1&amp;limit=20</code></td>
+<td>列表（置顶优先；元素附 <code>imageList</code>、<code>topicList</code>、<code>commentCount</code>）</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/admin/weibo/:id</code></td>
+<td>单条原稿（前台卡片「编辑」的数据源，附 <code>imageList</code>、<code>topicList</code>）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/weibo</code></td>
+<td>新建（发布或存草稿）</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/admin/weibo/:id</code></td>
+<td>更新（转回草稿会自动取消置顶）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/weibo/:id/pin</code></td>
+<td>Body <code>{pinned:true/false}</code></td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/admin/weibo/:id</code></td>
+<td>删除：<strong>移入回收站</strong>（软删，30 天后自动彻底清除；其下评论保留，恢复时一并跟回；彻底删除见下方「回收站」）</td>
+</tr>
+</tbody></table></div>
+<p>微博 Body 字段：</p>
+<div class="codeblock" data-lang="json"><pre><code>{
+  &quot;content&quot;: &quot;文字内容，可含 #话题#&quot;,
+  &quot;images&quot;: [&quot;/images/u/202610/xxx.jpg&quot;],
+  &quot;status&quot;: &quot;published | draft&quot;
+}</code></pre></div><p>约束：<code>content</code> ≤ 5000 字；<code>images</code> ≤ 9 张、只接受站内 <code>/images/</code> 与 <code>http(s)</code> 外链；<code>content</code> 与 <code>images</code> 不能同时为空；<strong>话题不接受直传</strong>——服务端从正文 <code>#话题#</code>（兼容 <code>#话题</code> 与 <code>#层级/标签</code>）自动提取；置顶最多 3 条，草稿不能置顶。</p>
+<h3 id="友情链接">友情链接</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/admin/links?status=all|approved|pending</code></td>
+<td>列表（不回传提交者 ip；附 <code>pending</code> 计数、<code>source: admin|user</code>）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/links</code></td>
+<td>手动添加（默认 <code>status:&#39;approved&#39;</code>）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/links/fetch-icon</code></td>
+<td>Body <code>{url}</code>，抓取目标站 favicon 存 R2 → <code>{icon:&quot;/images/u/fav/…&quot;}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/links/:id/approve</code></td>
+<td>收录（pending → approved）；无图标时后台异步补抓，不卡响应</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/links/:id/refresh-icon</code></td>
+<td>重新抓取图标</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/links/reorder</code></td>
+<td>Body <code>{id, dir:&quot;up&quot;|&quot;down&quot;}</code>，按当前顺序交换后整体回写 sort</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/admin/links/:id</code></td>
+<td>编辑（含改状态：传 <code>status:&#39;pending&#39;</code> 即「隐藏」）</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/admin/links/:id</code></td>
+<td>删除</td>
+</tr>
+</tbody></table></div>
+<p>链接 Body 字段与约束：</p>
+<div class="codeblock" data-lang="json"><pre><code>{ &quot;name&quot;: &quot;站名&quot;, &quot;url&quot;: &quot;https://…&quot;, &quot;description&quot;: &quot;简介&quot;, &quot;icon&quot;: &quot;/images/u/fav/… 或 https://…&quot;, &quot;status&quot;: &quot;approved | pending&quot;, &quot;sort&quot;: 0 }</code></pre></div><p><code>name</code> ≤ 40 字；<code>url</code> 自动补全 <code>https://</code> 并规整；<code>description</code> ≤ 120 字；<code>icon</code> 只接受站内 <code>/images/</code> 与 <code>http(s)</code> 外链（防 <code>javascript:</code> 注入），留空前台用站名首字图标；服务端抓取图标时仅收 ICO/PNG/JPG/WebP/GIF、单文件 ≤ 300KB、超时 6 秒。</p>
+<h3 id="分类">分类</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/admin/categories</code></td>
+<td>列表（附 <code>post_count</code> 文章计数）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/categories</code></td>
+<td>Body <code>{name, slug?, sort?}</code>；slug 留空用名称，支持字母/数字/中文/短横线</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/admin/categories/:id</code></td>
+<td>编辑（名称与 slug 均不可重复）</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/admin/categories/:id</code></td>
+<td>删除（关联文章变为未分类，文章不受影响）</td>
+</tr>
+</tbody></table></div>
+<p><code>name</code> ≤ 20 字。单分类模型：一篇文章最多属于一个分类（<code>post_categories.post_id</code> 为主键）。</p>
+<h3 id="独立页面">独立页面</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/admin/pages</code></td>
+<td>列表（全部状态，按 sort 排序）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/pages</code></td>
+<td>Body <code>{title, slug?, content?, status?: &quot;draft&quot;|&quot;published&quot;, show_in_nav?}</code>；slug 留空按标题生成（字母/数字/中文/短横线），重名自动加 <code>-2</code> 后缀</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/admin/pages/:id</code></td>
+<td>编辑；<code>status</code> / <code>show_in_nav</code> 未提供时沿用旧值</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/admin/pages/:id</code></td>
+<td>删除：<strong>移入回收站</strong>（软删，期间前台立即 404，30 天后自动彻底清除；彻底删除见下方「回收站」）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/pages/reorder</code></td>
+<td>Body <code>{id, dir: &quot;up&quot;|&quot;down&quot;}</code>，上移 / 下移导航排序</td>
+</tr>
+</tbody></table></div>
+<p><code>title</code> ≤ 60 字，<code>content</code> 为 HTML、白名单净化后 ≤ 100KB。前台渲染在 <code>/page/:slug</code>（导航高亮 <code>p:&lt;slug&gt;</code>）；<code>slug=&#39;about&#39;</code> 的页面（迁移自「关于我」）固定渲染在 <code>/about</code>，<code>/page/about</code> 301 回专属短链。</p>
+<h3 id="标签">标签</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/admin/tags</code></td>
+<td>文章实际用到的标签 + 分类页预建标签（count 0），按使用次数排序，最多 200 个</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/tags</code></td>
+<td>Body <code>{name}</code>，预建标签（≤ 20 字，不可重名）</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/admin/tags/:name</code></td>
+<td>删除标签，并从所有文章的 tags 中移除</td>
+</tr>
+</tbody></table></div>
+<h3 id="回收站软删除">回收站（软删除）</h3><p>文章 / 微博 / 独立页面删除时统一打 <code>deleted_at</code> 毫秒时间戳标记（不真删），前台与后台各列表立即不可见；<strong>保留 30 天</strong>，每晚备份 cron 顺带把到期项彻底删除并级联清掉其下评论（到期前数据仍在每日备份里）。恢复 = 清除标记，内容原样回到删除前的状态（文章恢复后若定时时间已过则自动转为草稿，不会恢复即发布）。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/admin/trash?type=post|weibo|page&amp;page=1</code></td>
+<td>列表（type 缺省 = 三类合并，按删除时间倒序，每页 20；元素 <code>{type, id, label, status, deleted_at}</code>，weibo 的 label 为正文前 120 字）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/trash/post|weibo|page/:id/restore</code></td>
+<td>恢复（内容回到原列表；仅对已在回收站的行生效）</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/admin/trash/post|weibo|page/:id</code></td>
+<td>彻底删除（<strong>不可恢复</strong>；文章/微博连带其下评论、文章连带分类关联一并删除；仅对已在回收站的行生效，误传存活 id 返回 404）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/trash/purge</code></td>
+<td>清空回收站，Body 可选 <code>{type}</code> 定向清空一类（缺省全清）</td>
+</tr>
+</tbody></table></div>
+<h3 id="上传--媒体">上传 / 媒体</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>POST</td>
+<td><code>/api/admin/upload</code></td>
+<td>multipart，字段名 <code>file</code>；图片 JPG/PNG/WebP/GIF（favicon 另允许 ICO）、视频 MP4/WebM；≤ 25MB；限频 60 次/分钟/IP；返回 <code>{url:&quot;/images/u/...&quot;, key, mime, size}</code>（前端上传前自动压缩大图，API 直传不压缩）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/og-image</code></td>
+<td>multipart，字段名 <code>file</code>；仅 PNG（编辑器 canvas 生成的 1200×630 分享卡图），存 R2 <code>og/</code> 目录；返回 <code>{url:&quot;/images/og/...&quot;, key}</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/admin/uploads?page=1</code></td>
+<td>媒体列表（每页 24）</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/admin/uploads?key=u/202610/xxx.png</code></td>
+<td>从 R2 与索引中删除</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/admin/uploads/audit</code></td>
+<td>媒体体检：<code>{scanned, missingHash, unreferenced:[…], unreferencedBytes, duplicateGroups:[{hash,items:[{key,name,size,referenced}],wasteBytes}], duplicateBytes, ghosts:[…]}</code>（逻辑见 src/audit.ts；限频 10 次/分钟/IP）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/uploads/hash-backfill</code></td>
+<td>Body <code>{limit?:25}</code>（≤50），为本轮 ≤limit 个无指纹文件从 R2 读内容算 SHA-256；R2 里已丢失的写哨兵 <code>missing</code>；返回 <code>{processed, missing, remaining}</code>，remaining&gt;0 就继续调（限频 60 次/分钟/IP，独立于体检的 10 次桶——前端回填是循环连发）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/uploads/merge</code></td>
+<td>Body <code>{keep, remove:[key…]}</code>（≤20 个），把重复文件的引用改写到保留项（posts/pages/weibo/users/friend_links/settings/tg_buffer）再删文件；要求所有 key 内容指纹一致，否则 400</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/uploads/cleanup</code></td>
+<td>Body <code>{keys:[key…]}</code>（≤100 个），删除未引用媒体；执行前会重新校验引用，期间被内容引用的保留并回告 <code>blocked:[…]</code>；返回 <code>{deleted, freedBytes, blocked}</code></td>
+</tr>
+</tbody></table></div>
+<h3 id="评论">评论</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/admin/comments?status=all|pending|approved&amp;type=all|post|weibo&amp;page=1</code></td>
+<td>列表（<code>type</code> 拆分文章评论 / 微博评论 / 留言板（<code>guestbook</code>）；附文章标题/slug、微博内容、父评论昵称）</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/admin/comments/:id</code></td>
+<td>Body <code>{status:&quot;approved&quot;|&quot;pending&quot;}</code>（通过 / 隐藏）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/comments/:id/replies</code></td>
+<td>Body <code>{content}</code>，以作者身份回复该评论（文章/微博/留言板通用），挂在同一顶层评论下，直接展示并带「作者」徽标</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/admin/comments/:id</code></td>
+<td>删除（连带其下的回复）</td>
+</tr>
+</tbody></table></div>
+<h3 id="设置--账号--工具">设置 / 账号 / 工具</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET / PUT</td>
+<td><code>/api/admin/settings</code></td>
+<td>可写键：<code>siteName, siteDescription, siteUrl, footerText, avatarUrl, faviconUrl, ogImageDefault, theme, allowComments, moderateComments, notifyNewComment, rssFullText, backupEnabled, postsPerPage, about（legacy，已由「页面」承载）, pluginsDisabled, siteGrayscale, siteClosed, siteClosedMessage, membersEnabled（会员体系总开关）, rankTopN（/rank 展示条数 1-50）, externalToken, telegramBotToken, telegramAllowFrom, telegramWebhookSecret</code>；<code>theme</code> 必须是已注册主题 id；<code>avatarUrl</code>/<code>faviconUrl</code>/<code>ogImageDefault</code> 只接受站内 <code>/images/</code> 与 <code>http(s)</code> 外链；<code>pluginsDisabled</code> 为逗号分隔的插件 manifest id（仅字母/数字/<code>_</code>/<code>-</code>）；<code>siteGrayscale</code>/<code>siteClosed</code> 为 <code>1</code>/<code>0</code> 开关（闭站时公开页面与公开 API 一律 503，白名单见 src/closed.ts，已登录管理员不受影响）；<code>siteClosedMessage</code> ≤1000 字；<code>externalToken</code>/<code>telegramBotToken</code>/<code>telegramWebhookSecret</code> 为敏感项，GET 与 PUT 的响应一律打码（<code>••••••••</code>），明文只在生成时返回一次，PUT 收到打码占位符视为保持原值</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/admin/password</code></td>
+<td>Body <code>{oldPassword, newPassword}</code>（8-64 位）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/tools/md</code></td>
+<td>Body <code>{md}</code> → <code>{html}</code>，Markdown 渲染</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/tools/linkmeta</code></td>
+<td>Body <code>{url}</code> → <code>{meta:{title, description, image, siteName}}</code>，编辑器「网址卡片」抓取目标页 og 元数据；只抓 http(s) 公网地址（私有网段/非常规端口拒绝，限长限时），抓不到时字段为空（前端用域名占位组卡）。限频 10 次/分钟/IP</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/tools/sanitize</code></td>
+<td>Body <code>{html}</code> → <code>{html}</code>，白名单净化（粘贴用）</td>
+</tr>
+</tbody></table></div>
+<h3 id="采集公众号文章">采集（公众号文章）</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>POST</td>
+<td><code>/api/admin/collect/wechat</code></td>
+<td>Body <code>{url}</code>，仅接受 <code>https://mp.weixin.qq.com/s/...</code>；服务端抓取正文，配图与封面转存 R2（与封面同媒体的正文首图自动去重），生成<strong>保留原文发布时间</strong>的草稿；返回 <code>{ok, post, account, images}</code>。限频 10 次/分钟/IP；单篇最多转存 30 张图、单图 ≤ 25MB、正文 ≤ ~900KB。编辑器插件「采集公众号文章」调用（见 docs/PLUGINS.md）</td>
+</tr>
+</tbody></table></div>
+<h3 id="外部发布管理">外部发布（管理）</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>POST</td>
+<td><code>/api/admin/external/token</code></td>
+<td>生成并保存新的开放 API Token（旧的立即失效），返回 <code>{ok, token}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/admin/external/telegram/webhook</code></td>
+<td>校验 Bot Token（getMe）→ 首次自动生成 Webhook 密钥 → 调 Telegram setWebhook；返回 <code>{ok, bot:&quot;@name&quot;, webhookUrl}</code>。需先通过设置接口保存 <code>telegramBotToken</code></td>
+</tr>
+</tbody></table></div>
+<p>外部发布相关设置键（可经 <code>PUT /api/admin/settings</code> 写入）：<code>externalToken</code>（开放 API 密钥，空 = 接口关闭，建议用上面的专用端点生成）、<code>telegramBotToken</code>、<code>telegramAllowFrom</code>（逗号分隔的 Chat ID 白名单）、<code>telegramWebhookSecret</code>（Webhook 密钥，建议由专用端点自动生成）、<code>notifyNewComment</code>（<code>1</code>/<code>0</code>，新留言推送到 Telegram，目标为白名单第一个 Chat ID）。</p>
+<h3 id="备份--数据导出">备份 / 数据导出</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>POST</td>
+<td><code>/api/admin/backup</code></td>
+<td>手动触发一次全量备份（与每晚 Cron 同一逻辑）：全部业务表导成 JSON 存进 R2 <code>backups/</code> 目录，返回 <code>{ok, key, bytes}</code>（开关关闭时 <code>skipped:true</code>）。结果同时写入设置 <code>lastBackupAt</code> / <code>lastBackupKey</code> / <code>lastBackupBytes</code>。Cron 由 wrangler.jsonc <code>triggers.crons</code> 配置（北京时间 00:30），失败时经 Telegram 提醒站长</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/admin/export/markdown</code></td>
+<td>下载 Markdown 包 zip：<code>posts/*.md</code>（YAML front-matter 含 title/slug/date/status/tags/category/cover/summary，正文 HTML→MD）、<code>weibo.md</code>、<code>pages/*.md</code>、<code>images/…</code>（正文/封面/微博引用的站内图，从 R2 流式打包）、<code>manifest.json</code>（含 missingImages 清单）。未被引用的图床文件不打包</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/admin/export/wxr</code></td>
+<td>下载 WordPress WXR 1.2 单文件：文章（HTML 正文、publish/draft 状态、分类与标签），供 WordPress / emlog 导入器使用；微博不进 WXR</td>
+</tr>
+</tbody></table></div>
+<h3 id="get-apimetathemes">GET /api/meta/themes</h3><p>已注册主题列表 <code>{themes:[{id,name,description,colors}]}</code>，<code>colors</code> 为后台皮肤卡预览色板（<code>[背景, 强调条, 卡面, 卡面2, 卡面3]</code>，未设置时为 <code>null</code>）。</p>
+<h3 id="get-apiadminmemberspage1q">GET /api/admin/members?page=1&amp;q=</h3><p>会员列表（后台「会员」页数据源）：<code>{items:[{id, username, email, tier, points, status, created_at, last_login_at}], total, page, totalPages}</code>；<code>q</code> 模糊匹配用户名 / 邮箱，20 条/页。</p>
+<h3 id="put-apiadminmembersid">PUT /api/admin/members/:id</h3><p>改档位 / 封禁，<strong>缺键即保留</strong>（只传要改的键）：<code>{ &quot;tier&quot;: &quot;normal|coffee|top&quot; }</code> 或 <code>{ &quot;status&quot;: &quot;active|banned&quot; }</code> → <code>{ok:true}</code>；<code>status:&quot;banned&quot;</code> 同时清空该会员全部会话（即刻踢下线），历史评论保留。会员不存在 404。</p>
+<h2 id="外部接口token-鉴权供-telegram-机器人--第三方工具调用">外部接口（Token 鉴权，供 Telegram 机器人 / 第三方工具调用）</h2><p>鉴权方式二选一（只认请求头，避免 Token 进访问日志）：<code>Authorization: Bearer &lt;token&gt;</code> 或 <code>X-Auth-Token: &lt;token&gt;</code>。Token 在后台「设置 → 外部发布」生成，空 Token = 接口关闭。</p>
+<h3 id="get-apiexternalweibo">GET /api/external/weibo</h3><p>连通性测试，返回 <code>{ok, site, usage}</code>。</p>
+<h3 id="post-apiexternalweibo">POST /api/external/weibo</h3><p>发布一条微博。<code>Content-Type: application/json</code> 与 <code>multipart/form-data</code> 均可：</p>
+<div class="codeblock" data-lang="json"><pre><code>{ &quot;content&quot;: &quot;文字，可含 #话题#&quot;, &quot;images&quot;: [&quot;https://外链 或 /images/站内 或 data:image/…;base64,…&quot;], &quot;status&quot;: &quot;published | draft&quot; }</code></pre></div><p>multipart 字段：<code>content</code>、<code>status</code>、<code>images</code>（文件，可重复；也接受图片地址字符串）。<code>status</code> 缺省为 <code>published</code>。</p>
+<ul>
+<li>约束与后台一致：<code>content</code> ≤ 5000 字、图片 ≤ 9 张（JPG/PNG/WebP/GIF，上传文件 ≤ 25MB，存 R2）、文字与图片不能同时为空</li>
+<li>返回 <code>{ok, id, url, status, images}</code>，<code>url</code> 形如 <code>https://站点/weibo?wb=&lt;id&gt;#wb-&lt;id&gt;</code>（<code>?wb=</code> 让 /weibo 服务端定位到该条所在页，锚点才能落到具体那条微博）</li>
+<li>错误：401 无效 Token；422 内容为空 / 图片超限 / 格式不支持；429 限频（30 次/分钟/Token）</li>
+<li>话题不接受直传，服务端从正文提取（同微博管理接口）</li>
+</ul>
+<h3 id="post-apitelegramwebhook">POST /api/telegram/webhook</h3><p>Telegram Bot API 的 Webhook 接收端，由 Telegram 服务器调用（校验 <code>X-Telegram-Bot-Api-Secret-Token</code> 请求头，密钥由后台一键设置生成并经 setWebhook 的 <code>secret_token</code> 下发；旧的 <code>?secret=</code> 绑定方式仍兼容，重新点一次「一键设置 Webhook」即切换为纯 header）。行为：</p>
+<ul>
+<li>白名单外会话：回复其 Chat ID 与授权提示，不落库；<code>/start</code>、<code>/help</code> 回复使用说明</li>
+<li>文字 / 图片 / 图片+caption（白名单会话）→ 发布为微博，图片经 Bot API 下载后转存 R2；成功后回复微博链接</li>
+<li>相册（同 <code>media_group_id</code>）缓冲合并为一条微博（缓冲表 <code>tg_buffer</code>，几秒无新图即发布）</li>
+<li><code>/draft 文字</code> 存草稿；其余指令回复可用指令说明</li>
+<li>限频 20 次/分钟/Chat</li>
+</ul>
+<h2 id="html-白名单净化器摘要">HTML 白名单（净化器摘要）</h2><ul>
+<li>保留：<code>p br hr h1-h6 blockquote pre code ul ol li a img video source strong b em i u s del ins mark sup sub small span section div figure figcaption table thead tbody tfoot tr th td caption details summary abbr cite q kbd samp wbr</code></li>
+<li>丢弃（连同内容）：<code>script style iframe svg math form input button select textarea template link meta base object embed …</code>；<code>id</code> 属性一律剥除（防 DOM clobbering）</li>
+<li>唯一例外：<code>&lt;meta data-og-image=&quot;/images/…&quot;&gt;</code> 原样保留（编辑器生成的 OG 分享卡图标记，仅限站内路径）</li>
+<li>链接仅允许 <code>http(s) / mailto / 站内相对 / #锚点</code>（校验前剥离 tab/换行，<code>jav&amp;#9;ascript:</code> 之类混淆无法绕过）；<code>data:</code>/<code>javascript:</code> 一律拒绝</li>
+<li>内联样式仅保留排版属性（颜色/字号/行高/间距/边框/对齐等）；<code>url()</code> 只接受站内 <code>/</code> 开头路径；<code>!important</code> 被剥除</li>
+<li>规范属性 <code>data-w / data-ignore-width / data-no-dark / data-ignore-dm</code> 原样保留；<code>data-link-card=&quot;link-card&quot;</code> 为编辑器「链接卡片」结构标记（src/linkmeta.ts），只认该固定值，其余值剥除</li>
+</ul>
+
+    </article>
+  
+  <nav class="docs-pager">
+    <a class="docs-pager-link is-prev" href="plugins.html"><span>← 上一篇</span><b>🧩 插件开发</b></a>
+    <a class="docs-pager-link is-next" href="typography.html"><span>下一篇 →</span><b>🩺 排版规范</b></a>
+  </nav>
+  </main>
+  
+    <aside class="docs-toc">
+      <div class="docs-toc-title">本页目录</div>
+      <ul class="docs-toc-list">
+        <li class="toc-d2"><a href="#公开接口" data-toc="公开接口">公开接口</a></li>
+        <li class="toc-d3"><a href="#get-apihealth" data-toc="get-apihealth">GET /api/health</a></li>
+        <li class="toc-d3"><a href="#get-apipublicemoji" data-toc="get-apipublicemoji">GET /api/public/emoji</a></li>
+        <li class="toc-d3"><a href="#get-apipublicpostspage1limit10tag生活" data-toc="get-apipublicpostspage1limit10tag生活">GET /api/public/posts?page=1&amp;amp;limit=10&amp;amp;tag=生活</a></li>
+        <li class="toc-d3"><a href="#post-apipubliccomments" data-toc="post-apipubliccomments">POST /api/public/comments</a></li>
+        <li class="toc-d3"><a href="#post-apipubliclikeslug" data-toc="post-apipubliclikeslug">POST /api/public/like/:slug</a></li>
+        <li class="toc-d3"><a href="#post-apipubliclikeweiboid" data-toc="post-apipubliclikeweiboid">POST /api/public/like/weibo/:id</a></li>
+        <li class="toc-d3"><a href="#post-apipublicguestbook" data-toc="post-apipublicguestbook">POST /api/public/guestbook</a></li>
+        <li class="toc-d3"><a href="#get-apipublicweiboidcomments" data-toc="get-apipublicweiboidcomments">GET /api/public/weibo/:id/comments</a></li>
+        <li class="toc-d3"><a href="#post-apipublicweiboidcomments" data-toc="post-apipublicweiboidcomments">POST /api/public/weibo/:id/comments</a></li>
+        <li class="toc-d3"><a href="#post-apipubliclinksapply" data-toc="post-apipubliclinksapply">POST /api/public/links/apply</a></li>
+        <li class="toc-d3"><a href="#post-apipublictrack" data-toc="post-apipublictrack">POST /api/public/track</a></li>
+        <li class="toc-d3"><a href="#post-apimemberregister" data-toc="post-apimemberregister">POST /api/member/register</a></li>
+        <li class="toc-d3"><a href="#post-apimemberlogin" data-toc="post-apimemberlogin">POST /api/member/login</a></li>
+        <li class="toc-d3"><a href="#post-apimemberlogout" data-toc="post-apimemberlogout">POST /api/member/logout</a></li>
+        <li class="toc-d3"><a href="#get-apimemberme" data-toc="get-apimemberme">GET /api/member/me</a></li>
+        <li class="toc-d3"><a href="#post-apimemberprofile" data-toc="post-apimemberprofile">POST /api/member/profile</a></li>
+        <li class="toc-d3"><a href="#post-apimemberpassword" data-toc="post-apimemberpassword">POST /api/member/password</a></li>
+        <li class="toc-d3"><a href="#get-gouurlssr-页面" data-toc="get-gouurlssr-页面">GET /go?u=（SSR 页面）</a></li>
+        <li class="toc-d2"><a href="#认证" data-toc="认证">认证</a></li>
+        <li class="toc-d3"><a href="#get-apiauthstate" data-toc="get-apiauthstate">GET /api/auth/state</a></li>
+        <li class="toc-d3"><a href="#post-apiauthsetup-仅首次" data-toc="post-apiauthsetup-仅首次">POST /api/auth/setup （仅首次）</a></li>
+        <li class="toc-d3"><a href="#post-apiauthlogin" data-toc="post-apiauthlogin">POST /api/auth/login</a></li>
+        <li class="toc-d3"><a href="#post-apiauthlogout" data-toc="post-apiauthlogout">POST /api/auth/logout</a></li>
+        <li class="toc-d2"><a href="#管理接口需登录" data-toc="管理接口需登录">管理接口（需登录）</a></li>
+        <li class="toc-d3"><a href="#get-apiadminstats" data-toc="get-apiadminstats">GET /api/admin/stats</a></li>
+        <li class="toc-d3"><a href="#get-apiadminvisitsdays30" data-toc="get-apiadminvisitsdays30">GET /api/admin/visits?days=30</a></li>
+        <li class="toc-d3"><a href="#文章" data-toc="文章">文章</a></li>
+        <li class="toc-d3"><a href="#微博随手记" data-toc="微博随手记">微博（随手记）</a></li>
+        <li class="toc-d3"><a href="#友情链接" data-toc="友情链接">友情链接</a></li>
+        <li class="toc-d3"><a href="#分类" data-toc="分类">分类</a></li>
+        <li class="toc-d3"><a href="#独立页面" data-toc="独立页面">独立页面</a></li>
+        <li class="toc-d3"><a href="#标签" data-toc="标签">标签</a></li>
+        <li class="toc-d3"><a href="#回收站软删除" data-toc="回收站软删除">回收站（软删除）</a></li>
+        <li class="toc-d3"><a href="#上传--媒体" data-toc="上传--媒体">上传 / 媒体</a></li>
+        <li class="toc-d3"><a href="#评论" data-toc="评论">评论</a></li>
+        <li class="toc-d3"><a href="#设置--账号--工具" data-toc="设置--账号--工具">设置 / 账号 / 工具</a></li>
+        <li class="toc-d3"><a href="#采集公众号文章" data-toc="采集公众号文章">采集（公众号文章）</a></li>
+        <li class="toc-d3"><a href="#外部发布管理" data-toc="外部发布管理">外部发布（管理）</a></li>
+        <li class="toc-d3"><a href="#备份--数据导出" data-toc="备份--数据导出">备份 / 数据导出</a></li>
+        <li class="toc-d3"><a href="#get-apimetathemes" data-toc="get-apimetathemes">GET /api/meta/themes</a></li>
+        <li class="toc-d3"><a href="#get-apiadminmemberspage1q" data-toc="get-apiadminmemberspage1q">GET /api/admin/members?page=1&amp;amp;q=</a></li>
+        <li class="toc-d3"><a href="#put-apiadminmembersid" data-toc="put-apiadminmembersid">PUT /api/admin/members/:id</a></li>
+        <li class="toc-d2"><a href="#外部接口token-鉴权供-telegram-机器人--第三方工具调用" data-toc="外部接口token-鉴权供-telegram-机器人--第三方工具调用">外部接口（Token 鉴权，供 Telegram 机器人 / 第三方工具调用）</a></li>
+        <li class="toc-d3"><a href="#get-apiexternalweibo" data-toc="get-apiexternalweibo">GET /api/external/weibo</a></li>
+        <li class="toc-d3"><a href="#post-apiexternalweibo" data-toc="post-apiexternalweibo">POST /api/external/weibo</a></li>
+        <li class="toc-d3"><a href="#post-apitelegramwebhook" data-toc="post-apitelegramwebhook">POST /api/telegram/webhook</a></li>
+        <li class="toc-d2"><a href="#html-白名单净化器摘要" data-toc="html-白名单净化器摘要">HTML 白名单（净化器摘要）</a></li>
+      </ul>
+    </aside>
+</div>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="../index.html">官网首页</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+    </span>
+  </div>
+</footer>
+<script src="../docs.js" defer></script>
+</body>
+</html>

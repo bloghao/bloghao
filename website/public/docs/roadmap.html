@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>路线图 - 博客号文档</title>
+<meta name="description" content="已上线能力与近期计划，按 A / B / C 优先级管理的开发方向。">
+<meta property="og:title" content="路线图 - 博客号文档">
+<meta property="og:description" content="已上线能力与近期计划，按 A / B / C 优先级管理的开发方向。">
+<meta property="og:type" content="article">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">
+      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">文档中心</a>
+      <a href="../index.html">返回官网</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="docs-shell docs-shell-toc">
+  
+    <aside class="docs-sidebar">
+      <a class="docs-side-title" href="index.html">📚 文档中心</a>
+      <ul class="docs-side-list">
+      <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a href="guide.html">📖 使用手册</a></li>
+      <li><a href="plaza.html">🧭 广场</a></li>
+      <li><a href="themes.html">🎨 主题开发</a></li>
+      <li><a href="plugins.html">🧩 插件开发</a></li>
+      <li><a href="api.html">🔌 API 参考</a></li>
+      <li><a href="typography.html">🩺 排版规范</a></li>
+      <li><a href="demo.html">🎪 演示站指南</a></li>
+      <li><a class="is-active" href="roadmap.html">🗺️ 路线图</a></li>
+      </ul>
+      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+    </aside>
+  <main class="docs-main">
+    <div class="docs-crumbs">
+      <a href="index.html">文档中心</a><span>/</span><b>🗺️ 路线图</b>
+      <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/ROADMAP.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
+    </div>
+    <article class="doc-md">
+<h1 id="开发方向备忘">开发方向备忘</h1><p>记录<strong>已调研、尚未启动</strong>的功能方向。每项保留调研结论与待决策点，启动开发时不必重新摸底；一旦定案实现，具体用法移入 GUIDE / API / THEMES 等功能文档，本文件只留条目与状态；拍板「不做」的进文末不做清单，编号永久空缺不回收。</p>
+<p>2026-10 对标 WordPress / emlog 等系统做过一轮全量能力盘点，方向按三档优先级管理：<strong>A = 一定要做</strong>（下一步就做，多数成本低、确定性强）；<strong>B = 未来一定要做</strong>（重要，但有前置依赖或需先拍板）；<strong>C = 加分项</strong>（可有可无，有富余再做）。</p>
+<p><strong>建议执行顺序（2026-10-07 重整）</strong>：<del>A 区</del>（已收官，A8 随本日落进 AGENTS.md）。B 区建议下一批：<strong>B9 主题外观变量（主题生态破零的最短路径）→ B10 MCP 服务器（成本低、差异化明显）→ B3 通知渠道抽象（国内触达）</strong>；再往后 B6 备份异地化 / B13 管理员安全包。B8 主题 / 插件市场 2026-10-08 立项（调研结论已入档），排期等「主题可安装形态」拍板后插入。C 区按富余随缘挑。</p>
+<h2 id="优先级总览2026-10-07-更新">优先级总览（2026-10-07 更新）</h2><h3 id="a-区--一定要做">A 区 · 一定要做</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>事项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A1</td>
+<td>✅ 数据导出（2026-10 完成）</td>
+<td>Markdown + 图片打包 / WordPress WXR；后台「设置 → 数据导出」，用法见 GUIDE / API</td>
+</tr>
+<tr>
+<td>A2</td>
+<td>✅ 独立页面系统 + 导航自定义（2026-10 完成）</td>
+<td>自建页面渲染在 /page/:slug、导航跟随页面、「关于我」迁入（/about 短链不变）；用法见 GUIDE / THEMES / API</td>
+</tr>
+<tr>
+<td>A3</td>
+<td>✅ JSON-LD 文章结构化数据（2026-10 完成）</td>
+<td>文章页自动输出 schema.org BlogPosting（北京时间口径、image 三级兜底、tags→keywords）；零配置，render.ts <code>articleJsonLd()</code></td>
+</tr>
+<tr>
+<td>A4</td>
+<td>✅ WebP 自动转换（2026-10 完成）</td>
+<td>上传超 150KB 或最长边超 2000px 优先转 WebP（质量 0.75），旧浏览器回退 JPEG/PNG，产物更大则保留原图</td>
+</tr>
+<tr>
+<td>A5</td>
+<td>✅ 服务端插件钩子 + 官方示例（2026-10 完成）</td>
+<td>src/hooks.ts 总线 + 三个官方示例（TG 发布同步 / 评论 Webhook / 页脚自定义）；后台启停，详见 PLUGINS.md</td>
+</tr>
+<tr>
+<td>A6</td>
+<td>✅ 编辑器 Markdown 快捷输入（2026-10 完成）</td>
+<td>富文本行首标记 + 空格自动转块级格式（引用 / 标题 / 列表 / 代码块 / 分割线）</td>
+</tr>
+<tr>
+<td>A7</td>
+<td>✅ 一键部署（2026-10 完成）</td>
+<td>Deploy to Cloudflare 按钮：fork 副本 → 自动开通 D1/R2 → Workers Builds 接管，命令行部署降为方式二</td>
+</tr>
+<tr>
+<td>A8</td>
+<td>✅ 复杂度预算原则写入 AGENTS.md（2026-10-07 完成）</td>
+<td>AGENTS.md 开头新增「复杂度预算」一节：新功能归宿三档排序（客户端 → 插件 → 内核自洽小文件）、进内核走「单文件模块 + Node 可测 + 防线登记」三件套、运行时依赖只有 hono 的依赖预算、无构建链同属预算；顺手把开头「约 20 个 TS 文件」修正为实际口径 30 余个</td>
+</tr>
+<tr>
+<td>A9</td>
+<td>✅ 站点状态开关：一键灰度 + 一键闭站（2026-10 完成）</td>
+<td>灰度 = <code>&lt;html&gt;</code> filter 去色；闭站 = 中间件全站 503 + Retry-After（保收录），逻辑在 src/closed.ts；用法见 GUIDE</td>
+</tr>
+</tbody></table></div>
+<h3 id="b-区--未来一定要做">B 区 · 未来一定要做</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>事项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>B2</td>
+<td>✅ 会员体系 P1（2026-10-07 完成）</td>
+<td>注册登录 / 评论带会员身份 / 积分（含后台手动调整）/ /rank 榜单 / 付费墙 / 后台会员管理全量落地；拍板口径与契约见 DEVPLAN，用法见 GUIDE §15。后续 P2 / P3 见 B15 / B16</td>
+</tr>
+<tr>
+<td>B3</td>
+<td>通知渠道抽象</td>
+<td>TG 之外加飞书 / 企业微信 / Bark / Server酱——国内用户装 TG 本身就是门槛；新留言 / 定时发布 / 备份告警复用同一渠道配置</td>
+</tr>
+<tr>
+<td>B4</td>
+<td>✅ FTS5 中文搜索（2026-10 完成）</td>
+<td>/search 换 D1 原生 FTS5（trigram 适配中文），bm25 相关度排序，微博正文纳入搜索；机制见 src/fts.ts，防线见 AGENTS.md</td>
+</tr>
+<tr>
+<td>B5</td>
+<td>WordPress / emlog / Typecho 导入工具</td>
+<td>数据导出（A1）的另一面，换博客用户的主要入口；scripts/ 已有 emlog 迁移脚本留档可复活</td>
+</tr>
+<tr>
+<td>B6</td>
+<td>备份异地化</td>
+<td>D1 与备份 R2 同在一个 Cloudflare 账号，账号被盗一锅端；每晚备份额外推一份到 GitHub 私库或另一账号</td>
+</tr>
+<tr>
+<td>B7</td>
+<td>友链健康巡检</td>
+<td>每周 cron 探活（HEAD 请求），失效标灰并后台提醒——友链在线申请开放后失效只会更多</td>
+</tr>
+<tr>
+<td>B8</td>
+<td>✅ 主题 / 插件市场（2026-10-08 立项，未开工）</td>
+<td><strong>已拍板</strong>：市场独立于主仓库，另起分发仓库（市场目录站 + 主题 / 插件包托管 + 预览，形态可仿官网 bloghao.com 的 Pages 纯静态路子），主仓库 catalog.json 改为指向远程源或由市场仓库同步；<strong>未拍板</strong>：主题可安装形态——Workers 运行时不能加载 bundle 外代码，六主题是编译期 SSR 模块，「一键安装」只有两条路：① 降级 CSS 皮肤包（真·运行时安装，只解决换色换字体，解决不了布局差异）② 每用户触发重部署（否定「无构建链、部署即生效」体验，且与 docker-poc 的 Node 动态 import 分叉出两套安装语义）；编辑器插件无此限制（public/plugins/ 本就运行时加载），市场安装通道 = 远程获取落 R2 + 路由下发，服务端 hooks 插件则与主题同受编译期限制；启动前还需定主题包版本字段（catalog 条目 minVersion）与主题作者安全规范（净化防线 esc/escAttr/外链包装是内核责任边界，第三方主题脱离类型体系手写难以保证），UX 参考 Halo 应用中心</td>
+</tr>
+<tr>
+<td>B9</td>
+<td>主题外观变量</td>
+<td>颜色 / 圆角 / 字体后台可调、不动代码——主题生态数量为零时降低使用门槛的最短路径</td>
+</tr>
+<tr>
+<td>B10</td>
+<td>MCP 服务器</td>
+<td>包装现有开放 API（Token 鉴权已备，见 GUIDE 8.1–8.2），AI 助手直接发文 / 查评论；成本低、差异化明显</td>
+</tr>
+<tr>
+<td>B11</td>
+<td>🔶 官网增长两件套（演示站半边已落地）</td>
+<td>演示站引擎已建成（DEMO_MODE 种子 + 每 2 小时重置 + 独立体验站仓库，见 docs/DEMO.md）；剩<strong>博客号目录深化</strong>：每站截图 + SEO 落地页，对标 WordPress showcase</td>
+</tr>
+<tr>
+<td>B12</td>
+<td>后台系统状态卡</td>
+<td>D1 行数 / R2 用量（自记账累计即可）/ 最近备份状态一目了然——「成本可见」呼应零成本卖点</td>
+</tr>
+<tr>
+<td>B13</td>
+<td>管理员安全包</td>
+<td>TOTP 两步验证 + 登录失败 TG 告警 + 活跃会话管理。安全是招牌卖点，招牌要焊牢</td>
+</tr>
+<tr>
+<td>B14</td>
+<td>多作者协作</td>
+<td>与「个人博客」定位有张力，启动前先拍板要不要</td>
+</tr>
+<tr>
+<td>B15</td>
+<td>会员 P2：支付 / 收款闭环</td>
+<td>从会员体系拆出的后续：收款方式待拍板（个人站长轻方案优先——卡密 / 爱发电类，避免重对账），打通后会员档位可自助购买</td>
+</tr>
+<tr>
+<td>B16</td>
+<td>会员 P3：升级机制与兑换码</td>
+<td>依赖 B15；档位升级补差价、兑换码批量发放</td>
+</tr>
+<tr>
+<td>B17</td>
+<td>✅ 广场系统（2026-10-10 立项并当日落地 V1）</td>
+<td>官网上聚合展示各博客号的微博 + 文章，信息流按「权重 + 新文推荐 + 随机展示」混排。<strong>关键前置：官网（website/）是 Pages 纯静态、无后端，广场必须有一个 hub</strong>——候选：官网侧另起独立 Worker 做聚合与排序（与 Pages 同域反代即可）。数据流两条路待拍板：① pull——hub 定时抓各站公开 RSS / 开放 API（零改动，但触达慢、无发布时机的互动数据）；② push——用户站走 src/hooks.ts 钩子总线的官方「广场同步」插件，发布时上报，是否同步由后台插件启停天然承载 opt-in（站长第 2 点即此路，A5 钩子体系正是留的口子），两路可并存（push 为主、pull 补漏）。排序要点：权重（互动量 / 更新活跃度）+ 新文时间加权 + 随机位混排，hub 侧需防刷（各站上报带签名 token）。防泄漏口径照搬 AGENTS.md 清单：加密文 / 会员锁文不进广场（push 路插件端按 hasPassword / locked 跳过，pull 路只取 RSS 试读段口径）。<strong>已落地（V1）</strong>：hub 独立 Worker 在 <code>plaza/</code>（hono + core.ts 纯函数，push HMAC ingest + RSS pull 补漏 + 混排评分 feed），博客端官方「广场同步」插件入 <code>src/hooks.ts</code> 注册表（加密/锁文 locked 跳过），官网广场页 bloghao.com/plaza；协议与部署见 docs/PLAZA.md。与 B11 博客号目录的关系：目录是站点级收录、广场是内容级流，v1 共用同一人工审核信任模型；B18 认证已预留 sites.verified 徽标位</td>
+</tr>
+<tr>
+<td>B18</td>
+<td>博客号作者专属认证（蓝V式，<strong>立项待研究，2026-10-10 站长提出</strong>；B17 落地时已预留 <code>sites.verified</code> 徽标位与 feed 出参，官网展示「✔︎ 认证」，v1 手工开关）</td>
+<td>所有基于 bloghao.com 部署的博客作者可申请专属认证标识。<strong>前置依赖：身份锚点</strong>——B17 广场 hub 是最自然的发证方：站点所有权验证（用户站按指引在设置页填入 hub 下发的校验 token，或 hub 探测站点上的验证文件）通过后，hub 签发「站名 + 作者」认证凭据。展示两端：广场信息流作者徽标（B17 内直接渲染）+ 用户站前台可选挂认证标（如关于我 / 评论作者旁）。凭据必须走签名 token 而非人工标注（站点可自行验证），要支持吊销与换主；冒用官方名义的站点要能在 hub 侧标记未认证。启动前先拍板：认证分级（个人 / 组织？）与收费与否</td>
+</tr>
+</tbody></table></div>
+<h3 id="c-区--加分项可有可无">C 区 · 加分项（可有可无）</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>事项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>C1</td>
+<td>博客圈文化件</td>
+<td>随机友链跳转（/random 旁加一个）、页脚运行天数 / 本站信息卡、开往 / 十年之约入口</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>🔶 部分完成（2026-10-07）</td>
+<td><strong>QQ 评论头像</strong>已全量落地（会员中心绑定 + 游客评论选填 qq、评论四处展示 + /rank 榜单、隐私红线与同号头像复用，见 AGENTS.md 会员防线）；剩：表情回应（emoji reactions，微信表情文本码已进站可复用）、WP 评论导入</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>创作增强</td>
+<td>代码块语法高亮、KaTeX 公式、mermaid 图表（按需加载，注意 CSP 与体积）、文章 TOC 目录——目前均不存在，按需再上</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>🔶 主体完成（2026-10-07）</td>
+<td>图片增强三件套之<strong>hash 去重</strong>（uploads 表 SHA-256 指纹）与 <strong>EXIF / GPS 隐私抹除</strong>（src/exif.ts 落库前统一剥离）已落地；<strong>可选水印</strong>未做待定：Workers 无服务端图像解码，客户端做需三端 canvas 叠字与样式 / 范围决策</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>✅ 单篇访问密码（2026-10-07 完成）</td>
+<td>编辑器按篇加密（PBKDF2），输对后 30 天免重复输入；与会员付费墙可叠加（密码墙优先），机制见 src/protect.ts</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>文章版本历史</td>
+<td>编辑覆盖即丢，保存时留最近 N 版即可</td>
+</tr>
+<tr>
+<td>C7</td>
+<td>Turnstile 人机验证</td>
+<td>现有蜜罐 + 限流 + 先审后展够用，垃圾评论变多再上</td>
+</tr>
+<tr>
+<td>C8</td>
+<td>HTML 边缘缓存</td>
+<td>Cache API + 发布即 purge；SSR 已够快，收益 / 风险比一般</td>
+</tr>
+<tr>
+<td>C9</td>
+<td>AVIF / 多尺寸缩略图</td>
+<td>依赖 CF Images 付费能力</td>
+</tr>
+<tr>
+<td>C10</td>
+<td>PWA / 离线阅读</td>
+<td>manifest + 轻量 service worker</td>
+</tr>
+<tr>
+<td>C11</td>
+<td>阅读偏好</td>
+<td>字号调节、手动夜间开关（当前仅跟随系统）、记忆</td>
+</tr>
+<tr>
+<td>C12</td>
+<td>JSON Feed</td>
+<td>RSS 之外的机器友好格式</td>
+</tr>
+<tr>
+<td>C13</td>
+<td>新站演示内容包</td>
+<td>示例文章 + 微博 + 友链一键填充（部署者自己的新站，与官方演示站两码事）</td>
+</tr>
+<tr>
+<td>C14</td>
+<td>每篇文章浏览 / 来源轻统计页</td>
+<td>参考 Bear Blog</td>
+</tr>
+<tr>
+<td>C16</td>
+<td>零碎打磨</td>
+<td>404 自定义、无障碍（a11y）、CLI 发布、评论敏感词合规包（默认关闭，面向有需要的部署者）</td>
+</tr>
+<tr>
+<td>C17</td>
+<td>内容揭示卡（点开可见 / 会员分层可见，<strong>立项待研究，2026-10-09 站长提出</strong>）</td>
+<td>正文里的一段文字 / 一张图 / 一大块内容按两种条件揭示：① 点击展开（剧透折叠，默认遮住），② 不同会员档位可见（与现有付费墙 min_tier 机制的关系要先理清——付费墙是整篇级，这是块级，安全边界必须同样做到服务端截断，渲染层遮挡不算数）。形态候选：块级容器标记（类似 <code>&lt;meta data-og-image&gt;</code> 的 data-* 白名单路子）或编辑器插件。<strong>先研究再动手</strong>，见本条不动代码</td>
+</tr>
+</tbody></table></div>
+<h2 id="不做清单拍板记录编号不回收">不做清单（拍板记录，编号不回收）</h2><ul>
+<li><strong>邮件相关（原 B1 邮件服务、原 C15 邮件订阅），2026-10-07 拍板不做</strong>：第三方发信服务对接与发信域名 DNS（SPF/DKIM/DMARC）配置门槛高，免费档额度受限且说砍就砍（MailChannels 砍 Workers 免费集成是先例）；下游的评论邮件通知、邮箱找回密码、注册验证、newsletter 一并冻结——会员密码找回已按「本站不提供密码找回」口径落地（render.ts 两处固定提醒，不再视作欠账）。当年调研结论已随之作废，若未来重启，从 git 历史本日期之前的本文件找回（Resend / 阿里云邮件推送免费档、provider 可切换抽象等）。</li>
+</ul>
+
+    </article>
+  
+  <nav class="docs-pager">
+    <a class="docs-pager-link is-prev" href="demo.html"><span>← 上一篇</span><b>🎪 演示站指南</b></a>
+    <span></span>
+  </nav>
+  </main>
+  
+    <aside class="docs-toc">
+      <div class="docs-toc-title">本页目录</div>
+      <ul class="docs-toc-list">
+        <li class="toc-d2"><a href="#优先级总览2026-10-07-更新" data-toc="优先级总览2026-10-07-更新">优先级总览（2026-10-07 更新）</a></li>
+        <li class="toc-d3"><a href="#a-区--一定要做" data-toc="a-区--一定要做">A 区 · 一定要做</a></li>
+        <li class="toc-d3"><a href="#b-区--未来一定要做" data-toc="b-区--未来一定要做">B 区 · 未来一定要做</a></li>
+        <li class="toc-d3"><a href="#c-区--加分项可有可无" data-toc="c-区--加分项可有可无">C 区 · 加分项（可有可无）</a></li>
+        <li class="toc-d2"><a href="#不做清单拍板记录编号不回收" data-toc="不做清单拍板记录编号不回收">不做清单（拍板记录，编号不回收）</a></li>
+      </ul>
+    </aside>
+</div>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="../index.html">官网首页</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+    </span>
+  </div>
+</footer>
+<script src="../docs.js" defer></script>
+</body>
+</html>

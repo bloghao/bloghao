@@ -10,6 +10,7 @@
 - 在线示例：https://blog.xiaowuleyi.com （后台 /admin/）
 - 演示站：https://demo.bloghao.com （DEMO_MODE 体验环境：预置仿真数据、每 2 小时重置、后台账号 demo/demo1234，机制见 docs/DEMO.md）
 - 官网：https://bloghao.com
+- 官网文档页：https://bloghao.com/docs/ （docs/*.md 预渲染成与官网同款配色的 HTML 页，人类读者无需访问 GitHub；AI 抓取仍建议用下方 raw Markdown 直链）
 - 技术栈：Cloudflare Workers（hono 路由）+ D1（SQLite）+ R2（图片存储）；公开页服务端渲染，后台原生 JS SPA，无构建链
 - 目录速查：
   - `src/pages.ts` 渲染公开页；`src/api.ts` 全部 JSON API；`src/collect.ts` 公众号采集插件服务端

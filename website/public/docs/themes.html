@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>主题开发 - 博客号文档</title>
+<meta name="description" content="一套主题 = 八个必需渲染函数（+ 可选 member / rank）+ 全局 CSS，三步注册新主题。">
+<meta property="og:title" content="主题开发 - 博客号文档">
+<meta property="og:description" content="一套主题 = 八个必需渲染函数（+ 可选 member / rank）+ 全局 CSS，三步注册新主题。">
+<meta property="og:type" content="article">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">
+      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">文档中心</a>
+      <a href="../index.html">返回官网</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="docs-shell docs-shell-toc">
+  
+    <aside class="docs-sidebar">
+      <a class="docs-side-title" href="index.html">📚 文档中心</a>
+      <ul class="docs-side-list">
+      <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a href="guide.html">📖 使用手册</a></li>
+      <li><a href="plaza.html">🧭 广场</a></li>
+      <li><a class="is-active" href="themes.html">🎨 主题开发</a></li>
+      <li><a href="plugins.html">🧩 插件开发</a></li>
+      <li><a href="api.html">🔌 API 参考</a></li>
+      <li><a href="typography.html">🩺 排版规范</a></li>
+      <li><a href="demo.html">🎪 演示站指南</a></li>
+      <li><a href="roadmap.html">🗺️ 路线图</a></li>
+      </ul>
+      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+    </aside>
+  <main class="docs-main">
+    <div class="docs-crumbs">
+      <a href="index.html">文档中心</a><span>/</span><b>🎨 主题开发</b>
+      <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/THEMES.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
+    </div>
+    <article class="doc-md">
+<h1 id="主题开发指南">主题开发指南</h1><p>博客号的公开页面（首页 / 文章页 / <strong>微博页</strong> / <strong>友链页</strong> / 关于我页 / <strong>独立页面</strong> / <strong>归档页</strong> / <strong>留言板页</strong> / <strong>会员中心</strong> / <strong>积分排行榜</strong>）由<strong>主题模块</strong>服务端渲染。任何会写 HTML/CSS 的人都可以新增主题，无需理解后端。</p>
+<h2 id="目录结构">目录结构</h2><div class="codeblock"><pre><code>src/themes/
+├── registry.ts     ← 主题注册表（新主题在这里加一行；ThemeModule 接口也在这里）
+├── wechat.ts / wechat.css
+├── journal.ts / journal.css
+├── paper.ts / paper.css
+├── minimal.ts / minimal.css
+├── midnight.ts / midnight.css
+└── bitcoin.ts / bitcoin.css</code></pre></div><h2 id="一个主题需要提供什么">一个主题需要提供什么</h2><p>一套主题 = <strong>八个必需渲染函数</strong>（<code>home</code> / <code>weibo</code> / <code>links</code> / <code>post</code> / <code>about</code> / <code>page</code> / <code>archives</code> / <code>guestbook</code>）+ 两个可选函数（<code>member</code> 会员中心 / <code>rank</code> 排行榜，缺省时 pages.ts 渲染通用版）+ 全局 CSS。新建 <code>src/themes/mytheme.ts</code> 与 <code>src/themes/mytheme.css</code>：</p>
+<div class="codeblock" data-lang="ts"><pre><code>import type {
+  HomeData, WeiboData, LinksData, PostData, AboutData, PageData, ArchivesData, GuestbookData,
+  MemberData, RankData,
+} from './registry'
+import {
+  esc, fmtDate, likesBtn, pagerHtml,
+  friendLinkCards, friendLinkApply, siteNav, weiboCards, weiboPager,
+  archiveListHtml,
+} from '../render'
+import css from './mytheme.css'
+
+const id = 'mytheme'
+
+// 入参类型全部来自 registry 的命名类型（HomeData / WeiboData / …，字段含义以 registry.ts 注释为准），
+// 六套官方主题（wechat.ts 最完整）是现成参照。这里示范最常用的 home()：
+export function home(d: HomeData): string {
+  return `&lt;div class=&quot;my-page&quot;&gt;
+    ${siteNav({ cls: 'my-snav', categories: d.categories, tags: d.tags, pages: d.pages, active: d.navActive })}
+    ${d.posts.map(p =&gt; `
+      &lt;a class=&quot;my-item&quot; href=&quot;/post/${esc(p.slug)}&quot;&gt;
+        &lt;h2&gt;${esc(p.title)}&lt;/h2&gt;
+        &lt;p&gt;${esc(p.summary)}&lt;/p&gt;
+        &lt;time&gt;${fmtDate(p.published_at)}&lt;/time&gt;
+      &lt;/a&gt;`).join('')}
+    ${pagerHtml({ page: d.page, totalPages: d.totalPages, base: '/?' })}
+  &lt;/div&gt;`
+}
+
+export function weibo(d: WeiboData): string {
+  // 卡片/翻页复用 render.ts 的 weiboCards / weiboPager（语义化 .wb-* class，样式由你的 CSS 塑形）
+  return `&lt;div class=&quot;my-page&quot;&gt;
+    &lt;h1&gt;微博&lt;/h1&gt;
+    ${weiboCards({ settings: d.settings, items: d.items, avatarHtml: '', allowComments: d.allowComments, adminName: d.adminName })}
+    ${weiboPager(d.page, d.totalPages)}
+  &lt;/div&gt;`
+}
+
+export function links(d: LinksData): string {
+  // 卡片与「申请收录」表单复用 friendLinkCards / friendLinkApply（语义化 .fl-* class）
+  return `&lt;div class=&quot;my-page&quot;&gt;
+    &lt;h1&gt;友情链接&lt;/h1&gt;
+    ${friendLinkCards(d.items)}
+    ${friendLinkApply()}
+  &lt;/div&gt;`
+}
+
+export function post(d: PostData): string {
+  return `&lt;div class=&quot;my-article&quot;&gt;
+    &lt;h1&gt;${esc(d.post.title)}&lt;/h1&gt;
+    &lt;div class=&quot;rich&quot;&gt;${d.post.contentHtml}&lt;/div&gt;
+    ${likesBtn(d.post.slug, d.post.likes)}
+    ${d.comments.html}
+  &lt;/div&gt;`
+}
+
+export function about(d: AboutData): string {
+  return `&lt;div class=&quot;my-about&quot;&gt;&lt;h1&gt;关于我&lt;/h1&gt;&lt;div class=&quot;rich&quot;&gt;${d.contentHtml}&lt;/div&gt;&lt;/div&gt;`
+}
+
+export function page(d: PageData): string {
+  // 独立页面与 about 同构；漏实现时 pages.ts 有通用兜底（仅正文壳）
+  return `&lt;div class=&quot;my-page&quot;&gt;&lt;h1&gt;${esc(d.title)}&lt;/h1&gt;&lt;div class=&quot;rich&quot;&gt;${d.contentHtml}&lt;/div&gt;&lt;/div&gt;`
+}
+
+export function archives(d: ArchivesData): string {
+  // 归档列表复用 render.ts 的 archiveListHtml（语义化 .ar-* class，样式由你的 CSS 塑形）
+  return `&lt;div class=&quot;my-page&quot;&gt;
+    &lt;h1&gt;文章归档&lt;/h1&gt;
+    ${archiveListHtml(d.groups)}
+  &lt;/div&gt;`
+}
+
+export function guestbook(d: GuestbookData): string {
+  // 留言墙 + 表单由 pages 层用 commentsHtml({ guestbook: true }) 拼好，直接输出
+  return `&lt;div class=&quot;my-page&quot;&gt;
+    &lt;h1&gt;留言板&lt;/h1&gt;
+    ${d.html}
+  &lt;/div&gt;`
+}
+
+export { id, css }</code></pre></div><p>然后在 <code>registry.ts</code> 注册：</p>
+<div class="codeblock" data-lang="ts"><pre><code>import * as mytheme from './mytheme'
+
+export const THEMES: Record&lt;string, ThemeModule&gt; = {
+  // …已有主题
+  mytheme: { ...mytheme, id: 'mytheme', name: '我的主题', description: '一句话描述',
+    // 可选：后台「皮肤」卡片预览色板 [背景, 强调条, 卡面, 卡面2, 卡面3]
+    colors: ['#faf8f4', '#b23a29', '#ffffff', '#f2ede4', '#f7f3ec'],
+  },
+}</code></pre></div><p>保存后（本地 <code>npm run dev</code> 即时生效）到后台「皮肤」页（「系统」分组下）就能看到并一键启用；同时可把它登记进 <code>public/market/catalog.json</code>，让它出现在「皮肤市场」。<strong>入参的权威定义</strong>是 <code>registry.ts</code> 的各 <code>*Data</code> 命名类型（字段注释就在那里）与 <code>pages.ts</code> 的调用处——改版后以它们为准，抄现成主题（如 <code>wechat.ts</code>）最省事。</p>
+<h2 id="公共积木来自-srcrenderts鼓励复用">公共积木（来自 <code>src/render.ts</code>，鼓励复用）</h2><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>导出</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>esc(s)</code></td>
+<td>HTML 转义（标题、摘要等所有字符串必须转义后再拼接）</td>
+</tr>
+<tr>
+<td><code>fmtDate / fmtDateCN / fmtViews</code></td>
+<td>日期（<code>2026-10-03</code> / <code>2026年10月3日</code>）与 <code>1.2w</code> 阅读数</td>
+</tr>
+<tr>
+<td><code>page(o)</code></td>
+<td>完整 HTML 外壳（head / meta / OG 标签 / 内联 CSS / 挂 site.js），所有页面统一走它</td>
+</tr>
+<tr>
+<td><code>pagerHtml({page,totalPages,base})</code></td>
+<td>标准分页条，class 交给你的 CSS 塑形</td>
+</tr>
+<tr>
+<td><code>siteNav({cls,categories,tags,pages,active})</code></td>
+<td>顶部站点导航（首页 / 微博 / 归档 / 留言板 / 「分类话题」details 折叠菜单 / 友情链接 / 自建页面 / 关于我 / 随机）。<code>pages</code> 传 <code>NavPage[]</code>（<code>{title, href, key}</code>，pages 层的 <code>navPages</code> 构建，类型从 <code>../render</code> 导入）。菜单面板（<code>.{cls}-menu/-chips/-caret</code> 等）由你的 CSS 塑形，参考任一现有主题的同名段落</td>
+</tr>
+<tr>
+<td><code>homeSortBar({sort,seed,tag,categorySlug,q})</code></td>
+<td>首页/分类/搜索共用的排序条（最新 / 最多阅读 / 最多点赞 / 最多留言 / 随机）</td>
+</tr>
+<tr>
+<td><code>commentsHtml({...})</code></td>
+<td>完整留言区（列表 + 表单 + 蜜罐 + 楼中楼回复按钮），语义化 class：<code>.cmt-*</code>；传 <code>guestbook: true</code> 即留言板页的留言墙</td>
+</tr>
+<tr>
+<td><code>likesBtn(slug, likes)</code></td>
+<td>点赞按钮，配 <code>public/site.js</code> 自动工作，class <code>.like-btn</code></td>
+</tr>
+<tr>
+<td><code>tagLink(name)</code> / <code>categoryLink(c)</code></td>
+<td>标签链接 <code>/tag/&lt;encodeURIComponent(name)&gt;</code> / 分类链接 <code>/category/&lt;slug&gt;</code></td>
+</tr>
+<tr>
+<td><code>weiboCards({settings,items,avatarHtml,allowComments,adminName})</code></td>
+<td>微博卡片列表（头像 + 文字 + 话题高亮 + 图片网格 + 点赞 + 折叠评论），class <code>.wb-*</code></td>
+</tr>
+<tr>
+<td><code>weiboHomeEntry({items,total})</code></td>
+<td>首页「微博入口卡」（最新随手记摘要 + 全部链接）</td>
+</tr>
+<tr>
+<td><code>onThisDayCard(items)</code></td>
+<td>首页「历史上的今天」时光机卡（<code>home()</code> 收到 <code>onThisDay</code> 时渲染）</td>
+</tr>
+<tr>
+<td><code>weiboComposer({adminName})</code></td>
+<td>微博页顶部发布框（登录管理员才传 <code>adminName</code>，访客页不渲染）</td>
+</tr>
+<tr>
+<td><code>weiboPager(page,totalPages,topic?)</code></td>
+<td>微博翻页（上一条 / 更早），class <code>.wb-pager*</code>；按话题筛选时传 <code>topic</code> 以在翻页链接中保留</td>
+</tr>
+<tr>
+<td><code>weiboImageGrid(images)</code></td>
+<td>微博图片网格（1 大图 / 2·4 双列 / 其余三列）</td>
+</tr>
+<tr>
+<td><code>weiboTopicBar(topics, active?)</code></td>
+<td>微博话题条（<code>?topic=</code> 筛选用）</td>
+</tr>
+<tr>
+<td><code>friendLinkCards(items)</code> / <code>friendLinkApply()</code></td>
+<td>友链卡片列表 / 访客申请收录表单（含蜜罐），class <code>.fl-*</code></td>
+</tr>
+<tr>
+<td><code>archiveGroups(posts)</code> / <code>archiveListHtml(groups)</code></td>
+<td>归档按年分组 / 归档列表（年份小节 + 日期外置链接列表），class <code>.ar-*</code></td>
+</tr>
+<tr>
+<td><code>memberCardHtml(v)</code> / <code>memberAuthHtml()</code></td>
+<td>会员中心：已登录会员卡 / 登录注册双表单（<code>member()</code> 可选函数内用）</td>
+</tr>
+<tr>
+<td><code>rankListHtml(entries, me?)</code></td>
+<td>积分排行榜列表（/rank 页主体，含本人行高亮），class <code>.rk-*</code></td>
+</tr>
+<tr>
+<td><code>paywallHtml(tierName)</code></td>
+<td>会员付费墙遮挡卡（<code>locked</code> 文章正文收尾处渲染；<code>locked</code> 由 pages 层判定）</td>
+</tr>
+</tbody></table></div>
+<h2 id="交互约定">交互约定</h2><p>公开页只挂了一个 <code>public/site.js</code>，主题不需要写任何 JS，自动处理：</p>
+<ol>
+<li>点击 <code>.like-btn</code> → 调 <code>/api/public/like/:slug</code>（或微博的 <code>/api/public/like/weibo/:id</code>），更新计数与 <code>.liked</code> 状态（localStorage 去重）</li>
+<li>提交 <code>#comment-form</code> / <code>.wb-cmt-form</code> / <code>#guestbook-form</code> → 调对应评论接口，成功后刷新或就地刷新列表；管理员登录态由服务端渲染进表单（免填昵称）</li>
+<li>微博卡片评论区的展开 / 折叠、楼中楼回复按钮、友链申请表单提交</li>
+<li>顶部「分类话题」折叠菜单：点击菜单外或按 Esc 收起</li>
+</ol>
+<p>想加更多交互？在你的主题 CSS 之外追加一个 JS 文件放 <code>public/</code>，并在 <code>src/render.ts</code> 的 <code>page()</code> 里加一行 <code>&lt;script src=&quot;/你的.js&quot; defer&gt;&lt;/script&gt;</code>（CSP 已允许同源脚本）。</p>
+<h2 id="排版规范建议遵守">排版规范（建议遵守）</h2><p>主题模板与正文渲染遵循《微信公众平台编辑器插件开发规范》要点，完整清单见 <a href="typography.html">wechat-typography-spec.md</a>。给主题作者的三条底线：</p>
+<ol>
+<li><strong>不写固定像素宽</strong>：容器用 <code>max-width + 百分比</code>，横滚等特殊场景在节点上加 <code>data-ignore-width</code></li>
+<li><strong>行高 ≥ 字号</strong>：<code>line-height</code> 小于 <code>font-size</code> 会让多行文字重叠</li>
+<li><strong>别在正文容器设 font-family</strong>：跟随默认字体栈，各端观感一致（标题/代码可用）</li>
+</ol>
+
+    </article>
+  
+  <nav class="docs-pager">
+    <a class="docs-pager-link is-prev" href="plaza.html"><span>← 上一篇</span><b>🧭 广场</b></a>
+    <a class="docs-pager-link is-next" href="plugins.html"><span>下一篇 →</span><b>🧩 插件开发</b></a>
+  </nav>
+  </main>
+  
+    <aside class="docs-toc">
+      <div class="docs-toc-title">本页目录</div>
+      <ul class="docs-toc-list">
+        <li class="toc-d2"><a href="#目录结构" data-toc="目录结构">目录结构</a></li>
+        <li class="toc-d2"><a href="#一个主题需要提供什么" data-toc="一个主题需要提供什么">一个主题需要提供什么</a></li>
+        <li class="toc-d2"><a href="#公共积木来自-srcrenderts鼓励复用" data-toc="公共积木来自-srcrenderts鼓励复用">公共积木（来自 src/render.ts，鼓励复用）</a></li>
+        <li class="toc-d2"><a href="#交互约定" data-toc="交互约定">交互约定</a></li>
+        <li class="toc-d2"><a href="#排版规范建议遵守" data-toc="排版规范建议遵守">排版规范（建议遵守）</a></li>
+      </ul>
+    </aside>
+</div>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="../index.html">官网首页</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+    </span>
+  </div>
+</footer>
+<script src="../docs.js" defer></script>
+</body>
+</html>

@@ -281,7 +281,7 @@ npm run deploy</code></pre>
           <p class="step-note">访问 <code>https://bloghao.你的子域.workers.dev/admin/</code>，首次进入即创建管理员账号，欢迎文章已就位。</p>
         </li>
       </ol>
-      <p class="reveal steps-more">一键部署的副本已自动接管部署；命令行部署的可推上 GitHub 开启自动部署 → <a href="https://github.com/bloghao/bloghao/blob/main/docs/DEPLOY.md" target="_blank" rel="noopener">完整部署教程</a></p>
+      <p class="reveal steps-more">一键部署的副本已自动接管部署；命令行部署的可推上 GitHub 开启自动部署 → <a href="./docs/deploy.html">完整部署教程</a></p>
     </div>
   </section>
 
@@ -289,25 +289,31 @@ npm run deploy</code></pre>
   <section class="section" id="docs">
     <div class="wrap">
       <h2 class="sec-title reveal">文档齐全，随便改</h2>
-      <p class="sec-sub reveal">全部中文，放在仓库里，欢迎 PR 补充。</p>
+      <p class="sec-sub reveal">全部中文，直接在官网读，不用去 GitHub；源文件放在仓库 docs/ 里，欢迎 PR 补充。</p>
       <div class="grid-3 grid-docs">
-        <a class="card card-link reveal" href="https://github.com/bloghao/bloghao/blob/main/docs/DEPLOY.md" target="_blank" rel="noopener">
-          <h3>🚀 部署教程</h3><p>从注册 Cloudflare 到绑定自定义域名、自动部署、备份与恢复。</p>
+        <a class="card card-link reveal" href="./docs/deploy.html">
+          <h3>🚀 部署教程</h3><p>从注册 Cloudflare 到绑定自定义域名、自动部署、备份与恢复，含 Docker 自托管。</p>
         </a>
-        <a class="card card-link reveal" href="https://github.com/bloghao/bloghao/blob/main/docs/GUIDE.md" target="_blank" rel="noopener">
+        <a class="card card-link reveal" href="./docs/guide.html">
           <h3>📖 使用手册</h3><p>后台导览、写文章全流程、快捷键、评论与媒体管理、设置逐项说明。</p>
         </a>
-        <a class="card card-link reveal" href="https://github.com/bloghao/bloghao/blob/main/docs/THEMES.md" target="_blank" rel="noopener">
+        <a class="card card-link reveal" href="./docs/themes.html">
           <h3>🎨 主题开发</h3><p>三步注册一套新主题，公共积木与排版规范底线。</p>
         </a>
-        <a class="card card-link reveal" href="https://github.com/bloghao/bloghao/blob/main/docs/PLUGINS.md" target="_blank" rel="noopener">
+        <a class="card card-link reveal" href="./docs/plugins.html">
           <h3>🧩 插件开发</h3><p>一个 JS 文件扩展编辑器，插件 API 与加载机制。</p>
         </a>
-        <a class="card card-link reveal" href="https://github.com/bloghao/bloghao/blob/main/docs/API.md" target="_blank" rel="noopener">
+        <a class="card card-link reveal" href="./docs/api.html">
           <h3>🔌 API 参考</h3><p>全部公开 / 管理接口，写自己的客户端。</p>
         </a>
-        <a class="card card-link reveal" href="https://github.com/bloghao/bloghao/blob/main/docs/wechat-typography-spec.md" target="_blank" rel="noopener">
+        <a class="card card-link reveal" href="./docs/typography.html">
           <h3>🩺 排版规范</h3><p>微信编辑器插件开发规范的落地对照表与体检规则。</p>
+        </a>
+        <a class="card card-link reveal" href="./docs/demo.html">
+          <h3>🎪 演示站指南</h3><p>官方演示站的机制：仿真数据、每 2 小时重置、随便折腾不伤生产。</p>
+        </a>
+        <a class="card card-link reveal" href="./docs/roadmap.html">
+          <h3>🗺️ 路线图</h3><p>已上线能力与近期计划，按优先级管理的开发方向。</p>
         </a>
         <a class="card card-link reveal" href="./llms.txt" target="_blank" rel="noopener">
           <h3>🤖 AI 索引</h3><p>llms.txt 文档索引：AI 助手与智能体从这里一步读到全部开发文档的 Markdown 源文件。</p>
@@ -335,8 +341,9 @@ npm run deploy</code></pre>
     <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
     <span class="footer-links">
       <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
-      <a href="./plaza/" class="nav-plaza">广场</a>
+      <a href="./plaza/">广场</a>
       <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="./docs/">文档</a>
       <a href="./llms.txt" target="_blank" rel="noopener">AI 索引</a>
       <a href="https://developers.weixin.qq.com/doc/service/guide/product/plugin_spec.html" target="_blank" rel="noopener">微信排版规范</a>
     </span>

@@ -69,7 +69,6 @@
         grid.innerHTML = '<div class="showcase-empty">目录暂时加载失败，刷新再试试。</div>'
       })
   }
-
   // 广场实况：接入站点数（hub 公开名录，与广场页同源）
   var plazaStat = document.getElementById('plaza-stat')
   if (plazaStat) {
