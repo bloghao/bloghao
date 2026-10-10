@@ -4,6 +4,7 @@ import { buildDemoPlan, DEMO_COMMENTS, DEMO_RESET_CRON, DEMO_WEIBO, mulberry32 }
 import { DEMO_POSTS } from '../src/demo-posts.ts'
 import { demoImages } from '../src/demo-images.ts'
 import { fireCommentCreated, firePostPublished } from '../src/hooks.ts'
+import { notifyAdminComment, notifyAdminText } from '../src/external.ts'
 import { isDemo } from '../src/utils.ts'
 import { DEFAULT_SETTINGS } from '../src/db.ts'
 import type { Env, SettingsMap } from '../src/types.ts'
@@ -259,6 +260,40 @@ test('DEMO_MODE 守卫：发布/评论钩子整段短路，体验者配了 TG/we
       },
     } as unknown as Env
     await firePostPublished(prodEnv, { slug: 'x', title: 't', summary: '', via: 'admin' })
+    assert.equal(calls.length, 1)
+    assert.match(calls[0], /api\.telegram\.org/)
+  } finally {
+    globalThis.fetch = orig
+  }
+})
+
+test('DEMO_MODE 守卫：notifyAdminText / TG webhook 等插件总线之外的出网路同样短路', async () => {
+  const calls: string[] = []
+  const orig = globalThis.fetch
+  globalThis.fetch = (async (url: unknown) => {
+    calls.push(String(url))
+    return new Response('{"ok":true}', { status: 200 })
+  }) as typeof fetch
+  try {
+    const settingsRow = [{ key: 'telegramBotToken', value: 'tok' }, { key: 'telegramAllowFrom', value: '123' }]
+    const demoEnv = {
+      DEMO_MODE: '1',
+      DB: {
+        prepare: () => ({ all: async () => ({ results: settingsRow }), first: async () => null }),
+      },
+    } as unknown as Env
+    // 备份失败 / 定时发布 / 评论通知都经 notifyAdminText 直发 TG——demo 下不得出网
+    await notifyAdminText(demoEnv, '备份失败')
+    await notifyAdminComment(demoEnv, { kind: 'post', nickname: 'n', content: 'c', pending: false, siteBase: '', path: '' })
+    assert.equal(calls.length, 0, '演示站不得有外发请求（notifyAdminText 也必须短路）')
+
+    // 对照组：无 DEMO_MODE 时通知照常发（证明短路是 demo 守卫带来的）
+    const prodEnv = {
+      DB: {
+        prepare: () => ({ all: async () => ({ results: settingsRow }), first: async () => null }),
+      },
+    } as unknown as Env
+    await notifyAdminText(prodEnv, '备份失败')
     assert.equal(calls.length, 1)
     assert.match(calls[0], /api\.telegram\.org/)
   } finally {

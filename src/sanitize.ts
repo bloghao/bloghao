@@ -29,10 +29,11 @@ const DROP_VOID = new Set(['meta', 'link', 'base', 'input', 'embed'])
 /** meta 例外：编辑器生成的 OG 分享卡图标记（<meta data-og-image="/images/...">），存进正文供前台输出 og:image */
 const OG_META_RE = /^\s*<meta[^>]*\bdata-og-image=(?:"[^"]+"|'[^']+'|[^\s>]+)[^>]*\/?>\s*$/i
 
-/** 从 OG meta 里取卡图 URL；必须是站内相对路径，拒绝任何外链/协议 */
+/** 从 OG meta 里取卡图 URL；必须是站内相对路径，拒绝任何外链/协议。
+ *  属性值同样先做一轮实体解码（编辑器序列化产物是 &amp; 形态） */
 function ogImageUrl(raw: string): string | null {
   const m = /data-og-image=(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(raw)
-  const v = (m?.[1] ?? m?.[2] ?? m?.[3] ?? '').trim()
+  const v = decodeAttrEntities(m?.[1] ?? m?.[2] ?? m?.[3] ?? '').trim()
   return v.startsWith('/images/') && !v.includes('"') && !/[\s<>]/.test(v) ? v : null
 }
 
@@ -79,6 +80,23 @@ function escAttr(s: string): string {
     .replace(/'/g, '&#39;')
 }
 export { escAttr }
+
+/** 属性值实体解码（一轮）：contenteditable 序列化出的 href/src 恒是 &amp; 形态，
+ *  不解码就 escAttr 会存成 &amp;amp; —— 含 & 的链接存库即坏，且每「编辑→保存」
+ *  一轮多加一层 amp;。只认 HTML 序列化器会产出的实体，未知实体原样保留。
+ *  安全不变式：解码后立刻过 safeUrl 校验，输出前 escAttr 重新转义——消费端（浏览器）
+ *  只解码一轮，正好回到这里检验过的字符串；`java&#9;script:` 解码成真 tab 反而更早暴露 */
+function decodeAttrEntities(s: string): string {
+  return s.replace(/&(amp|lt|gt|quot|apos|#x?[0-9a-fA-F]+);/g, (whole, code: string) => {
+    if (code === 'amp') return '&'
+    if (code === 'lt') return '<'
+    if (code === 'gt') return '>'
+    if (code === 'quot') return '"'
+    if (code === 'apos') return "'"
+    const n = code.startsWith('#x') || code.startsWith('#X') ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10)
+    return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : whole
+  })
+}
 
 /** 危险协议一律拒绝；相对路径、https(s)、mailto、页内锚点放行。
  *  先剥掉 tab/换行：URL 解析器会忽略它们，`jav\tascript:` 这类混淆不能靠前缀正则漏过去 */
@@ -140,7 +158,8 @@ function sanitizeAttrs(tag: string, raw: string, origin?: string): string {
       if (BOOL_ATTRS.has(name)) out += ` ${name}`
       continue
     }
-    let v = rawVal.trim()
+    // 一轮实体解码还原浏览器 DOM 值（编辑器序列化产物是 &amp; 形态），输出前 escAttr 再转义回去
+    let v = decodeAttrEntities(rawVal).trim()
 
     if (name === 'href' || name === 'src' || name === 'poster') {
       if (!safeUrl(v)) continue

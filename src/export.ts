@@ -23,15 +23,22 @@ export const exportRoutes = new Hono<ExportEnv>()
 
 const MAX_ROWS = 100_000 // 与备份的 TABLE_ROW_LIMIT 同口径（D1 单查询返回上限）
 
-/** 站内 /images/ 地址 → R2 key；外链与其余一律返回 null */
+/** 站内 /images/ 地址 → R2 key；外链与其余一律返回 null。
+ *  与 /images 路由同一白名单口径（u/ / og/ 前缀）：.. 与目录外 key 拒收——
+ *  真实 R2 无所谓，docker-poc 的 r2disk 落盘时会把 .. 拼进文件路径，自己的文章
+ *  不能让导出功能炸掉或写出租户目录 */
 function keyOf(url: string): string | null {
   if (!url.startsWith('/images/')) return null
   const raw = url.slice('/images/'.length)
+  let key: string
   try {
-    return decodeURIComponent(raw)
+    key = decodeURIComponent(raw)
   } catch {
-    return raw
+    return null
   }
+  if (!key.startsWith('u/') && !key.startsWith('og/')) return null
+  if (key.includes('..') || key.includes('\\') || key.includes('\0')) return null
+  return key
 }
 
 /** Markdown 包内相对地址（front-matter/正文里用）：/images/u/x.png → images/u/x.png，外链不动 */

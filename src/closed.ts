@@ -33,6 +33,13 @@ export async function siteClosedResponse(db: D1Database, req: Request, path: str
   if (path.startsWith('/api/')) return Response.json({ error: '站点已关闭，暂时无法访问' }, { status: 503 })
   return new Response(renderClosedPage(settings), {
     status: 503,
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Retry-After': '3600', 'Cache-Control': 'no-store' },
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Retry-After': '3600',
+      'Cache-Control': 'no-store',
+      // 闭站页是独立渲染面，同样不给脚本执行面（页内只有内联样式）
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
+      'X-Content-Type-Options': 'nosniff',
+    },
   })
 }

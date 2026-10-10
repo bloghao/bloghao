@@ -11,13 +11,35 @@ test('tab 混淆的 javascript: 被剥除（URL 解析器会忽略 tab）', () =
   assert.equal(sanitizeHtml('<a href="java\tscript:alert(1)">y</a>'), '<a>y</a>')
 })
 
-test('数字实体混淆被双重转义，浏览器解码后是字面文本而非 tab', () => {
-  // &#9; 若被放行成原始 tab，浏览器 URL 解析时会剥掉它变成 javascript:；
-  // 这里 escAttr 把 & 再转义成 &amp;#9;，浏览器属性解码一轮后只是字面文本「&#9;」，URL 为相对路径
-  const out = sanitizeHtml('<a href="java&#9;script:alert(1)">z</a>')
-  assert.ok(out.includes('&amp;#9;'), `& 必须被再次转义，实际: ${out}`)
-  assert.ok(!out.includes('\t'), '输出中不得存在原始 tab')
-  assert.equal(sanitizeHtml('<a href="java&#x9;script:alert(1)">z</a>').includes('&amp;#x9;'), true)
+test('数字实体混淆（java&#9;script:）被整体剥除：实体解码还原出 tab 后按 javascript: 拒绝', () => {
+  // 属性值先做一轮实体解码（编辑器序列化的 href 恒是 &amp; 形态，见 A1 修复），
+  // &#9; 在解码后还原成真 tab，safeUrl 剥 tab 识别出 javascript: 协议——
+  // 整体剥除比旧行为（字面放行 &amp;#9;）更严，浏览器端两种都不可执行
+  assert.equal(sanitizeHtml('<a href="java&#9;script:alert(1)">z</a>'), '<a>z</a>')
+  assert.equal(sanitizeHtml('<a href="java&#x9;script:alert(1)">z</a>'), '<a>z</a>')
+  assert.ok(!sanitizeHtml('<a href="java&#9;script:alert(1)">z</a>').includes('\t'), '输出中不得存在原始 tab')
+})
+
+// ── href/src 双重转义（A1 回归：含 & 的链接存库即坏、逐次编辑加码）──
+test('href 里的查询参数 & 不再双重转义：存库一次正确、重复净化幂等', () => {
+  // 编辑器 contenteditable 序列化出的 href 恒是 &amp; 形态：解码一轮得到真实 URL 再校验输出
+  const once = sanitizeHtml('<a href="https://example.com/s?wd=a&amp;b=1">x</a>')
+  assert.equal(once, '<a href="https://example.com/s?wd=a&amp;b=1" rel="noopener noreferrer">x</a>')
+  // 「编辑→保存」循环：上一轮的输出是下一轮的输入，结果必须稳定（历史行为会逐轮多加 amp;）
+  const twice = sanitizeHtml(once)
+  assert.equal(twice, once)
+})
+
+test('裸 & 与未知实体按原样保留（只解码序列化器会产出的白名单实体）', () => {
+  const out = sanitizeHtml('<a href="https://example.com/?a=1&b=2&nosuch=x">x</a>')
+  assert.equal(out, '<a href="https://example.com/?a=1&amp;b=2&amp;nosuch=x" rel="noopener noreferrer">x</a>')
+})
+
+test('src/poster/title 等属性值同样解码一轮，解码后过 safeUrl', () => {
+  assert.equal(sanitizeHtml('<img src="/images/u/a.png?v=1&amp;w=2">'), '<img src="/images/u/a.png?v=1&amp;w=2">')
+  // 解码暴露出的危险协议照常拒绝
+  assert.equal(sanitizeHtml('<a href="&#106;avascript:alert(1)">x</a>'), '<a>x</a>')
+  assert.equal(sanitizeHtml('<img src="&quot; onerror=&quot;alert(1)">'), '<img src="&quot; onerror=&quot;alert(1)">')
 })
 
 test('data:/vbscript: 等协议一律拒绝，http(s) 保留并带 rel', () => {

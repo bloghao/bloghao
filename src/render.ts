@@ -280,10 +280,11 @@ export function siteNav(o: {
 }): string {
   const en = !!o.en
   const m = o.mode || 'blog-weibo'
+  // href 一并转义：当前调用方全是内部构造的路径/经 cleanSlug 的 slug，转义是给未来调用方的护栏
   const item = (href: string, label: string, active = false) =>
-    `<a class="${o.cls}-link${active ? ' is-active' : ''}" href="${href}">${esc(label)}</a>`
+    `<a class="${o.cls}-link${active ? ' is-active' : ''}" href="${esc(href)}">${esc(label)}</a>`
   const chip = (href: string, label: string, count: number | undefined, active = false) =>
-    `<a class="${o.cls}-chip${active ? ' is-active' : ''}" href="${href}">${esc(label)}${
+    `<a class="${o.cls}-chip${active ? ' is-active' : ''}" href="${esc(href)}">${esc(label)}${
       count != null ? `<i>${count}</i>` : ''
     }</a>`
   const cats = o.categories.map((c) => chip(categoryLink(c), c.name, undefined, o.active === c.slug))

@@ -5,6 +5,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# 最小权限 + 单飞：部署只需要拉代码，同仓库并发推送排队部署（不取消进行中的部署）
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

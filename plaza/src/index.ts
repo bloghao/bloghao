@@ -66,20 +66,99 @@ async function bumpStats(db: Env['DB'], field: StatsField, n = 1): Promise<void>
   }
 }
 
-/** 管理面鉴权：Bearer PLAZA_ADMIN_TOKEN（hub 站长单管理员，与目录人工审核同一信任模型） */
+/** 管理面鉴权：Bearer PLAZA_ADMIN_TOKEN（hub 站长单管理员，与目录人工审核同一信任模型）。
+ *  比较走常量时间（长度不等也扫完，避免逐字符提前退出的时序侧信道） */
+function timingSafeEqualStr(a: string, b: string): boolean {
+  const len = Math.max(a.length, b.length)
+  let r = a.length === b.length ? 0 : 1
+  for (let i = 0; i < len; i++) {
+    r |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0)
+  }
+  return r === 0
+}
+
 async function adminAuth(c: Context<{ Bindings: Env }>, next: () => Promise<void>) {
   const auth = c.req.header('authorization') || ''
-  if (!c.env.PLAZA_ADMIN_TOKEN || auth !== `Bearer ${c.env.PLAZA_ADMIN_TOKEN}`) {
+  if (!c.env.PLAZA_ADMIN_TOKEN || !timingSafeEqualStr(auth, `Bearer ${c.env.PLAZA_ADMIN_TOKEN}`)) {
     return c.json({ error: 'unauthorized' }, 401)
   }
   await next()
 }
 app.use('/api/admin/*', adminAuth)
 
+/* ---------------- ingest 限流（内存固定窗口，per-isolate 尽力而为） ---------------- */
+
+const ingestBuckets = new Map<string, { n: number; reset: number }>()
+function ingestRateLimit(key: string, limit: number, windowMs: number): boolean {
+  const now = Date.now()
+  if (ingestBuckets.size >= 5000) {
+    for (const [k, v] of ingestBuckets) if (v.reset < now) ingestBuckets.delete(k)
+    while (ingestBuckets.size >= 5000) {
+      const oldest = ingestBuckets.keys().next().value
+      if (oldest === undefined) break
+      ingestBuckets.delete(oldest)
+    }
+  }
+  const e = ingestBuckets.get(key)
+  if (!e || e.reset < now) {
+    ingestBuckets.set(key, { n: 1, reset: now + windowMs })
+    return true
+  }
+  if (e.n >= limit) return false
+  e.n++
+  return true
+}
+
+/** 站点 token 打码：管理列表/详情一律不出明文（丢了就 rotate，与内核 SECRET_SETTINGS 同口径） */
+function maskToken(t: string): string {
+  return t.length > 12 ? `${t.slice(0, 8)}…${t.slice(-4)}` : '…'
+}
+
+/** JSON 解析兜底：坏 JSON 返回 null（ingest/管理端点回 400），不让异常打 500 */
+function safeJsonParse(s: string): unknown {
+  try {
+    return JSON.parse(s || '{}')
+  } catch {
+    return null
+  }
+}
+
+/** 响应体流式读入并限长，超限断流返回 null（plaza 目录保持自包含可独立部署，不引主仓库模块） */
+async function readBodyLimited(res: Response, maxBytes: number): Promise<ArrayBuffer | null> {
+  const reader = res.body?.getReader()
+  if (!reader) return null
+  const chunks: Uint8Array[] = []
+  let total = 0
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) {
+        total += value.byteLength
+        if (total > maxBytes) {
+          await reader.cancel().catch(() => undefined)
+          return null
+        }
+        chunks.push(value)
+      }
+    }
+  } catch {
+    return null
+  }
+  const out = new Uint8Array(total)
+  let off = 0
+  for (const c of chunks) {
+    out.set(c, off)
+    off += c.byteLength
+  }
+  return out.buffer
+}
+
 /* ---------------- 公开面 ---------------- */
 
 /** feed：混排出参。candidates 取最近 300 条（量纲按社区几百站设计，够用很久） */
 app.get('/api/feed', async (c) => {
+  c.header('Cache-Control', 'public, max-age=60')
   const limit = Math.max(1, Math.min(100, Number(c.req.query('limit')) || 30))
   const kind = c.req.query('kind')
   const kindFilter = kind === 'post' || kind === 'weibo' ? kind : null
@@ -132,6 +211,7 @@ app.get('/api/feed', async (c) => {
 
 /** 站点名录：官网「收录了哪些博客号」与广场页侧栏共用 */
 app.get('/api/sites', async (c) => {
+  c.header('Cache-Control', 'public, max-age=60')
   const { results } = await c.env.DB.prepare(
     `SELECT s.id, s.site_url AS url, s.site_name AS name, s.verified,
             s.created_at AS createdAt,
@@ -156,6 +236,8 @@ app.post('/api/ingest', async (c) => {
   const ts = c.req.header('X-Plaza-Timestamp') || ''
   const sig = c.req.header('X-Plaza-Signature') || ''
   if (!/^[0-9a-f]{32}$/.test(token)) return c.json({ error: 'bad token' }, 401)
+  // 签名校验前的粗限流：签名校验本身不贵，但别让匿名流量无成本打穿 D1 查询（per-isolate 尽力而为）
+  if (!ingestRateLimit(`ing:${token}`, 60, 60_000)) return c.json({ error: 'too many requests' }, 429)
   const site = await c.env.DB.prepare('SELECT id, disabled FROM sites WHERE token = ?')
     .bind(token)
     .first<{ id: number; disabled: number }>()
@@ -167,18 +249,22 @@ app.post('/api/ingest', async (c) => {
   if (!(await verifyPlazaSignature(token, ts, sig, rawBody))) {
     return c.json({ error: 'bad signature' }, 401)
   }
-  const { items, deleted } = validateIngest(JSON.parse(rawBody || '{}'))
+  const parsed = validateIngest(safeJsonParse(rawBody))
+  if (!parsed) return c.json({ error: 'bad body' }, 400)
+  const { items, deleted } = parsed
   let accepted = 0
   for (const it of items) {
     // 站内 ref 唯一：重发同一篇 = 更新（编辑标题/摘要后重推即生效），幂等；
-    // push 永远盖 pull（source 置回 push），pull 只是存在性兜底
+    // push 永远盖 pull（source 置回 push），pull 只是存在性兜底。
+    // hidden 不进 conflict 更新：管理员下架（UPDATE items SET hidden=1）不能被站长
+    // 重推同一 ref 推翻——重推只更新内容字段，隐藏位保留现值
     await c.env.DB.prepare(
       `INSERT INTO items (site_id, kind, ref, title, summary, url, image, published_at, source, hidden, synced_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'push', 0, ?)
        ON CONFLICT(site_id, kind, ref) DO UPDATE SET
          title = excluded.title, summary = excluded.summary, url = excluded.url,
          image = excluded.image, published_at = excluded.published_at,
-         source = 'push', hidden = 0, synced_at = excluded.synced_at`
+         source = 'push', synced_at = excluded.synced_at`
     )
       .bind(site.id, it.kind, it.ref, it.title, it.summary, it.url, it.image, it.publishedAt, Date.now())
       .run()
@@ -275,8 +361,10 @@ app.get('/api/admin/sites', async (c) => {
             last_seen_at AS lastSeenAt, created_at AS createdAt,
             (SELECT COUNT(*) FROM items i WHERE i.site_id = sites.id) AS items
      FROM sites ORDER BY created_at DESC LIMIT 500`
-  ).all()
-  return c.json({ sites: results ?? [] })
+  ).all<{ token: string }>()
+  // token 明文只在创建/rotate 返回这一次，列表一律打码
+  const sites = (results ?? []).map((r) => ({ ...r, token: maskToken(r.token) }))
+  return c.json({ sites })
 })
 
 /** 局部更新：改名 / 认证徽标 / 权重 / 停用 / pull 开关 / 换 token（rotate） */
@@ -323,8 +411,14 @@ app.patch('/api/admin/sites/:id', async (c) => {
     'SELECT id, site_url AS url, site_name AS name, token, verified, weight, disabled, pull_enabled AS pullEnabled FROM sites WHERE id = ?'
   )
     .bind(id)
-    .first()
-  return c.json({ ok: true, site: row })
+    .first<{ token: string }>()
+  // rotate 时新 token 明文返回一次（发给站长），其余情况打码
+  const rotated = 'rotateToken' in body && body.rotateToken
+  return c.json({
+    ok: true,
+    site: row ? { ...row, token: maskToken(row.token) } : null,
+    ...(rotated && row ? { token: row.token } : {}),
+  })
 })
 
 /** 删站级联清内容（子行先删再删主行，与内核回收站级联同一顺序纪律；内容无回收站——hub 是派生数据，源站永远在自己手里） */
@@ -359,7 +453,10 @@ async function pullSiteRss(env: Env, site: SiteRow): Promise<number> {
     signal: AbortSignal.timeout(15_000),
   })
   if (!res.ok) return 0
-  const xml = await res.text()
+  // RSS 读体流式限长：被 pull 的站点是第三方，超大响应（gzip 炸弹等）不能整读进内存
+  const buf = await readBodyLimited(res, 2 * 1024 * 1024)
+  if (!buf) return 0
+  const xml = new TextDecoder().decode(buf)
   const entries = parseRssItems(xml, 20)
   let n = 0
   for (const e of entries) {

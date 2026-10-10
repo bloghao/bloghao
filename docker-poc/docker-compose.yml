@@ -15,5 +15,7 @@ services:
       # Linux 上宿主目录若为 root 属主，容器入口 entrypoint.sh 会自动 chown 给 node，
       # 宿主机无需任何准备；数据落在 ./data/<域名>/（blog.db + uploads/）
       - ./data:/data/tenants
-      - ./tenants.json:/app/docker-poc/tenants.json:ro
+      # tenants.json 可写：启用控制面（CONTROL_HOST/CONTROL_PASSWORD）时它要热写配置；
+      # 纯体验用不到控制面的话可改回 :ro 防误改
+      - ./tenants.json:/app/docker-poc/tenants.json
     restart: unless-stopped

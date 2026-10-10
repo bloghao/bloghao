@@ -68,7 +68,7 @@ import { fireCommentCreated, firePostPublished, fireWeiboPublished, listBufferCh
 import { SITE_MODE_VALUES, siteBase, toHomePost, type SiteMode } from './render'
 import { sanitizeHtml } from './sanitize'
 import { cleanupUnreferenced, backfillHashes, mergeDuplicate, runAudit } from './audit'
-import { imageExtOf, MAX_REMOTE_IMAGES, MAX_UPLOAD_BYTES, saveUpload, sniffImageExt, transferImage } from './store'
+import { imageExtOf, MAX_REMOTE_IMAGES, MAX_UPLOAD_BYTES, saveUpload, sniffImageExt, sniffUploadExt, transferImage } from './store'
 import { hashPostPassword } from './protect'
 import { listTrash, restorePostStatus, trashTable, type TrashTable } from './trash'
 import { classifyBrowser, classifyDevice, cleanPath, cleanRef, cleanTitle, cleanVid, getVisitStats, recordVisit } from './stats'
@@ -570,6 +570,8 @@ api.post('/admin/posts', async (c) => {
   const now = Date.now()
   // 访问密码：随创建一并写入（空 = 不加密）
   const passwordHash = p.password ? await hashPostPassword(p.password) : ''
+  // 自动摘要取净化后的正文（与 PUT 更新同口径：粘贴内容里的标签/实体不进导读面）
+  const clean = sanitizeHtml(p.content)
   const res = await c.env.DB.prepare(
     `INSERT INTO posts (slug, title, content, summary, cover, tags, status, pinned, author_id, published_at, publish_at, min_tier, password_hash, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -577,10 +579,10 @@ api.post('/admin/posts', async (c) => {
     .bind(
       slug,
       title,
-      sanitizeHtml(p.content),
+      clean,
       // 密码文的自动摘要留空：summary 列是对外导读面（RSS description / meta / 公开列表），
       // 不能拿加密正文截前 80 字泄出去；作者手填的摘要照常保留（作者主动公开的导读）
-      p.summary || (passwordHash ? '' : excerpt(p.content, 80)),
+      p.summary || (passwordHash ? '' : excerpt(clean, 80)),
       p.cover,
       JSON.stringify(p.tags),
       p.status,
@@ -873,6 +875,8 @@ api.delete('/admin/weibo/:id', async (c) => {
 
 /** 服务端插件「微博同步 Buffer」的渠道拉取：设置页一键填充渠道 ID（src/hooks.ts listBufferChannels） */
 api.post('/admin/buffer/channels', async (c) => {
+  // 演示站禁外发：Buffer 渠道拉取是出网请求，demo 下不存在（体验者填的 Key 不能打出去）
+  if (isDemo(c.env)) return jsonError('演示站不开放服务端插件外呼', 404)
   const body = await c.req.json<{ token?: string }>().catch(() => null)
   // token 缺省时用已保存的（打码占位符提交 = 保持原值，与 SECRET_SETTINGS 同口径）
   const saved = (await getSettings(c.env.DB)).bufferAccessToken || ''
@@ -1370,13 +1374,20 @@ api.post('/admin/upload', async (c) => {
   if (!(file instanceof File)) return jsonError('缺少文件字段 file')
   const mime = file.type || 'application/octet-stream'
   // 白名单查表统一走 imageExtOf（内部 hasOwnProperty 挡原型链穿透）
-  const ext =
+  const declared =
     imageExtOf(mime) ??
     (Object.prototype.hasOwnProperty.call(VIDEO_MIMES, mime) ? VIDEO_MIMES[mime] : undefined)
-  if (!ext) return jsonError('仅支持 JPG / PNG / WebP / GIF 图片与 MP4 / WebM 视频')
+  if (!declared) return jsonError('仅支持 JPG / PNG / WebP / GIF 图片与 MP4 / WebM 视频')
   if (file.size > MAX_UPLOAD_BYTES) return jsonError('文件超过 25MB 限制')
-  const url = await saveUpload(c.env, await file.arrayBuffer(), mime, file.name, ext)
-  return c.json({ ok: true, url, key: url.slice('/images/'.length), mime, size: file.size })
+  const buf = await file.arrayBuffer()
+  // 类型只认文件魔数（与转存链路同口径）：声明成图片但内容是 HTML/SVG/其它的一律拒收；
+  // 魔数与声明不符时按魔数落库（mime 取识别出的真实类型）
+  const ext = sniffUploadExt(buf)
+  if (!ext) return jsonError('文件内容不是支持的格式（仅认文件魔数）')
+  const realMime =
+    ext === 'mp4' ? 'video/mp4' : ext === 'webm' ? 'video/webm' : ext === 'ico' ? 'image/x-icon' : `image/${ext === 'jpg' ? 'jpeg' : ext}`
+  const url = await saveUpload(c.env, buf, realMime, file.name, ext)
+  return c.json({ ok: true, url, key: url.slice('/images/'.length), mime: realMime, size: buf.byteLength })
 })
 
 api.get('/admin/uploads', async (c) => {
@@ -1453,7 +1464,10 @@ api.post('/admin/og-image', async (c) => {
   if (!(file instanceof File)) return jsonError('缺少文件字段 file')
   if (file.type !== 'image/png') return jsonError('OG 卡图仅支持 PNG')
   if (file.size > MAX_UPLOAD_BYTES) return jsonError('文件超过 25MB 限制')
-  const url = await saveUpload(c.env, await file.arrayBuffer(), 'image/png', 'og-card.png', 'png', 'og')
+  const buf = await file.arrayBuffer()
+  // 魔数复核（与上传同口径）：声明 PNG 但内容不是 PNG 的一律拒收
+  if (sniffUploadExt(buf) !== 'png') return jsonError('文件内容不是 PNG')
+  const url = await saveUpload(c.env, buf, 'image/png', 'og-card.png', 'png', 'og')
   return c.json({ ok: true, url, key: url.slice('/images/'.length) })
 })
 

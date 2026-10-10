@@ -91,7 +91,10 @@ R2 **零出口流量费**，200GB 图片约 $3/月。
 }
 ```
 
-多租户共享一个桶时按 `<域名>/` 前缀隔离，互相不可见；`chmod 600 tenants.json` 保护密钥。
+多租户共享一个桶时按 `<域名>/` 前缀隔离，互相不可见。tenants.json 里是 R2 访问密钥，
+注意权限：`chmod 644 tenants.json`——不能 600，容器内 node（uid 1000）经 bind mount 直读
+此文件，600 会启动崩溃循环（add-tenant.sh 会自动校正）；宿主机其他普通用户能看到密钥
+时，改用把数据目录整体归入独立用户/组的部署方式。
 
 **启用步骤**：
 
@@ -147,11 +150,37 @@ DNS 用泛域名（`*.example.com` 一条 A 记录指向服务器）时无需再
   时间线、5 个真 bug 的根因与修复、线上验收 45/45 明细、容量测算）；
   单进程入口另有 `smoke.sh` 端到端冒烟（含 R2 自检断言 20/20）可随时复验
 
+## 访客 IP 信任档位（TRUST_PROXY）
+
+登录 / 文章密码解锁 / 评论 / 点赞的限流都按访客 IP 分桶。自托管时业务读到的 IP
+来自 `CF-Connecting-IP` / `X-Forwarded-For` 头——这些头客户端可以随意伪造，**档位
+必须与真实部署形态一致**，否则换一个假 IP 就能重置所有限流桶（密码爆破敞开）：
+
+| TRUST_PROXY | 部署形态 | 行为 |
+|---|---|---|
+| `proxy`（默认） | 本机自控反代（Caddy / Nginx / openresty） | 剥掉入站 `CF-Connecting-IP` / `X-Real-IP`，取 `X-Forwarded-For` **最后一跳**——反代把真实客户端 IP 追加在末尾，客户端伪造的值都在前面 |
+| `cf` | Cloudflare 橙云代理直连源站 | 保留 `CF-Connecting-IP`（CF 边缘强制写入不可伪造），剥掉其余可伪造头 |
+| `off` | Node 直接暴露公网（无反代） | 全部剥掉，以 socket 远端地址注入 |
+
+旧值 `1`/`0` 分别按 `proxy`/`off` 兼容。三种形态之外的接法（例如多层不可控代理、
+CDN 套 CDN）不在覆盖范围，请收敛成上表之一。
+
+## 控制面（多租户管理面板，可选）
+
+`CONTROL_HOST` + `CONTROL_PASSWORD` 两个环境变量都设置才启用：在控制面域名下提供
+网页化运维——开通 / 停用 / 启用 / 彻底删除 / 重置站点管理员密码，可选配套
+`CF_API_TOKEN` + `CF_ZONE_ID`（开通自动建 DNS 记录）。安全模型：主密码常时比较 +
+登录限流、同源 Origin 校验、会话 Cookie HttpOnly（https 链路带 Secure）12 小时、
+全部操作进 ops.log。**注意**：控制面要热写 tenants.json，docker compose 里的
+tenants.json 挂载不能是 `:ro`；不用控制面时保持未配置状态即可（整体 404 不存在）。
+
 ## 文件清单
 
 | 文件 | 说明 |
 |---|---|
-| `server.ts` | 多租户入口：http 适配、Host 路由、静态资源、cron |
+| `server.ts` | 多租户入口：http 适配、Host 路由、静态资源、cron、TRUST_PROXY 档位 |
+| `scheme.ts` | 浏览器侧真实 scheme 判定（租户请求组装与控制面 Cookie Secure 共用） |
+| `control.ts` | 多租户控制面（`CONTROL_HOST` 启用）：开通 / 停用 / 删除 / 重置密码 / 操作日志 |
 | `shims/d1.ts` | D1 → node:sqlite |
 | `shims/r2disk.ts` | R2 → 磁盘目录（默认存储后端） |
 | `shims/r2s3.ts` | R2 S3 兼容接口适配层（租户选 `storage: "r2"` 时启用，SigV4 零依赖） |

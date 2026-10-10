@@ -7,7 +7,7 @@
  * 安全模型（自托管单管理员场景，刻意从简）：
  *  - 主密码走 CONTROL_PASSWORD 环境变量，常时比较；登录限流复用 src/auth.ts rateLimit
  *  - 会话 = 进程内随机 token + HttpOnly Cookie，重启即全失效；Cookie 不设 Domain，
- *    仅 CONTROL_HOST 下生效，Secure 随请求 scheme（Caddy TLS 反代下自动带上）
+ *    仅 CONTROL_HOST 下生效，Secure 按请求 scheme（server.ts resolveScheme 判定，http 链路不带）
  *  - 所有写操作 POST + 同源 Origin 校验（与 api.ts 同一口径），纯表单无 JS 无内联事件
  *  - 未设 CONTROL_HOST / CONTROL_PASSWORD 时整个控制面不存在（server.ts 不会分流进来）
  */
@@ -81,6 +81,8 @@ interface ControlDeps {
   res: import('node:http').ServerResponse
   url: URL
   host: string
+  /** 浏览器侧真实 scheme（server.ts resolveScheme 判定）：https 时会话 Cookie 带 Secure */
+  scheme: string
   tenants: Map<string, Tenant>
   readTenantsConfig(): { r2?: Record<string, string>; tenants: Record<string, TenantConfig> }
   writeTenantsConfig(cfg: { r2?: Record<string, string>; tenants: Record<string, TenantConfig> }): void
@@ -744,6 +746,17 @@ async function resetAdminPassword(host: string): Promise<string> {
 }
 
 // ── 请求主循环 ───────────────────────────────────────────────────────────
+/** 摘除租户前关掉 D1 长连接：Windows 上打开中的 SQLite 文件删不掉（rmSync 静默失败），
+ *  Linux 下不关也删得掉但 WAL 不 checkpoint——统一先关 */
+function closeTenantDb(env: Record<string, unknown> | undefined): void {
+  const db = env?.DB as { close?: () => void } | undefined
+  try {
+    db?.close?.()
+  } catch {
+    /* 已关闭 / 不可关不阻塞摘除 */
+  }
+}
+
 function sendHtml(res: import('node:http').ServerResponse, body: string, status = 200, headers: Record<string, string> = {}): void {
   res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', ...headers })
   res.end(body)
@@ -786,8 +799,11 @@ export async function controlApp(deps: ControlDeps): Promise<void> {
     }
     const token = issueSession()
     opsLog('登录', '控制面登录成功')
+    // Secure 按请求 scheme：TLS 反代下带上防明文链路窃取；本地 http 冒烟时浏览器/客户端
+    // 不收 Secure cookie，按 scheme 摘除（与 sendToNode 对租户会话 cookie 同一策略）
+    const securePart = deps.scheme === 'https' ? '; Secure' : ''
     res.writeHead(303, {
-      'Set-Cookie': `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_MS / 1000}`,
+      'Set-Cookie': `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax${securePart}; Max-Age=${SESSION_TTL_MS / 1000}`,
       Location: '/',
     })
     return res.end()
@@ -856,6 +872,7 @@ export async function controlApp(deps: ControlDeps): Promise<void> {
     if (cfgAll.tenants[host]) {
       cfgAll.tenants[host].disabled = true
       deps.writeTenantsConfig(cfgAll)
+      closeTenantDb(deps.tenants.get(host)?.env)
       deps.tenants.delete(host) // 路由摘除；库与目录原样保留
       opsLog('停用', host)
     }
@@ -882,6 +899,7 @@ export async function controlApp(deps: ControlDeps): Promise<void> {
     if (cfgAll.tenants[host]) {
       delete cfgAll.tenants[host]
       deps.writeTenantsConfig(cfgAll)
+      closeTenantDb(deps.tenants.get(host)?.env)
       deps.tenants.delete(host)
       fs.rmSync(tenantDir(host), { recursive: true, force: true })
       opsLog('删除', host)
@@ -890,7 +908,14 @@ export async function controlApp(deps: ControlDeps): Promise<void> {
     return sendHtml(res, await dashboard(deps, `✓ ${host} 已彻底删除（配置 + 数据目录${cfEnabled() ? ' + DNS 记录' : ''}）`))
   }
 
+  // 域名形态守卫（与 /create 同一正则）：host 直接拼进 tenants/<host>/ 路径，
+  // 不设防的 ../ 会打出 tenants 目录之外（reset 是改密+清会话的毁灭性操作）
+  const HOST_SHAPE_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/
+
   if (method === 'POST' && path === '/reset' && host) {
+    if (!HOST_SHAPE_RE.test(host)) {
+      return sendHtml(res, await dashboard(deps, '✗ 域名形态不合法'))
+    }
     const flash = await resetAdminPassword(host)
     return sendHtml(res, await dashboard(deps, flash))
   }

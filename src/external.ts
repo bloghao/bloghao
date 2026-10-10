@@ -18,7 +18,7 @@ import { fireWeiboPublished } from './hooks'
 import { siteBase } from './render'
 import { imageExtOf, MAX_UPLOAD_BYTES, saveUpload } from './store'
 import type { Env, SessionUser, SettingsMap, WeiboRow } from './types'
-import { excerpt, extractWeiboTopics } from './utils'
+import { excerpt, extractWeiboTopics, isDemo } from './utils'
 
 const TG_FILE_LIMIT = 20 * 1024 * 1024 // Bot API getFile 上限 20MB
 
@@ -59,8 +59,10 @@ async function storeImage(env: Env, buf: ArrayBuffer, mime: string, name: string
   return saveUpload(env, buf, mime, name, ext)
 }
 
-/** data:image/...;base64 解码，只认图片类型 */
+/** data:image/...;base64 解码，只认图片类型；先按长度预检（base64 恒 4/3 膨胀），
+ *  超大 data URL 直接拒绝，防解码前整段进内存 */
 function decodeDataUrl(s: string): { buf: ArrayBuffer; mime: string } | null {
+  if (s.length > Math.ceil((MAX_UPLOAD_BYTES / 3) * 4) + 1024) return null
   const m = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/i.exec(s.trim())
   if (!m) return null
   try {
@@ -209,7 +211,15 @@ interface TgApiResponse<T> {
   description?: string
 }
 
-async function tgApi<T>(botToken: string, method: string, payload?: Record<string, unknown>): Promise<TgApiResponse<T> | null> {
+/** Telegram Bot API 统一出口：演示站一律短路（DEMO_MODE 下体验者随手配的 Bot Token
+ *  不能让官方演示 Worker 变成对外发送中继，见「演示站禁外发」防线） */
+async function tgApi<T>(
+  env: Env,
+  botToken: string,
+  method: string,
+  payload?: Record<string, unknown>
+): Promise<TgApiResponse<T> | null> {
+  if (isDemo(env)) return null
   try {
     const res = await fetch(`${TG_API}/bot${botToken}/${method}`, {
       method: 'POST',
@@ -223,8 +233,8 @@ async function tgApi<T>(botToken: string, method: string, payload?: Record<strin
   }
 }
 
-async function tgSend(botToken: string, chatId: string, text: string) {
-  await tgApi(botToken, 'sendMessage', { chat_id: chatId, text, disable_web_page_preview: true })
+async function tgSend(env: Env, botToken: string, chatId: string, text: string) {
+  await tgApi(env, botToken, 'sendMessage', { chat_id: chatId, text, disable_web_page_preview: true })
 }
 
 /* ---------------- 站内事件推送（新留言 / 备份失败等） ----------------
@@ -240,15 +250,17 @@ function notifyChatId(settings: SettingsMap): string {
     .filter(Boolean)[0] ?? ''
 }
 
-/** 给站长推一条纯文本消息（站点级事件，不受留言推送开关限制）；任何失败都吞掉，只返回是否送达 */
+/** 给站长推一条纯文本消息（站点级事件，不受留言推送开关限制）；任何失败都吞掉，只返回是否送达。
+ *  演示站短路：备份/评论/定时发布通知也不外发（demo 凭据是公示的，体验者能触达这些链路） */
 export async function notifyAdminText(env: Env, text: string): Promise<boolean> {
   try {
+    if (isDemo(env)) return false
     const settings = await getSettings(env.DB)
     const botToken = (settings.telegramBotToken || '').trim()
     if (!botToken) return false
     const chatId = notifyChatId(settings)
     if (!chatId) return false
-    const res = await tgApi(botToken, 'sendMessage', { chat_id: chatId, text, disable_web_page_preview: true })
+    const res = await tgApi(env, botToken, 'sendMessage', { chat_id: chatId, text, disable_web_page_preview: true })
     return !!res?.ok
   } catch {
     return false
@@ -317,7 +329,7 @@ function pickImageFileId(msg: TgMessage): string | null {
 /** 把 Telegram 图片下载下来转存 R2 图床，返回站内地址 */
 async function saveTgImage(env: Env, botToken: string, fileId: string): Promise<string | null> {
   try {
-    const meta = await tgApi<{ file_path?: string }>(botToken, 'getFile', { file_id: fileId })
+    const meta = await tgApi<{ file_path?: string }>(env, botToken, 'getFile', { file_id: fileId })
     const path = meta?.ok && meta.result?.file_path
     if (!path) return null
     const res = await fetch(`${TG_API}/file/bot${botToken}/${path}`, { signal: AbortSignal.timeout(15_000) })
@@ -408,7 +420,7 @@ async function flushMediaGroup(env: Env, botToken: string, groupId: string, fall
     const site = siteBase(await getSettings(env.DB), fallbackOrigin)
     const where = `${site}/weibo?wb=${weibo.id}#wb-${weibo.id}`
     await tgSend(
-      botToken,
+      env, botToken,
       row.chat_id,
       status === 'draft'
         ? `📝 相册已存为草稿（${images.length} 图），到后台「微博」页查看。`
@@ -419,6 +431,8 @@ async function flushMediaGroup(env: Env, botToken: string, groupId: string, fall
 }
 
 telegramRoutes.post('/webhook', async (c) => {
+  // 演示站禁外发：TG webhook 整条路都不存在（tgApi 内部还有兜底短路）
+  if (isDemo(c.env)) return c.json({ ok: false }, 404)
   const settings = await getSettings(c.env.DB)
   const botToken = (settings.telegramBotToken || '').trim()
   const secret = settings.telegramWebhookSecret || ''
@@ -442,14 +456,14 @@ telegramRoutes.post('/webhook', async (c) => {
   if (text.startsWith('/')) {
     const cmd = text.split(/\s+/)[0].split('@')[0].toLowerCase()
     if (cmd === '/start' || cmd === '/help') {
-      await tgSend(botToken, chatId, helpText(chatId))
+      await tgSend(c.env, botToken, chatId, helpText(chatId))
       return c.json({ ok: true })
     }
     if (cmd === '/draft') {
       status = 'draft'
       text = text.replace(/^\/draft(@\S+)?\s*/i, '')
     } else {
-      await tgSend(botToken, chatId, '可用指令：/draft 文字（存草稿）。直接发内容就是发布。')
+      await tgSend(c.env, botToken, chatId, '可用指令：/draft 文字（存草稿）。直接发内容就是发布。')
       return c.json({ ok: true })
     }
   }
@@ -461,20 +475,20 @@ telegramRoutes.post('/webhook', async (c) => {
     .filter(Boolean)
   if (!allowed.includes(chatId)) {
     await tgSend(
-      botToken,
+      c.env, botToken,
       chatId,
       `🔒 这个会话还没有授权发布。\n你的 Chat ID：${chatId}\n到后台「设置 → 外部发布」把它加进白名单即可。`
     )
     return c.json({ ok: true })
   }
   if (!rateLimit(`tg:${chatId}`, 20, 60_000)) {
-    await tgSend(botToken, chatId, '发得太快啦，休息一下再发。')
+    await tgSend(c.env, botToken, chatId, '发得太快啦，休息一下再发。')
     return c.json({ ok: true })
   }
 
   const fileId = pickImageFileId(msg)
   if (msg.document && !fileId) {
-    await tgSend(botToken, chatId, '文件类消息只支持图片，其他类型发到微博显示不了。')
+    await tgSend(c.env, botToken, chatId, '文件类消息只支持图片，其他类型发到微博显示不了。')
     return c.json({ ok: true })
   }
 
@@ -496,7 +510,7 @@ telegramRoutes.post('/webhook', async (c) => {
 
   const content = text.slice(0, WEIBO_MAX_CHARS)
   if (!fileId && !content) {
-    await tgSend(botToken, chatId, '这条消息里没有文字也没有图片，发点内容给我吧。')
+    await tgSend(c.env, botToken, chatId, '这条消息里没有文字也没有图片，发点内容给我吧。')
     return c.json({ ok: true })
   }
 
@@ -504,7 +518,7 @@ telegramRoutes.post('/webhook', async (c) => {
   if (fileId) {
     const url = await saveTgImage(c.env, botToken, fileId)
     if (!url) {
-      await tgSend(botToken, chatId, '图片下载失败（仅支持 JPG / PNG / WebP / GIF，≤ 25MB），再试一次？')
+      await tgSend(c.env, botToken, chatId, '图片下载失败（仅支持 JPG / PNG / WebP / GIF，≤ 25MB），再试一次？')
       return c.json({ ok: true })
     }
     images.push(url)
@@ -517,7 +531,7 @@ telegramRoutes.post('/webhook', async (c) => {
   }
   const where = `${siteBase(settings, reqOrigin(c.req.url))}/weibo?wb=${weibo.id}#wb-${weibo.id}`
   await tgSend(
-    botToken,
+    c.env, botToken,
     chatId,
     status === 'draft'
       ? `📝 已存为草稿，到后台「微博」页查看。`
@@ -530,19 +544,21 @@ telegramRoutes.post('/webhook', async (c) => {
 
 export const adminExternalRoutes = new Hono<AppEnv>()
 
-/** 生成并保存新的 API Token（旧的立即失效） */
+/** 生成并保存新的 API Token（旧的立即失效）；演示站禁用（禁外发守卫同口径） */
 adminExternalRoutes.post('/token', async (c) => {
+  if (isDemo(c.env)) return jsonError('演示站不开放外部发布配置', 404)
   const token = randomToken(24)
   await saveSettings(c.env.DB, { externalToken: token })
   return c.json({ ok: true, token })
 })
 
-/** 校验 Bot Token 并一键设置 Webhook（首次会自动生成 Webhook 密钥） */
+/** 校验 Bot Token 并一键设置 Webhook（首次会自动生成 Webhook 密钥）；演示站禁用 */
 adminExternalRoutes.post('/telegram/webhook', async (c) => {
+  if (isDemo(c.env)) return jsonError('演示站不开放外部发布配置', 404)
   const settings = await getSettings(c.env.DB)
   const botToken = (settings.telegramBotToken || '').trim()
   if (!botToken) return jsonError('先填写并保存 Telegram Bot Token')
-  const me = await tgApi<{ username?: string; first_name?: string }>(botToken, 'getMe')
+  const me = await tgApi<{ username?: string; first_name?: string }>(c.env, botToken, 'getMe')
   if (!me?.ok || !me.result?.username) {
     return jsonError('Bot Token 无效（Telegram 校验未通过），请核对后重试', 400)
   }
@@ -554,7 +570,7 @@ adminExternalRoutes.post('/telegram/webhook', async (c) => {
   // URL 不再带 secret（会进 Telegram 与边缘访问日志）；校验统一走 setWebhook
   // 的 secret_token 对应的官方请求头。仍兼容旧绑定 URL 里的 ?secret=
   const webhookUrl = `${siteBase(settings, reqOrigin(c.req.url))}/api/telegram/webhook`
-  const res = await tgApi(botToken, 'setWebhook', {
+  const res = await tgApi(c.env, botToken, 'setWebhook', {
     url: webhookUrl,
     secret_token: secret,
     allowed_updates: ['message'],

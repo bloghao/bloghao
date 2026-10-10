@@ -24,6 +24,7 @@ import { createD1 } from './shims/d1'
 import { createR2Disk } from './shims/r2disk'
 import { createR2S3, signAuthorization } from './shims/r2s3'
 import { controlApp } from './control'
+import { resolveScheme } from './scheme'
 // D1 的建表靠部署时 `wrangler d1 execute schema.sql`，ensureSchema 只管增量补列——
 // 租户库是全新文件，这里要自己先跑一遍 schema.sql（官方幂等设计，可重复执行），
 // 与演示站 src/demo.ts 的 ensureTables 同款思路
@@ -31,8 +32,21 @@ import SCHEMA_SQL from '../schema.sql'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT || 8787)
-/** '1'（默认）= 信任反代注入的访客 IP 头；'0' = Node 直接暴露公网，只认 socket 远端 */
-const TRUST_PROXY = (process.env.TRUST_PROXY ?? '1') !== '0'
+/**
+ * 访客 IP 信任档位（auth.ts clientIp 优先读 CF-Connecting-IP / X-Forwarded-For，这里决定
+ * 哪些入站头可信、哪些剥掉后以可靠来源重新注入）：
+ *  - 'cf'    部署在 Cloudflare 橙云后：保留 CF-Connecting-IP（CF 边缘强制写入不可伪造），
+ *            剥掉 X-Forwarded-For / X-Real-IP（回落值也可伪造）
+ *  - 'proxy' 默认。本机自控反代（Caddy / Nginx）：剥掉入站 CF-Connecting-IP / X-Real-IP，
+ *            取 X-Forwarded-For 最后一跳作为访客 IP——反代把真实客户端 IP 追加在末尾，
+ *            客户端自己伪造的值都在前面，伪造不进来。要求前面确实有一层自控反代
+ *  - 'off'   Node 直接暴露公网：剥掉全部可伪造头，以 socket 远端地址注入
+ * 兼容旧值：'1' → proxy、'0' → off。客户端可任意伪造 CF-Connecting-IP 轮换 IP 绕过
+ * 登录 / 解锁 / 评论 / 点赞限流——档位与真实部署形态不符时代码帮不了你，见 README「访客 IP」
+ */
+const TRUST_PROXY_RAW = (process.env.TRUST_PROXY ?? 'proxy').toLowerCase()
+const TRUST_PROXY: 'cf' | 'proxy' | 'off' =
+  TRUST_PROXY_RAW === '1' ? 'proxy' : TRUST_PROXY_RAW === '0' ? 'off' : TRUST_PROXY_RAW === 'cf' || TRUST_PROXY_RAW === 'proxy' || TRUST_PROXY_RAW === 'off' ? (TRUST_PROXY_RAW as 'cf' | 'proxy' | 'off') : 'proxy'
 // 默认值按「打包产物在 docker-poc/dist/server.js」的层级推导：dist/../.. = 仓库根、
 // dist/.. = docker-poc/；Docker 里保持同样层级，仅 TENANTS_DIR 用环境变量指到挂载卷
 const PUBLIC_ROOT = path.resolve(process.env.PUBLIC_ROOT || path.resolve(__dirname, '../../public'))
@@ -64,24 +78,39 @@ interface R2SharedConfig {
   secretAccessKey: string
 }
 
-/** 读 tenants.json，两种格式兼容：
- *  旧：{ "域名": { demo } } 平铺
- *  新：{ r2: { accountId, bucket, accessKeyId, secretAccessKey }, tenants: { "域名": { demo, storage: "local"|"r2" } } }
- *  新格式里多个租户共享一个 R2 桶，shim 用 <域名>/ 前缀做租户隔离 */
+/** 读 tenants.json（带 mtime 缓存 + 解析失败回落上次成功配置）：
+ *  每请求都要查停用状态，不能每次 statSync+readFileSync+JSON.parse；
+ *  控制面与业务进程共用一份数据，写入路径 writeTenantsConfig 会同步刷新缓存 */
+let tenantsCache: { mtimeMs: number; cfg: { r2?: R2SharedConfig; tenants: Record<string, TenantConfig> } } | null = null
 function readTenantsConfig(): { r2?: R2SharedConfig; tenants: Record<string, TenantConfig> } {
-  const raw = JSON.parse(fs.readFileSync(TENANTS_CONFIG, 'utf8'))
-  if (raw && typeof raw === 'object' && !Array.isArray(raw) && raw.tenants) {
-    return { r2: raw.r2, tenants: raw.tenants }
+  try {
+    const st = fs.statSync(TENANTS_CONFIG)
+    if (tenantsCache && st.mtimeMs === tenantsCache.mtimeMs) return tenantsCache.cfg
+    const raw = JSON.parse(fs.readFileSync(TENANTS_CONFIG, 'utf8'))
+    const cfg =
+      raw && typeof raw === 'object' && !Array.isArray(raw) && raw.tenants
+        ? { r2: raw.r2, tenants: raw.tenants }
+        : { tenants: raw }
+    tenantsCache = { mtimeMs: st.mtimeMs, cfg }
+    return cfg
+  } catch (e) {
+    // 半截 JSON（并发写窗口）/ 瞬时读失败：回落上次成功配置，别让整站 500 突刺
+    if (tenantsCache) return tenantsCache.cfg
+    throw e
   }
-  return { tenants: raw }
 }
 
 /** 原地截断写回 tenants.json：单文件 bind mount 换 inode 会让容器读不到新内容，
  *  必须保持 inode（与 add-tenant.sh 的 cat > 覆盖同一约束）；运行中进程直写，
- *  配置与内存租户表即同步演进，不再依赖重启 */
+ *  配置与内存租户表即同步演进，不再依赖重启。写完主动刷新读缓存 */
 function writeTenantsConfig(cfg: { r2?: R2SharedConfig; tenants: Record<string, TenantConfig> }): void {
   const body = cfg.r2 ? { r2: cfg.r2, tenants: cfg.tenants } : cfg.tenants
   fs.writeFileSync(TENANTS_CONFIG, JSON.stringify(body, null, 2) + '\n')
+  try {
+    tenantsCache = { mtimeMs: fs.statSync(TENANTS_CONFIG).mtimeMs, cfg }
+  } catch {
+    /* stat 失败下次读会自行恢复 */
+  }
 }
 
 /** 初始化单个租户：blog.db（WAL）+ 图床存储 + schema，启动加载与控制面热开台共用 */
@@ -269,31 +298,34 @@ function sendToNode(req: http.IncomingMessage, res: http.ServerResponse, appRes:
 }
 
 /**
- * 浏览器侧真实 scheme。优先级：
- *  1. Origin 头（host 与请求一致时）——api.ts 的同源 CSRF 校验拿它和 c.req.url.origin 全等比较，
- *     scheme 不一致就会误判跨站（CF 灵活 SSL 实测被拒）
- *  2. CF-Visitor——Cloudflare 注入的访客侧 scheme（灵活 SSL 下也是 https，X-Forwarded-Proto 则是回源段）
- *  3. X-Forwarded-Proto（常规 TLS 反代）
- *  4. http
+ * 访客 IP 档位落地（见顶部 TRUST_PROXY 说明）：剥掉不可信头，以可靠来源重新注入
+ * CF-Connecting-IP（auth.ts clientIp 优先读它，业务代码零改动）。
  */
-function resolveScheme(headers: Headers, host: string): string {
-  const origin = headers.get('origin')
-  if (origin) {
-    try {
-      const o = new URL(origin)
-      if (o.host === host) return o.protocol.replace(':', '')
-    } catch {
-      /* 非法 Origin 走兜底链 */
-    }
+function applyTrustProxy(headers: Headers, req: http.IncomingMessage): void {
+  if (TRUST_PROXY === 'cf') {
+    // Cloudflare 橙云后：CF-Connecting-IP 由边缘强制写入（保留），回落链上的头剥掉
+    headers.delete('x-forwarded-for')
+    headers.delete('x-real-ip')
+    return
   }
-  try {
-    const visitor = JSON.parse(headers.get('cf-visitor') || '{}') as { scheme?: string }
-    if (visitor.scheme) return visitor.scheme
-  } catch {
-    /* 头损坏走兜底链 */
+  headers.delete('x-real-ip')
+  headers.delete('cf-connecting-ip')
+  if (TRUST_PROXY === 'proxy') {
+    // 本机自控反代：反代把真实客户端 IP 追加在 XFF 末尾，客户端伪造的值都在前面；
+    // 无 XFF（直连）回落 socket 远端
+    const parts = (headers.get('x-forwarded-for') || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    const ip = parts.length ? parts[parts.length - 1] : (req.socket.remoteAddress || '').replace(/^::ffff:/, '')
+    headers.delete('x-forwarded-for')
+    if (ip) headers.set('cf-connecting-ip', ip)
+    return
   }
-  const xfp = (headers.get('x-forwarded-proto') || '').split(',')[0].trim()
-  return xfp || 'http'
+  // off：Node 直接暴露公网，只有 socket 远端可信
+  headers.delete('x-forwarded-for')
+  const remote = (req.socket.remoteAddress || '').replace(/^::ffff:/, '')
+  if (remote) headers.set('cf-connecting-ip', remote)
 }
 
 async function handle(req: http.IncomingMessage, res: http.ServerResponse, tenants: Map<string, Tenant>) {
@@ -301,6 +333,16 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse, tenan
   const hostHeader = req.headers.host || 'localhost'
   const host = hostHeader.split(':')[0].toLowerCase()
   const url = new URL(req.url || '/', `http://${hostHeader}`)
+
+  // 组装转发头（hop-by-hop 剥除 + 访客 IP 档位处理），探活之后的每条路共用
+  const headers = new Headers()
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (HOP_BY_HOP.has(key) || value === undefined) continue
+    if (Array.isArray(value)) value.forEach((v) => headers.append(key, v))
+    else headers.set(key, value)
+  }
+  applyTrustProxy(headers, req)
+  const proto = resolveScheme(headers, url.host)
 
   // 0) 反代（Caddy on_demand_tls ask）按需签证书探活：GET /api/health?domain=<域名>，
   // Host 头是探活方自己（127.0.0.1），进不了租户路由；只在域名确已登记时放行 200，
@@ -326,6 +368,7 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse, tenan
       res,
       url,
       host,
+      scheme: proto,
       tenants,
       readTenantsConfig,
       writeTenantsConfig,
@@ -361,25 +404,7 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse, tenan
     return
   }
 
-  // 3) 组装 fetch Request 交给 Hono 应用（环境与执行上下文按租户注入）
-  const headers = new Headers()
-  for (const [key, value] of Object.entries(req.headers)) {
-    if (HOP_BY_HOP.has(key) || value === undefined) continue
-    if (Array.isArray(value)) value.forEach((v) => headers.append(key, v))
-    else headers.set(key, value)
-  }
-  // 访客 IP 可信来源：默认 TRUST_PROXY=1 信任反代注入的头（CF-Connecting-IP / X-Forwarded-For）；
-  // Node 直接暴露公网时设 TRUST_PROXY=0——客户端可随意伪造上述头轮换 IP 绕过限流，
-  // 此时剥掉入站头、以 socket 远端地址注入 CF-Connecting-IP（auth.ts clientIp 优先读它，业务零改动）
-  if (!TRUST_PROXY) {
-    headers.delete('cf-connecting-ip')
-    headers.delete('x-forwarded-for')
-    headers.delete('x-real-ip')
-    const remote = (req.socket.remoteAddress || '').replace(/^::ffff:/, '')
-    if (remote) headers.set('cf-connecting-ip', remote)
-  }
   const hasBody = req.method !== 'GET' && req.method !== 'HEAD'
-  const proto = resolveScheme(headers, url.host)
   const appReq = new Request(`${proto}://${hostHeader}${url.pathname}${url.search}`, {
     method: req.method,
     headers,

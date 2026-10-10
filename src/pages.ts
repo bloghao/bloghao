@@ -76,6 +76,9 @@ function baseHeaders(c: C) {
   c.header('X-Content-Type-Options', 'nosniff')
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
   c.header('X-Frame-Options', 'SAMEORIGIN')
+  // https 上启用 HSTS（http 上浏览器忽略，本地开发不受影响）；浏览器特性收敛到无
+  c.header('Strict-Transport-Security', 'max-age=31536000')
+  c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
 }
 
 // 浏览量去重：同一 IP 对同一篇文章 1 小时内只计 1 次（进程内缓存，尽力而为），

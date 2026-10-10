@@ -5,6 +5,7 @@
 import type { Env } from './types'
 import { sha256Hex } from './utils'
 import { stripImageMetadata } from './exif'
+import { fetchPublicResource } from './fetchsafe'
 
 /** 上传体积上限（手动上传与各转存链路同口径） */
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -79,28 +80,42 @@ export function sniffImageExt(buf: ArrayBuffer): 'jpg' | 'png' | 'gif' | 'webp' 
   return null
 }
 
+/** 手动上传（/admin/upload、/admin/og-image）的魔数识别：与转存链路同口径「只认文件魔数」，
+ *  不信任客户端声明的 Content-Type（nosniff 只防浏览器嗅探，防不住伪装成图片的其他内容入库）。
+ *  在 sniffImageExt 基础上补 ico 与视频（上传白名单内的全部类型） */
+export function sniffUploadExt(
+  buf: ArrayBuffer
+): 'jpg' | 'png' | 'gif' | 'webp' | 'ico' | 'mp4' | 'webm' | null {
+  const img = sniffImageExt(buf)
+  if (img) return img
+  const b = new Uint8Array(buf, 0, Math.min(16, buf.byteLength))
+  // ICO / CUR：reserved(2B)=0 + type(2B)=1/2
+  if (b[0] === 0 && b[1] === 0 && (b[2] === 1 || b[2] === 2) && b[3] === 0) return 'ico'
+  // MP4：ftyp box（偏移 4-7）
+  if (b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70) return 'mp4'
+  // WebM / Matroska：EBML 魔数
+  if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return 'webm'
+  return null
+}
+
 /** 抓远程图片 → 魔数识别 → R2 图床落库，返回站内地址；失败返回 null，回退策略由调用方定。
  *  类型只认文件魔数，不信任源站 Content-Type / URL 参数（如 wx_fmt）：声明成图片但内容
  *  是 HTML/SVG 的响应一律拒收，存储的 Content-Type 由识别出的扩展名反推，
- *  保证 /images/ 回源时永远是安全的图片类型 */
-/** 远程图转存：进 R2 图床返回站内地址。referer 缺省沿用公众号场景（有防盗链的源
- *  各自定义，如豆瓣图床要求豆瓣域 Referer）；只认文件魔数，声明长度与实际字节双限 */
+ *  保证 /images/ 回源时永远是安全的图片类型。
+ *  referer 缺省沿用公众号场景（有防盗链的源各自定义，如豆瓣图床要求豆瓣域 Referer）。
+ *  SSRF 防线走 fetchPublicResource（私网拒绝 + 重定向逐跳复查 + 流式大小上限，
+ *  见 src/fetchsafe.ts）——配图 URL 来自被抓页面等不可信内容，不能裸 fetch */
 export async function transferImage(env: Env, url: string, name: string, referer?: string): Promise<string | null> {
-  if (!/^https?:\/\//i.test(url)) return null
   try {
-    const res = await fetch(url, {
+    const r = await fetchPublicResource(url, {
+      maxBytes: MAX_UPLOAD_BYTES,
+      timeoutMs: REMOTE_FETCH_TIMEOUT_MS,
       headers: { 'User-Agent': REMOTE_FETCH_UA, Referer: referer || 'https://mp.weixin.qq.com/' },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(REMOTE_FETCH_TIMEOUT_MS),
     })
-    if (!res.ok) return null
-    // 先看声明长度再读体：超大响应直接放弃（有些服务器不回 Content-Length，兜底仍靠读后的字节数检查）
-    if (Number(res.headers.get('content-length') || 0) > MAX_UPLOAD_BYTES) return null
-    const buf = await res.arrayBuffer()
-    if (buf.byteLength === 0 || buf.byteLength > MAX_UPLOAD_BYTES) return null
-    const ext = sniffImageExt(buf)
+    if (!r) return null
+    const ext = sniffImageExt(r.buf)
     if (!ext) return null
-    return saveUpload(env, buf, `image/${ext === 'jpg' ? 'jpeg' : ext}`, name, ext)
+    return saveUpload(env, r.buf, `image/${ext === 'jpg' ? 'jpeg' : ext}`, name, ext)
   } catch {
     return null
   }

@@ -89,6 +89,9 @@ EOF
   `sudo systemctl edit caddy` 加 `Environment=CF_API_TOKEN=xxx`
 - 记得把 `你的域名.com` 和 `*.你的域名.com` 的 NS 托管到 Cloudflare，A 记录 `*` 与 `@`
   指向服务器 IP、**开橙云**；SSL/TLS 模式用「**完全（严格）**」（Caddy 有真证书，别用灵活）
+- 访客 IP 档位：Caddy 本机反代形态用默认 `TRUST_PROXY=proxy` 即可（取 XFF 最后一跳，
+  客户端伪造不进来）；docker-compose 里别显式设 `TRUST_PROXY=cf`——橙云在 Caddy 之外，
+  到达容器时 `CF-Connecting-IP` 已不是 CF 边缘直写，档位语义不成立
 - `{labels.3}` 取 `blog1.你的域名.com` 的第一段做目录名，对应 `data/tenants/<域名>/uploads/`——
   Caddy 占位符按 `.` 切片编号，多级域名（`a.b.你的域名.com`）要相应调数字；不放心就把
   `/images/` 直出这条 `handle` 删掉，先全量过应用（功能等价，只是慢一点点）

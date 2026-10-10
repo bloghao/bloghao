@@ -92,6 +92,7 @@ const tgChannel: ServerPlugin = {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text }),
+      signal: AbortSignal.timeout(10_000),
     })
   },
 }
@@ -111,6 +112,7 @@ const commentWebhook: ServerPlugin = {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ event: 'comment.created', site: ctx.settings.siteName, ...p }),
+      signal: AbortSignal.timeout(10_000),
     })
   },
 }

@@ -190,7 +190,8 @@ app.get('/images/*', async (c) => {
   if (obj.httpEtag && c.req.header('If-None-Match') === obj.httpEtag) {
     return new Response(null, {
       status: 304,
-      headers: { ETag: obj.httpEtag, 'X-Content-Type-Options': 'nosniff' },
+      // 304 也要带缓存指令：浏览器拿 304 续用本地副本时需要知道 TTL
+      headers: { ETag: obj.httpEtag, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' },
     })
   }
   const headers = new Headers()

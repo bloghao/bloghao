@@ -7,9 +7,11 @@
  * 存库后走 sanitizeHtml 白名单（div/img/a 本就放行，data-* 走 GLOBAL_ATTRS 扩展），
  * 前台样式由六主题的 .rich .link-card 段渲染——抓不到元数据时退化为标题 + 域名的占位卡。
  *
- * SSRF 约束：只抓 http(s) 公网地址（私有网段 / 非常规端口一律拒绝），
+ * SSRF 约束：只抓 http(s) 公网地址（私有网段 / 非常规端口一律拒绝，重定向逐跳复查），
  * 限长限时，解析异常静默返回空元数据（卡片退化为占位，不阻塞插入）。
  */
+
+import { fetchPublicResource } from './fetchsafe'
 
 export interface LinkMeta {
   title: string
@@ -23,36 +25,9 @@ const MAX_PAGE_BYTES = 2 * 1024 * 1024
 const UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 
-/** 私有/保留网段：Workers 出口公网无此场景，防御的是自托管（docker-poc）部署 */
-function isPrivateHost(host: string): boolean {
-  const h = host.toLowerCase()
-  if (!h || h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return true
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) {
-    const [a, b] = h.split('.').map(Number)
-    if (a === 0 || a === 10 || a === 127) return true
-    if (a === 169 && b === 254) return true
-    if (a === 172 && b >= 16 && b <= 31) return true
-    if (a === 192 && b === 168) return true
-    if (a >= 224) return true
-  }
-  return false
-}
-
-/** 只放行 http(s) 公网地址；返回 null 表示不可抓（调用方让卡片退化为纯超链接口径） */
-export function fetchableUrl(raw: string): URL | null {
-  const t = raw.replace(/[\t\r\n]/g, '').trim()
-  let u: URL
-  try {
-    u = new URL(t)
-  } catch {
-    return null
-  }
-  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
-  if (!u.hostname) return null
-  if (isPrivateHost(u.hostname)) return null
-  if (u.port && !/^(80|443|8080|8443)$/.test(u.port)) return null
-  return u
-}
+// SSRF 防线统一入口（src/fetchsafe.ts）：私网判定 / 重定向逐跳复查 / 流式大小上限
+// fetchableUrl 保持从本文件 re-export（tests/linkmeta.test.ts 与调用方的历史导入路径不变）
+export { fetchableUrl } from './fetchsafe'
 
 /** 与 collect.ts 同口径的轻量实体解码（og:title 常含 &quot; 等实体；未知实体原样保留） */
 function decodeEntities(s: string): string {
@@ -87,21 +62,17 @@ function titleTag(html: string): string {
 
 /** 抓取页面并解析链接卡元数据；任何异常都返回空对象（卡片退化，不阻塞插入） */
 export async function fetchLinkMeta(rawUrl: string): Promise<Partial<LinkMeta>> {
-  const u = fetchableUrl(rawUrl)
-  if (!u) return {}
-  let html: string
+  let html = ''
   try {
-    const res = await fetch(u, {
+    const r = await fetchPublicResource(rawUrl, {
+      maxBytes: MAX_PAGE_BYTES,
+      timeoutMs: FETCH_TIMEOUT_MS,
       headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8' },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
-    if (!res.ok) return {}
-    if (Number(res.headers.get('content-length') || 0) > MAX_PAGE_BYTES) return {}
-    const ct = res.headers.get('content-type') || ''
+    if (!r) return {}
+    const ct = r.res.headers.get('content-type') || ''
     if (ct && !/text\/html|application\/xhtml/i.test(ct)) return {}
-    html = await res.text()
-    if (html.length > MAX_PAGE_BYTES) return {}
+    html = new TextDecoder().decode(r.buf)
   } catch {
     return {}
   }

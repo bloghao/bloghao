@@ -1,0 +1,8 @@
+# 后台 SPA 经 wrangler assets 直出不经过 Worker（CSP 的 meta 兜底在 admin/index.html）。
+# 这里补 meta 兜不住的响应面：frame-ancestors 在 meta 里按规范无效，XFO/ nosniff /
+# Referrer-Policy 只有响应头才作数。其余路径（前台 HTML）的安全头在 pages.ts baseHeaders。
+/admin/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+  Cross-Origin-Opener-Policy: same-origin

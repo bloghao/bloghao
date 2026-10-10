@@ -74,7 +74,11 @@ check "t1 租户看不到 main 的文章（隔离）" 404 "$(code t1.localhost "
 # 1x1 PNG
 PNG=$(mktemp --suffix=.png 2>/dev/null || mktemp).png
 printf 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > "$PNG"
-UP=$(curl -s --resolve "main.localhost:${PORT}:127.0.0.1" -b "$JAR" -F "file=@${PNG};type=image/png" http://main.localhost:${PORT}/api/admin/upload)
+# Windows 原生 curl（Git Bash 常见发行）读不了 MSYS 的 /tmp 虚拟路径（CURLE_READ_ERROR），
+# 转 Windows 路径；Linux/WSL 无 cygpath 回退原路径
+PNG_FOR_CURL="${PNG}"
+command -v cygpath >/dev/null 2>&1 && PNG_FOR_CURL=$(cygpath -w "$PNG")
+UP=$(curl -s --resolve "main.localhost:${PORT}:127.0.0.1" -b "$JAR" -F "file=@${PNG_FOR_CURL};type=image/png" http://main.localhost:${PORT}/api/admin/upload)
 KEY=$(printf '%s' "$UP" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).key||'')}catch{console.log('')}})")
 check "上传图片拿到 key" 1 "$([ -n "$KEY" ] && echo 1 || echo 0)"
 check "图片回读 200 + PNG" 200 "$(curl -s -o /dev/null -w '%{http_code}' --resolve "main.localhost:${PORT}:127.0.0.1" "http://main.localhost:${PORT}/images/$KEY")"
@@ -161,7 +165,8 @@ check "删除后路由 404" 404 "$(code smoke-new.localhost /api/health)"
 check "操作日志已记录" 1 "$(grep -q '"action":"删除"' "${SMOKE_DIR}/ops.log" && echo 1 || echo 0)"
 
 kill ${SERVER_PID} 2>/dev/null || true
-rm -rf "$SMOKE_DIR" /tmp/ctrl-reset.html
+# Windows 上刚被 kill 的进程句柄释放有延迟，临时目录清理失败不算冒烟失败
+rm -rf "$SMOKE_DIR" /tmp/ctrl-reset.html 2>/dev/null || true
 
 echo
 echo "结果：PASS=${PASS} FAIL=${FAIL}"

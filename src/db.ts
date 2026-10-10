@@ -849,6 +849,12 @@ const SCHEMA_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_uploads_created ON uploads (created_at DESC)',
   'CREATE INDEX IF NOT EXISTS idx_friend_links_status ON friend_links (status, sort, id)',
   'CREATE INDEX IF NOT EXISTS idx_visit_day ON visit_log (day, ts)',
+  // 滚动清理 DELETE WHERE ts < ? 走前导索引（visit_log 是量最大的日志表；与 schema.sql 同步登记）
+  'CREATE INDEX IF NOT EXISTS idx_visit_ts ON visit_log (ts)',
+  // 回收站软删行极少：部分索引只收已删行，trash 面查询与 30 天到期清理免全表扫
+  'CREATE INDEX IF NOT EXISTS idx_posts_deleted ON posts (deleted_at) WHERE deleted_at IS NOT NULL',
+  'CREATE INDEX IF NOT EXISTS idx_weibo_deleted ON weibo (deleted_at) WHERE deleted_at IS NOT NULL',
+  'CREATE INDEX IF NOT EXISTS idx_pages_deleted ON pages (deleted_at) WHERE deleted_at IS NOT NULL',
 ]
 
 async function tableColumns(db: D1Database, table: string): Promise<Set<string>> {

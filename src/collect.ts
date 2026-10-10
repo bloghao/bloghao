@@ -12,6 +12,7 @@
 import { Hono } from 'hono'
 import { clientIp, rateLimit } from './auth'
 import { getPostById, uniqueSlug } from './db'
+import { readBodyLimited } from './fetchsafe'
 import { sanitizeHtml } from './sanitize'
 import { transferImage } from './store'
 import type { Env, SessionUser } from './types'
@@ -357,15 +358,15 @@ collectRoutes.post('/wechat', async (c) => {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
     if (!res.ok) return c.json({ error: `抓取失败（HTTP ${res.status}）` }, 502)
-    // 声明长度超限直接放弃（不回 Content-Length 的响应靠读完后按字符数兜底：
-    // 中文字符数恒小于 UTF-8 字节数，ASCII 两者相等，故 chars > 上限必然 bytes > 上限）
+    // 声明长度超限直接放弃；读体走流式限长（gzip 解压后可能远超 content-length，防整读进内存）
     if (Number(res.headers.get('content-length') || 0) > MAX_PAGE_BYTES) {
       return c.json({ error: '页面过大，抓取失败' }, 502)
     }
-    html = await res.text()
-    if (html.length > MAX_PAGE_BYTES) {
+    const buf = await readBodyLimited(res, MAX_PAGE_BYTES)
+    if (!buf) {
       return c.json({ error: '页面过大，抓取失败' }, 502)
     }
+    html = new TextDecoder().decode(buf)
   } catch {
     return c.json({ error: '网络错误，抓取失败' }, 502)
   }

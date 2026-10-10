@@ -94,6 +94,17 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 - 解锁端点是**表单 POST `/post/:slug/unlock`（index.ts，303 回跳，无 JS 依赖）**：必须保留同源 Origin 校验、按「IP+文章」限流（PBKDF2 是慢操作，防爆破 10 次/10 分钟）、目标不存在/未加密静默 303 回跳不透露存在性；错误态走 `?pwerr=1` / `?pwerr=slow` 回显在表单里。表单与样式都在 protect.ts（`passwordFormHtml` / `PP_CSS` 随主题 CSS 注入 head），不要往 themes 七主题里各抄一份
 - 备份/导出含 password_hash 属预期（备份要可还原，导出是管理员工具）
 
+**出网安全（tests/fetchsafe.test.ts，机制在 src/fetchsafe.ts）**
+
+- 服务端抓「用户/第三方提供的 URL」一律走 `fetchsafe.ts` 的 `fetchPublicResource`（fetchableUrl 起点校验 + redirect:'manual' 逐跳复查 + 流式 readBodyLimited 限长）——已接线：linkmeta 抓页面、store 转存远程图、collect 采抓正文。新增出网点禁止裸 fetch：公网 URL 302 到 169.254.169.254 是经典绕过，重定向必须逐跳复查
+- `isPrivateHost` 覆盖点分 IPv4 之外的表示法：整数（http://2130706433/）、0x 十六进制、0 前缀八进制、IPv6 字面量（::1 / IPv4-mapped / NAT64 / ULA / link-local）；解析不动的可疑形态一律按私有拒绝（宁拒勿漏），但真域名不能误杀（cafe.example.com 全是 hex 字母，判定只认「每段都是数字」的形态）。已知局限：DNS rebinding 防不了——Workers 平台私网不可达不构成攻击面，自托管见 docker-poc README
+- Node（undici，docker-poc）下 manual 重定向返回 opaqueredirect（拿不到目标），`fetchPublicResource` 直接放弃该次抓取——自托管形态带重定向的转存源会失败，属预期取舍；Workers 下返回真实 3xx 正常跟跳
+- 手动上传（/admin/upload、/admin/og-image）只认文件魔数（`store.ts sniffUploadExt`，在 sniffImageExt 基础上补 ico/mp4/webm），与转存链路「魔数优先」同口径；mime 声明与魔数不符时按魔数落库真实 mime
+
+**会话 token（src/auth.ts）**
+
+- sessions / member_sessions 落库的是 **SHA-256(token)**（`tokenHash`），Cookie 里才是原文：库泄露 ≠ 会话可重放。会话相关查询/删除一律先过 tokenHash，别拿 Cookie 里的明文 token 直查直删（2026-10 切换，上线时全部旧登录态失效一次属预期）
+
 **外链中间页（tests/outlink.test.ts、冒烟「外链中间页」，机制在 src/outlink.ts）**
 
 - 第三方链接一律走 `outHref` 判定：白名单（`TRUSTED_OUT_DOMAINS`，主域名 + 子域跟随）与本站同源直出，其余包成 `/go?u=<encodeURIComponent>` 确认页（免责声明、noindex、无 JS 不自动跳转——`/go` 路由只对白名单/同源 302 直跳，非白名单**永不**服务端跳转，不构成开放重定向；目标必须 http(s) 且 ≤2048 字符，非法一律回首页）。新增「想给外链加中间页」的公开面只准调 `outHref` / `wrapAnchorHref`，别手搓白名单判断
@@ -125,7 +136,7 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 
 **演示站（tests/demo.test.ts，docs/DEMO.md）**
 
-- 演示站只在 `DEMO_MODE` 下活（wrangler.demo.jsonc 注入，生产 Worker 不带）：所有 demo 分支必须走 `utils.ts isDemo()`（`'0'`/缺省必须为假，勿写成 truthy 宽判）；`src/demo.ts` 由 index.ts 动态 import，生产 isolate 不执行
+- 演示站只在 `DEMO_MODE` 下活（wrangler.demo.jsonc 注入，生产 Worker 不带）：所有 demo 分支必须走 `utils.ts isDemo()`（`'0'`/缺省必须为假，勿写成 truthy 宽判）；`src/demo.ts` 由 index.ts 动态 import，生产 isolate 不执行。**禁外发的口径覆盖到插件总线之外**（fireHook 只是一层）：external.ts 的 `tgApi` / `notifyAdminText`（备份 / 评论 / 定时发布通知）、TG webhook 路由、`/api/admin/external/*`（token 生成与 webhook 设置）、`/api/admin/buffer/channels` 全部 isDemo 短路——新增出网调用点先问「demo 体验者（凭据公示）能不能触达」，能就同样短路
 - 种子内容（demo-posts/demo-content/demo-images）是确定性生成：改内容后 tests/demo.test.ts 守不变量——slug 唯一干净、正文无 script/id/内联事件、评论树父子时序合法、正文图片引用必须存在于 demoImages()
 - 两个 D1 坑都在 demo 里踩过并修掉：单条 SQL 变量上限 100（多行 INSERT 每条最多 10 行×9 列）；settings 写入必须 `.run()` 收尾，裸 `await db.prepare().bind()` 是空操作不报错
 - demo 冷启动靠 `ensureTables()` 执行打进 bundle 的 schema.sql（生产建表靠部署时 d1 execute，演示站必须能从空库自己长出来）——改 schema.sql 两处（表/列定义与 db.ts 迁移清单）同步时，演示站自动跟随，无需额外动作
@@ -166,6 +177,7 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 
 - `src/linkmeta.ts`：链接卡片（编辑器「插入链接 → 网址卡片 / 站内文章卡片」）——`fetchLinkMeta` 抓目标页 og 元数据（**SSRF 防线：`fetchableUrl` 只放行 http(s) 公网地址**，私有网段 / 非常规端口拒绝、限长限时、抓不到静默空对象退化占位卡）+ `linkCardHtml` 纯函数组卡（tests/linkmeta.test.ts 直接导入）；卡片是 `a.link-card[data-link-card="link-card"]` 结构化 HTML，存库靠 sanitize 白名单的 `data-link-card` 固定值标记，前台样式在七主题 `.rich .link-card` 段、编辑器内镜像在 admin.css（**改卡片结构两侧同步，标题/摘要截断口径 40/64 字**）；配套端点 `POST /api/admin/tools/linkmeta`（限频 10/分/IP）与 `GET /api/admin/posts/lookup`（轻出参，注册在 `/:id` 之前）
 
+- `src/fetchsafe.ts`：出网安全统一入口（SSRF 防线 + 响应体限长）——`fetchableUrl`（linkmeta.ts re-export 保持历史导入路径）、`fetchPublicResource`（重定向逐跳复查 + readBodyLimited 流式限长），详见「出网安全」防线节
 - `src/douban.ts`：书影音卡片（**第三方**编辑器插件 `public/plugins/douban-media.js`——manifest author 是个人、不进市场目录，2026-10 应站长需求做的个人定制）——搜书影音名从豆瓣联想接口（`/j/subject_suggest`）拿封面评分、组卡插正文，豆瓣被风控自动落备用源（书→Google 图书、影→TMDB(可选 key)/iTunes、音→**Deezer**，iTunes 中国区对中国内容常年返回空）；解析/组卡全是纯函数（tests/douban.test.ts 直接导入，净化往返守 id / on* / javascript: 防线，`data-no-dark` 必须带空值——净化器只回传有值属性）；端点 `POST /api/admin/tools/douban` 注册在鉴权中间件之后、限频 10/分/IP、**settings `pluginsDisabled` 含 `douban-media` 即 404**（编辑器停用开关与端点同步）；中转配置（地址/令牌/TMDB key）由插件随请求携带、存插件 localStorage（前缀 `bloghao-plugin-douban-media-`），不进 settings；**只认代码构造的豆瓣地址**（粘贴链接仅提取 subject 数字 id 重组，中转地址必须 https + 公网过 `fetchableUrl`），不构成开放代理；**豆瓣 CDN 有防盗链**（无 Referer 418 / 外站 Referer 403，实测 2026-10）：组卡时封面**先转存站内图床**（`store.ts transferImage` 的可选 referer 参数带豆瓣域 Referer——卡片永久自持，零配置可用），失败才退中转 `/img`、没中转就省略封面（诚实降级无图卡）；编辑器列表缩略图走 `GET /api/admin/tools/douban/img` 白名单代理（doubanio/dzcdn/mzstatic/tmdb/google 五域，登录 + 限频 60/分/IP）；**自建中转 `douban-relay/`**（跑在站长服务器上，零依赖 Node 单文件 server.cjs）是**可选的评分稳定器**而非必需品：`*.douban.com`/`*.doubanio.com` 域名白名单代理 + 磁盘缓存（页面 6h/图 30d）+ 每主机串行节奏（≥1.6s+抖动）+ 被风控指数冷却（5min→1h，冷却期不碰豆瓣）+ cookie 持久化（支持 `DOUBAN_COOKIE` 注入登录态，风控最低一档），部署见其 README；豆瓣已知的死路别再撞：**音乐搜索联想接口已下线**（详情页按 id 直取仍有评分）、www/m 站搜索接口 403/404、加密搜索页别碰（解密方案改版即死）、电影条目页 sec 挑战最紧（中转 + 登录 cookie 是解）；仓库根 package.json 是 `type: module`，relay 必须保持 `.cjs` 后缀
 
 - `src/themes/`：七套主题（wechat 默认 / paper / midnight / minimal / journal / bitcoin / rednote）+ `registry.ts` 注册表（十类页面参数是导出的命名类型 `HomeData`/`PostData`/…，新增主题或字段只改 registry 一处；七主题 × 十页面渲染回归在 tests/themes.test.ts，改主题先跑）；`siteNav` 支持可选 `compact` 布局（主条收窄五项 + 会员药丸右置，仅 wechat 传），页脚链接组走 `footLinksFor(s)` 动态生成（排行榜随 membersEnabled 门控）
@@ -175,6 +187,6 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 - `public/admin/`：后台（app.js 路由与页面——侧栏菜单看顶部 `MENU` 配置数组，editor.js 写作编辑器，admin.css 样式）；「皮肤 / 插件」是独立页面（`#/appearance`、`#/plugins`），市场目录在 `public/market/catalog.json`
 - `plaza/`：广场 hub 独立 Worker（bloghao.com/plaza 的数据面，与主博客部署无关）——`src/core.ts` 纯函数（HMAC 签名校验 / ingest 校验 / 混排评分 / RSS 解析，tests/plaza-hub.test.ts 直接导入）+ `src/index.ts` 路由（push ingest / feed / 管理端点 / pull cron）；协议、部署与管理口径见 docs/PLAZA.md，改动 hub 协议先读它
 - `website/`：「博客号」官网静态页（朱砂红新版设计），部署走 Cloudflare Pages 项目 `bloghao`，**勿用 Workers assets 另起部署通道**；「博客号目录」数据在 `website/public/data/showcase.json`，上榜入口指向 bloghao 的 issues；官网 UI 改动同样过 390px 移动端检查
-- `docker-poc/`：Docker 自托管——业务代码零改动跑进 Node 单进程多站点（D1→node:sqlite、R2→磁盘目录 `shims/r2disk.ts` 或 R2 S3 接口 `shims/r2s3.ts`，静态直出与 cron 对齐 wrangler 行为，文档在其 README.md / DEPLOY.md；1GB 小机部署清单 DEPLOY-MICRO.md，开台脚本 add-tenant.sh）；**改 Workers 专有 API 面（D1/R2 用法、静态资源、cron、waitUntil）或 schema.sql 时，必须同步 docker-poc 的 shim 并跑 `docker-poc/smoke.sh` 冒烟**；改 add-tenant.sh 记得它跑在 busybox sh 下、变量引用全用 `${HOST}` 花括号（中文文案紧贴 `$HOST` 时 bash 3.2 会把高位字节并进变量名，`set -u` 直接崩），且配置文件只能原地 `cat >` 截断写、不能 mv 换 inode（单文件 bind mount）
+- `docker-poc/`：Docker 自托管——业务代码零改动跑进 Node 单进程多站点（D1→node:sqlite、R2→磁盘目录 `shims/r2disk.ts` 或 R2 S3 接口 `shims/r2s3.ts`，静态直出与 cron 对齐 wrangler 行为，文档在其 README.md / DEPLOY.md；1GB 小机部署清单 DEPLOY-MICRO.md，开台脚本 add-tenant.sh）；**改 Workers 专有 API 面（D1/R2 用法、静态资源、cron、waitUntil）或 schema.sql 时，必须同步 docker-poc 的 shim 并跑 `docker-poc/smoke.sh` 冒烟**；改 add-tenant.sh 记得它跑在 busybox sh 下、变量引用全用 `${HOST}` 花括号（中文文案紧贴 `$HOST` 时 bash 3.2 会把高位字节并进变量名，`set -u` 直接崩），且配置文件只能原地 `cat >` 截断写、不能 mv 换 inode（单文件 bind mount）；访客 IP 信任档位 `TRUST_PROXY`（cf/proxy/off，默认 proxy=本机自控反代取 XFF 最后一跳）必须与真实部署形态一致，否则换假 IP 重置限流桶——档位说明与违后果见 docker-poc README「访客 IP 信任档位」节
 - 编辑器内容样式（`.ed-editor`）与文章页（`.rich`）需保持视觉一致——改一处记得镜像另一处
 - 前台微博卡管理（编辑 / 置顶 / 删除，site.js 末段）：管理按钮由 `render.ts weiboCards` 仅在 `adminName`（⟺ 管理员登录）时渲染，**访客 HTML 里不存在**；写操作复用 `/api/admin/weibo*`（session 鉴权）——`PUT` 是全量更新，**必须带原 images 否则配图被清**、必须显式传 `status:'published'` 否则会转草稿；编辑保存后的就地渲染（wbTextHtml / imgsClass）与后端 `weiboTextHtml / weiboImageGrid` 同口径，改正则或网格分列规则要两边同步；编辑态切换显隐用内联 `style.display`（主题 CSS 的 display 会盖掉 `[hidden]`）

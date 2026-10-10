@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
+  -- token 存 SHA-256（auth.ts tokenHash）：库里没有可重放的明文会话 token
   token      TEXT    PRIMARY KEY,
   user_id    INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
@@ -42,6 +43,7 @@ CREATE INDEX IF NOT EXISTS idx_members_points ON members (points DESC);
 
 -- 会员会话：独立于管理员 sessions（Cookie xw_member_session），独立 TTL 与清理，互不干扰
 CREATE TABLE IF NOT EXISTS member_sessions (
+  -- token 存 SHA-256（同 sessions）
   token      TEXT    PRIMARY KEY,
   member_id  INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
@@ -232,3 +234,10 @@ CREATE TABLE IF NOT EXISTS visit_log (
   country TEXT    NOT NULL DEFAULT ''     -- CF-IPCountry 两字母码
 );
 CREATE INDEX IF NOT EXISTS idx_visit_day ON visit_log (day, ts);
+-- 滚动清理 DELETE WHERE ts < ? 走前导索引（visit_log 是量最大的日志表，全表扫不值）
+CREATE INDEX IF NOT EXISTS idx_visit_ts ON visit_log (ts);
+
+-- 回收站软删行极少：部分索引只收 deleted_at IS NOT NULL，trash 面查询与 30 天到期清理免全表扫
+CREATE INDEX IF NOT EXISTS idx_posts_deleted ON posts (deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_weibo_deleted ON weibo (deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_pages_deleted ON pages (deleted_at) WHERE deleted_at IS NOT NULL;

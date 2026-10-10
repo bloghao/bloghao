@@ -157,7 +157,32 @@ function stripPng(buf: ArrayBuffer, b: Uint8Array): ArrayBuffer {
 
 /* ---------------- WebP：摘 RIFF 顶层 EXIF / XMP 块，同步清 VP8X 标志位、修 RIFF 尺寸 ---------------- */
 
+/** 读 WebP EXIF chunk 里的 orientation：chunk data 以 "Exif\0\0" 开头时 TIFF 头在其后，
+ *  历史文件也可能直接以 TIFF 头开始（两种都探测，解析不动按 1） */
+function webpOrientation(b: Uint8Array, exifDataStart: number): number {
+  if (b[exifDataStart] === 0x45 && b[exifDataStart + 1] === 0x78 && b[exifDataStart + 2] === 0x69 && b[exifDataStart + 3] === 0x66 && b[exifDataStart + 4] === 0 && b[exifDataStart + 5] === 0) {
+    return tiffOrientation(b, exifDataStart + 6, b.length)
+  }
+  if (b[exifDataStart] === 0x49 || b[exifDataStart] === 0x4d) {
+    return tiffOrientation(b, exifDataStart, b.length)
+  }
+  return 1
+}
+
 function stripWebp(buf: ArrayBuffer, b: Uint8Array): ArrayBuffer {
+  // 方向守卫（与 JPEG 同款）：EXIF orientation ≠ 1 的文件整体跳过——浏览器靠它摆正显示，
+  // 剥了 EXIF 块横竖就颠倒了
+  let scan = 12
+  while (scan + 8 <= b.length) {
+    const size = ((b[scan + 4] | (b[scan + 5] << 8) | (b[scan + 6] << 16) | (b[scan + 7] << 24)) >>> 0)
+    const total = 8 + size + (size & 1)
+    if (size > 0x7fffffff || scan + total > b.length) break
+    if (b[scan] === 0x45 && b[scan + 1] === 0x58 && b[scan + 2] === 0x49 && b[scan + 3] === 0x46) {
+      if (webpOrientation(b, scan + 8) > 1) return buf
+      break // EXIF 块只取第一份
+    }
+    scan += total
+  }
   let i = 12
   let keepStart = 0 // 保留区间从 0 起（含 "RIFF"+尺寸+"WEBP" 12 字节头）
   let dropped = false
