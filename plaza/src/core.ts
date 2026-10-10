@@ -29,6 +29,8 @@ export interface PlazaFeedEntry extends PlazaItem {
   siteId: number
   siteName: string
   siteUrl: string
+  /** 站点头像（sites.avatar，ingest 上报 / 管理端设置；空 = 前端走 favicon/首字兜底） */
+  siteAvatar?: string
   /** hub 侧认证徽标（站点所有权验证通过后由管理员打开） */
   siteVerified: boolean
   score: number
@@ -178,7 +180,7 @@ export function scorePlazaItem(
 
 /** 候选 → 排序后的 feed（desc），limit 收口；纯函数，D1 读数在 index.ts */
 export function scoreFeed(
-  candidates: { item: PlazaItem; siteId: number; siteName: string; siteUrl: string; siteVerified: boolean; siteWeight: number }[],
+  candidates: { item: PlazaItem; siteId: number; siteName: string; siteUrl: string; siteAvatar?: string; siteVerified: boolean; siteWeight: number }[],
   limit: number,
   opts: ScoreOptions = {}
 ): PlazaFeedEntry[] {
@@ -195,6 +197,7 @@ export function scoreFeed(
       siteId: c.siteId,
       siteName: c.siteName,
       siteUrl: c.siteUrl,
+      siteAvatar: c.siteAvatar || '',
       siteVerified: c.siteVerified,
       score: scorePlazaItem(c.item, c.siteWeight, { ...opts, rand }),
     }))
