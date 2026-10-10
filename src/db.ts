@@ -51,8 +51,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   backupEnabled: '1',
   // 访客统计采集开关（后台「统计」页；关闭后前台不打点，见 src/stats.ts）
   statsEnabled: '1',
-  // 编辑器插件停用名单（后台「插件」页；逗号分隔的 manifest id，空 = 全部启用）
-  pluginsDisabled: '',
+  // 编辑器插件停用名单（后台「插件」页；逗号分隔的 manifest id，空 = 全部启用）。
+  // 书影音卡片（douban-media，个人定制插件）默认停用：豆瓣详情从数据中心 IP 取评分
+  // 不稳定，等有更稳的数据路子再默认启用——后台「插件」页一键开启
+  pluginsDisabled: 'douban-media',
   // 服务端插件停用名单（后台「插件」页；逗号分隔的插件 id，空 = 全部启用，见 src/hooks.ts）
   serverPluginsDisabled: '',
   // 服务端插件配置：发布同步 TG 频道的频道 ID / 评论 Webhook 地址 / 页脚自定义 HTML（src/hooks.ts）

@@ -43,6 +43,11 @@ test('doubanDetailUrl 三类条目域与代码重组（不接受外部传入 URL
   assert.equal(doubanDetailUrl('music', '1394645'), 'https://music.douban.com/subject/1394645/')
 })
 
+test('douban-media 默认停用（2026-10 站长拍板：豆瓣详情取评分不稳，暂缓更新，后台插件页可开）', async () => {
+  const { DEFAULT_SETTINGS } = await import('../src/db.ts')
+  assert.ok(String(DEFAULT_SETTINGS.pluginsDisabled).split(',').includes('douban-media'), 'DEFAULT_SETTINGS.pluginsDisabled 应预置 douban-media')
+})
+
 /* ── 中转配置校验（SSRF 防线） ── */
 
 test('validateRelay 只收 https 公网地址 + 非空令牌', () => {
