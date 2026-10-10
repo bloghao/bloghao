@@ -3,6 +3,7 @@ import * as journal from './journal'
 import * as midnight from './midnight'
 import * as minimal from './minimal'
 import * as paper from './paper'
+import * as rednote from './rednote'
 import * as wechat from './wechat'
 import type {
   ArchiveYearGroup,
@@ -278,6 +279,13 @@ export const THEMES: Record<string, ThemeModule> = {
     name: '比特币',
     description: '比特币橙 × 暖白纸面，描边分层、衬线大标题与等宽眉题的品牌 kit 风',
     colors: ['#faf9f6', '#f7931a', '#ffffff', '#fff3e0', '#f2f0ea'],
+  },
+  rednote: {
+    ...rednote,
+    id: 'rednote',
+    name: '小红书',
+    description: '发现页瀑布流笔记卡 + 品牌红点缀，把博客写成一册生活指南',
+    colors: ['#f7f8fa', '#ff2442', '#ffffff', '#ffeef0', '#f5f6f7'],
   },
 }
 

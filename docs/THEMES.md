@@ -12,7 +12,8 @@ src/themes/
 ├── paper.ts / paper.css
 ├── minimal.ts / minimal.css
 ├── midnight.ts / midnight.css
-└── bitcoin.ts / bitcoin.css
+├── bitcoin.ts / bitcoin.css
+└── rednote.ts / rednote.css
 ```
 
 ## 一个主题需要提供什么
@@ -34,7 +35,7 @@ import css from './mytheme.css'
 const id = 'mytheme'
 
 // 入参类型全部来自 registry 的命名类型（HomeData / WeiboData / …，字段含义以 registry.ts 注释为准），
-// 六套官方主题（wechat.ts 最完整）是现成参照。这里示范最常用的 home()：
+// 七套官方主题（wechat.ts 最完整）是现成参照。这里示范最常用的 home()：
 export function home(d: HomeData): string {
   return `<div class="my-page">
     ${siteNav({ cls: 'my-snav', categories: d.categories, tags: d.tags, pages: d.pages, active: d.navActive })}
