@@ -9,6 +9,7 @@ import {
   normalizeCoverUrl,
   parseDoubanSuggest,
   parseDeezer,
+  parseNetEase,
   parseGoogleBooks,
   parseItunes,
   parseSubjectHtml,
@@ -296,21 +297,42 @@ test('searchMedia 豆瓣被风控自动落 Google 图书，并如实标记 douba
   assert.equal(r.doubanBlocked, true)
 })
 
-test('searchMedia 音乐不走豆瓣（接口已下线），直达 Deezer（iTunes 兜底）', async () => {
+test('parseNetEase：中文曲库相关性（海阔天空第一条即 Beyond）、年份取自发行时间', () => {
+  const items = parseNetEase(
+    JSON.stringify({
+      result: {
+        albums: [
+          { id: 34209, name: '海阔天空', artist: { name: 'Beyond' }, picUrl: 'https://p1.music.126.net/abc/10995.jpg', publishTime: 747504000000 },
+          { id: 38408, name: '海阔天空', artist: { name: '信乐团' }, picUrl: 'https://p2.music.126.net/def/10996.jpg', publishTime: 1077811200000 },
+          { id: 999, name: '', artist: { name: 'x' } }, // 缺标题弃
+        ],
+      },
+    })
+  )
+  assert.equal(items.length, 2)
+  assert.equal(items[0].source, 'netease')
+  assert.equal(items[0].title, '海阔天空')
+  assert.equal(items[0].meta, 'Beyond')
+  assert.equal(items[0].year, '1993') // 747504000000 = 1993-09-23 北京时间
+  assert.equal(items[0].link, 'https://music.163.com/album?id=34209')
+  assert.equal(parseNetEase('not json').length, 0)
+})
+
+test('searchMedia 音乐不走豆瓣（接口已下线），网易云优先、Deezer 兜底', async () => {
   const seen: string[] = []
   const r = await searchMedia({
     type: 'music',
-    q: '叶惠美',
+    q: '海阔天空',
     fetchImpl: (async (input: RequestInfo | URL) => {
       seen.push(String(input))
-      if (String(input).includes('deezer.com')) {
-        return new Response(JSON.stringify({ data: [{ id: 1, title: '叶惠美', artist: { name: '周杰伦' }, cover_big: 'https://cdn-images.dzcdn.net/x/500x500.jpg', release_date: '2003-07-31', link: 'https://www.deezer.com/album/1' }] }), { status: 200 })
+      if (String(input).includes('music.163.com')) {
+        return new Response(JSON.stringify({ result: { albums: [{ id: 34209, name: '海阔天空', artist: { name: 'Beyond' }, picUrl: 'https://p1.music.126.net/a.jpg', publishTime: 747504000000 }] } }), { status: 200 })
       }
-      return new Response(JSON.stringify({ results: [{ collectionName: ' iTunes 结果不该出现', collectionId: 9 }] }), { status: 200 })
+      return new Response(JSON.stringify({ data: [{ id: 9, title: ' Deezer 结果不该出现', artist: { name: 'x' } }] }), { status: 200 })
     }) as unknown as typeof fetch,
   })
-  assert.equal(r.items[0].source, 'deezer')
-  assert.equal(r.items[0].meta, '周杰伦')
+  assert.equal(r.items[0].source, 'netease')
+  assert.equal(r.items[0].meta, 'Beyond')
   assert.equal(seen.filter((u) => u.includes('douban.com')).length, 0)
 })
 

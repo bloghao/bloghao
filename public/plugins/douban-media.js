@@ -58,8 +58,7 @@ function openMediaDialog(ctx) {
     '<div style="display: flex;gap: 8px;">' +
     '<input class="input" id="dm-q" placeholder="书名 / 影名 / 曲目或专辑名" autocapitalize="off" autocorrect="off" spellcheck="false" style="flex: 1;">' +
     '<button class="btn btn-primary" id="dm-go">搜索</button></div></div>' +
-    '<div id="dm-hint" style="display: none;font-size: 12px;color: var(--sub);margin-top: 8px;line-height: 1.7;"></div>' +
-    '<div class="auth-field" style="margin-top: 10px;"><label>或粘贴豆瓣条目链接（直取评分与简介）</label>' +
+    '<div id="dm-hint" style="display: none;font-size: 12px;color: var(--sub);margin-top: 8px;line-height: 1.7;"></div>' +    '<div class="auth-field" style="margin-top: 10px;"><label>或粘贴豆瓣条目链接（直取评分与简介）</label>' +
     '<div style="display: flex;gap: 8px;">' +
     '<input class="input" id="dm-url" placeholder="https://book.douban.com/subject/…" autocapitalize="off" spellcheck="false" style="flex: 1;">' +
     '<button class="btn" id="dm-byurl">取卡片</button></div></div>' +
@@ -143,7 +142,7 @@ function openMediaDialog(ctx) {
 
   function renderHint() {
     if (type === 'music') {
-      hint.textContent = '豆瓣音乐搜索已下线：音乐结果来自 iTunes（封面 / 歌手 / 年份）；要豆瓣评分，请粘贴豆瓣音乐条目链接直取。'
+      hint.textContent = '豆瓣音乐搜索已下线：结果来自网易云 / Deezer（封面 / 歌手 / 年份）；要豆瓣评分，请粘贴豆瓣音乐条目链接直取，或配好中转。'
       hint.style.display = 'block'
     } else {
       hint.style.display = 'none'
@@ -157,7 +156,7 @@ function openMediaDialog(ctx) {
   }
 
   function sourceTag(item) {
-    const names = { douban: '豆瓣', google: 'Google 图书', tmdb: 'TMDB', deezer: 'Deezer', itunes: 'iTunes' }
+    const names = { douban: '豆瓣', google: 'Google 图书', tmdb: 'TMDB', netease: '网易云', deezer: 'Deezer', itunes: 'iTunes' }
     return names[item.source] || item.source
   }
 

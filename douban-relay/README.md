@@ -110,17 +110,27 @@ sudo systemctl reload caddy
 甲骨文控制台 → 实例 → 子网 → 安全列表，放行入站 **TCP 443**（80 供 Caddy 签证书）。
 DNS 加一条 `douban` A 记录指向实例公网 IP。
 
-### 5. （强烈建议）注入豆瓣登录 Cookie
+### 5. （强烈建议）注入豆瓣登录 Cookie——支持多小号轮换池
 
 浏览器登录豆瓣 → F12 → Network 里任意请求的请求头复制整段 `Cookie:` 值
-（或至少含 `dbcl2` / `ck` 的部分）→ 填进上面的 `DOUBAN_COOKIE=`，然后：
+（或至少含 `dbcl2` / `ck` 的部分）→ 填进 `DOUBAN_COOKIE=`。**注册 2-3 个豆瓣小号、
+各登录一次取 Cookie，用 `|||` 分隔**，就是一个轮换池：
+
+```ini
+# 三个小号组成池子：某号被风控只冷却该号（5 分钟起指数、封顶 1 小时），
+# 请求自动换下一个号，不连累其他号；全部号都在冷却时才整体歇菜
+Environment=DOUBAN_COOKIE= Cookie一号 ||| Cookie二号 ||| Cookie三号
+```
 
 ```bash
 sudo systemctl restart douban-relay
+curl -s -H "Authorization: Bearer 你的令牌" http://127.0.0.1:8787/api/health
+# {"ok":true,...,"cookiePool":{"size":3,"cooling":0}}  ← 池状态在这里看
 ```
 
-登录态请求是豆瓣风控最松的一档；Cookie 失效（约数月）时表现为频繁进入冷却，
-换一次即可。不注入也能跑，靠 bid + 缓存 + 节奏硬扛。
+小号使用须知：**要有一定活跃度**（新注册的号高频访问死得快）；查询节奏、缓存、
+退避全部由中转统一掌握，账号侧零操作；Cookie 失效（约数月）表现为该号频繁冷却，
+换一次即可。登录态是豆瓣风控最松的一档，比裸 IP 稳得多。
 
 ## 博客端接线
 

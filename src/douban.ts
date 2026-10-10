@@ -21,7 +21,7 @@ import { fetchableUrl } from './linkmeta'
 export type MediaType = 'book' | 'movie' | 'music'
 
 export interface MediaItem {
-  source: 'douban' | 'google' | 'tmdb' | 'deezer' | 'itunes'
+  source: 'douban' | 'google' | 'tmdb' | 'netease' | 'deezer' | 'itunes'
   type: MediaType
   id: string
   title: string
@@ -466,7 +466,37 @@ export function parseTmdb(text: string): MediaItem[] {
   return out
 }
 
-/** Deezer 音乐专辑（免 key、全球曲库；iTunes 中国区搜索对中国内容常年返回空） */
+/** 网易云音乐专辑搜索（免 key；中文曲库相关性远好于 Deezer——「海阔天空」第一条即 Beyond） */
+export function parseNetEase(text: string): MediaItem[] {
+  let data: { result?: { albums?: Array<Record<string, unknown>> } }
+  try {
+    data = JSON.parse(text)
+  } catch {
+    return []
+  }
+  const out: MediaItem[] = []
+  for (const r of ((data.result?.albums) || []).slice(0, 8)) {
+    const id = String(r.id ?? '')
+    const title = String(r.name ?? '').trim()
+    if (!id || !title) continue
+    const artist = (r.artist as Record<string, unknown> | undefined)?.name
+    const publishTime = typeof r.publishTime === 'number' ? r.publishTime : 0
+    const year = publishTime > 0 ? new Date(publishTime + 8 * 3_600_000).getUTCFullYear() : 0
+    out.push({
+      source: 'netease',
+      type: 'music',
+      id,
+      title: clampText(title, 60),
+      year: year > 1900 ? String(year) : undefined,
+      cover: typeof r.picUrl === 'string' && /^https:\/\//.test(r.picUrl) ? r.picUrl : undefined,
+      meta: artist ? clampText(String(artist), 80) : undefined,
+      link: `https://music.163.com/album?id=${encodeURIComponent(id)}`,
+    })
+  }
+  return out
+}
+
+/** Deezer 音乐专辑（免 key、全球曲库；中文相关性一般，做网易云的兜底） */
 export function parseDeezer(text: string): MediaItem[] {
   let data: { data?: Array<Record<string, unknown>> }
   try {
@@ -520,7 +550,7 @@ async function doubanSuggest(
   return { items: parseDoubanSuggest(type, r.text), blocked: false }
 }
 
-/** 备用源：书 → Google 图书；影 → TMDB（配了免费 key）→ iTunes；音 → iTunes（免 key） */
+/** 备用源：书 → Google 图书；影 → TMDB（配了免费 key）→ iTunes；音 → 网易云 → Deezer → iTunes */
 async function fallbackSearch(opts: { type: MediaType; q: string; tmdbKey?: string; fetchImpl: typeof fetch }): Promise<MediaItem[]> {
   const { type, q, tmdbKey, fetchImpl } = opts
   const eq = encodeURIComponent(q)
@@ -535,6 +565,16 @@ async function fallbackSearch(opts: { type: MediaType; q: string; tmdbKey?: stri
       fetchImpl
     )
     const items = parseTmdb(text || '')
+    if (items.length) return items
+  }
+  if (type === 'music') {
+    // 网易云中文相关性最好（「海阔天空」第一条即 Beyond），Deezer 兜底，iTunes 末位
+    const netease = await fetchText(
+      `https://music.163.com/api/search/get/web?s=${eq}&type=10&limit=8`,
+      { 'User-Agent': UA, Referer: 'https://music.163.com/' },
+      fetchImpl
+    )
+    const items = parseNetEase(netease || '')
     if (items.length) return items
   }
   if (type === 'music') {
@@ -637,7 +677,7 @@ export function sanitizeMediaItem(raw: unknown): MediaItem | null {
   const id = String(r.id ?? '').trim()
   const title = String(r.title ?? '').trim()
   if (!(['book', 'movie', 'music'] as string[]).includes(type)) return null
-  if (!(['douban', 'google', 'tmdb', 'deezer', 'itunes'] as string[]).includes(source)) return null
+  if (!(['douban', 'google', 'tmdb', 'netease', 'deezer', 'itunes'] as string[]).includes(source)) return null
   if (!/^[\w-]{1,64}$/.test(id) || !title) return null
   const str = (v: unknown, n: number): string | undefined => {
     const s = String(v ?? '').replace(/[\r\n\t]/g, ' ').trim()
@@ -666,6 +706,7 @@ const SOURCE_LABEL: Record<MediaItem['source'], (type: MediaType) => string> = {
   douban: (t) => `豆瓣${t === 'book' ? '读书' : t === 'movie' ? '电影' : '音乐'}`,
   google: () => 'Google 图书',
   tmdb: () => 'TMDB',
+  netease: () => '网易云',
   deezer: () => 'Deezer',
   itunes: () => 'iTunes',
 }

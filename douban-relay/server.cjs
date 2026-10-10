@@ -10,8 +10,9 @@
  *   2. 磁盘缓存：搜索与条目页 6h、封面图 30d——同一本书第二个人搜不再碰豆瓣
  *   3. 节奏与退避：每主机请求间隔 ≥1.6s（+抖动），被风控（sec 挑战 / 403 / 429）
  *      指数冷却 5min → 1h，冷却期内直接回 blocked，不再触碰豆瓣
- *   4. cookie 维持：自动持久化豆瓣下发的 bid 等 Cookie；支持 DOUBAN_COOKIE 注入
- *      登录态（强烈建议，风控最低的一档）
+ *   4. cookie 池：自动持久化豆瓣下发的 bid 等 Cookie；DOUBAN_COOKIE 支持注入多个
+ *      登录态（`|||` 分隔，即「2-3 个小号授权给中转」的落地方式），轮换使用、
+ *      单号被风控单独冷却不连累其他号
  *
  * 零依赖（Node ≥ 18），单文件。鉴权：/api/* 需要 Bearer DOUBAN_RELAY_TOKEN；
  * /img 不带鉴权（<img> 标签无法携带请求头），靠域名白名单 + 客户端限频 + 缓存兜底。
@@ -31,8 +32,6 @@ const BIND = process.env.BIND || '127.0.0.1'
 const TOKEN = process.env.DOUBAN_RELAY_TOKEN || ''
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data')
 const MIN_INTERVAL_MS = parseInt(process.env.MIN_INTERVAL_MS || '1600', 10)
-/** 登录态 Cookie（可选）：从浏览器里复制豆瓣的 Cookie 头整段贴进来，风控最松的一档 */
-const USER_COOKIE = (process.env.DOUBAN_COOKIE || '').trim()
 
 const FETCH_TTL_MS = 6 * 3600 * 1000
 const IMG_TTL_MS = 30 * 24 * 3600 * 1000
@@ -80,15 +79,45 @@ function mergeSetCookies(resHeaders) {
   }
 }
 
-function cookieHeader() {
+/** 登录态 Cookie 池（可选）：DOUBAN_COOKIE 支持多个豆瓣账号，用 `|||` 分隔。
+ *  轮换使用；某号被风控只冷却该号（5min 起指数、封顶 1h），不连累其他号——
+ *  这就是「注册 2-3 个小号授权给中转」的落地方式。注意：小号要有一定活跃度，
+ *  新注册的号高频访问死得快；查询节奏与缓存由中转统一掌握，账号侧零操作 */
+const COOKIE_POOL = (process.env.DOUBAN_COOKIE || '').trim().split(/\s*\|\|\|\s*/).filter(Boolean)
+const cookieCooldown = COOKIE_POOL.map(() => 0) // 每号的冷却到期时间
+const cookieStreak = COOKIE_POOL.map(() => 0) // 每号连续被风控次数
+let cookieCursor = 0 // 轮换游标
+
+function cookieHeader(userCookie) {
   const parts = []
-  if (USER_COOKIE) parts.push(USER_COOKIE.replace(/\s*;\s*/g, '; '))
+  if (userCookie) parts.push(userCookie.replace(/\s*;\s*/g, '; '))
   for (const [k, v] of Object.entries(jar)) {
-    // 用户注入的登录态优先：跳过 jar 里同名键
-    if (USER_COOKIE && new RegExp(`(?:^|;)\\s*${k}=`).test(USER_COOKIE)) continue
+    // 账号登录态优先：跳过 jar 里同名键（bid 等公共 Cookie 仍然带上）
+    if (userCookie && new RegExp(`(?:^|;)\\s*${k}=`).test(userCookie)) continue
     parts.push(`${k}=${v}`)
   }
   return parts.join('; ')
+}
+
+/** 从池里挑下一个不在冷却期的号（轮换起点推进）；无池回 -1（仅 jar Cookie），
+ *  全在冷却回 -2（调用方对齐主机冷却后直接回 blocked，不碰豆瓣） */
+function pickCookie() {
+  const now = Date.now()
+  if (!COOKIE_POOL.length) return -1
+  for (let i = 0; i < COOKIE_POOL.length; i++) {
+    const idx = (cookieCursor + i) % COOKIE_POOL.length
+    if (cookieCooldown[idx] <= now) {
+      cookieCursor = (idx + 1) % COOKIE_POOL.length
+      return idx
+    }
+  }
+  return -2
+}
+
+function coolCookie(idx) {
+  cookieStreak[idx]++
+  cookieCooldown[idx] = Date.now() + Math.min(5 * 60_000 * 2 ** (cookieStreak[idx] - 1), 3600_000)
+  console.log(`[cookie-pool] 账号 #${idx + 1} 被风控，冷却 ${Math.round((cookieCooldown[idx] - Date.now()) / 60000)} 分钟（${COOKIE_POOL.length} 号池）`)
 }
 
 /* ---------------- 节奏与退避（每主机独立） ---------------- */
@@ -196,7 +225,7 @@ function rawRequest(urlStr, headers, timeoutMs) {
 const isSecLocation = (loc) => /^https?:\/\/sec\.douban\.com\//.test(String(loc || ''))
 
 /** GET 豆瓣页面：跟普通重定向（≤3 跳），sec 挑战不跟、直接判 blocked */
-async function fetchUpstream(urlStr, { img = false } = {}) {
+async function fetchUpstream(urlStr, { img = false, cookie = '' } = {}) {
   let current = urlStr
   for (let hop = 0; hop < 4; hop++) {
     const u = new URL(current)
@@ -204,7 +233,7 @@ async function fetchUpstream(urlStr, { img = false } = {}) {
       ...BROWSER_HEADERS,
       ...(img ? { Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8' } : {}),
       Referer: `${u.protocol}//${u.host}/`,
-      Cookie: cookieHeader(),
+      Cookie: cookie,
     }
     const res = await rawRequest(current, headers, UPSTREAM_TIMEOUT_MS)
     if (res.tooLarge) return { status: 502, blocked: false, body: Buffer.alloc(0), headers: {} }
@@ -322,6 +351,10 @@ const server = http.createServer(async (req, res) => {
         cacheFetch: entryCount(CACHE_FETCH_DIR),
         cacheImg: entryCount(CACHE_IMG_DIR),
         cooldownUntil: cooling.length ? Math.max(...cooling) : 0,
+        cookiePool: {
+          size: COOKIE_POOL.length,
+          cooling: cookieCooldown.filter((t) => t > Date.now()).length,
+        },
       })
     }
 
@@ -343,22 +376,45 @@ const server = http.createServer(async (req, res) => {
       const cooling = inCooldown(host)
       if (cooling) return json(res, 200, { blocked: true, cooldownUntil: cooling })
 
-      // 同主机串行（单飞：并发同 URL 共享同一次上游请求）
+      // 同主机串行（单飞：并发同 URL 共享同一次上游请求）。
+      // Cookie 池轮换：某号被风控只冷却该号，同一次请求内自动换下一个号重试；
+      // 全部号都在冷却时主机冷却对齐账号冷却（不长罚），到期自动恢复探测
       const prev = hostQueues.get(host) || Promise.resolve()
       const task = prev.catch(() => {}).then(async () => {
-        await acquireSlot(host)
-        const r = await fetchUpstream(target)
-        if (r.blocked) {
-          markBlocked(host)
-          return { blocked: true }
+        let last = null
+        for (;;) {
+          const idx = pickCookie()
+          if (idx === -2) {
+            const until = Math.min(...cookieCooldown.filter((t) => t > Date.now()), Date.now() + 60_000)
+            cooldownUntil.set(host, until)
+            return { blocked: true, cooldownUntil: until }
+          }
+          const cookie = cookieHeader(idx === -1 ? '' : COOKIE_POOL[idx])
+          await acquireSlot(host)
+          const r = await fetchUpstream(target, { cookie })
+          if (!r.blocked) {
+            if (r.status === 200) {
+              markOk(host)
+              if (idx >= 0) cookieStreak[idx] = 0
+              // 必须在这里转字符串：Buffer 直接进 JSON 会序列化成 {type,data} 对象
+              last = { status: 200, body: r.body.toString('utf8'), finalUrl: r.finalUrl }
+            } else {
+              last = { status: r.status, body: '' }
+            }
+            break
+          }
+          if (idx >= 0) coolCookie(idx)
+          else {
+            markBlocked(host) // 无池模式：一次定成败（与旧版一致），不重试
+            break
+          }
+          last = { blocked: true, cooldownUntil: cookieCooldown[idx] }
         }
-        if (r.status !== 200) return { status: r.status, body: '' }
-        markOk(host)
-        return { status: 200, body: r.body.toString('utf8'), finalUrl: r.finalUrl }
+        return last
       })
       hostQueues.set(host, task)
       const out = await task
-      if (out.blocked) return json(res, 200, { blocked: true })
+      if (out.blocked) return json(res, 200, { blocked: true, cooldownUntil: out.cooldownUntil || 0 })
       if (out.status !== 200) return json(res, 200, { status: out.status, body: '' })
       const payload = { status: out.status, body: out.body, finalUrl: out.finalUrl }
       cacheWrite(CACHE_FETCH_DIR, key, Buffer.from(JSON.stringify(payload)))
@@ -414,5 +470,5 @@ function entryCount(dir) {
 
 server.listen(PORT, BIND, () => {
   console.log(`[douban-relay] listening on ${BIND}:${PORT}，缓存目录 ${DATA_DIR}`)
-  console.log(`[douban-relay] 登录态 Cookie：${USER_COOKIE ? '已注入' : '未注入（建议配置 DOUBAN_COOKIE 降低风控）'}`)
+  console.log(`[douban-relay] 登录态 Cookie：${COOKIE_POOL.length ? `已注入 ${COOKIE_POOL.length} 个账号（轮换池，单号冷却互不连累）` : '未注入（建议配置 DOUBAN_COOKIE 降低风控，多个账号用 ||| 分隔）'}`)
 })
