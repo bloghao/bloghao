@@ -14,9 +14,10 @@
 ## 线上站点（文档里以此为准）
 
 - 正式地址：**https://blog.xiaowuleyi.com**（已绑定到本仓库的 Worker），后台 `/admin/`
-- 官网：**https://bloghao.com**（Cloudflare Pages 项目 `bloghao`，源码在仓库 `website/`——纯静态无构建，与博客系统运行无关；Pages 默认域 bloghao.pages.dev）
-- 演示站：**https://demo.bloghao.com**（Worker `xwblog-demo`，wrangler.demo.jsonc 部署并通过 routes 绑定该域名，DEMO_MODE 门控，机制见 docs/DEMO.md；官网导航 / Hero / 快速开始 / 页脚的演示入口都指向这里）
-- Cloudflare 资源：Worker `xwblog`、D1 `xwblog-db`、R2 `xwblog-images`（binding 均见 wrangler.jsonc）
+- 官网：**https://bloghao.com**（源码在仓库 `website/`——纯静态无构建，与博客系统运行无关；**2026-10-11 起部署在站长甲骨文服务器的 Caddy 静态直出**，改动上线 = 服务器上 git pull 同步站点目录；原 Cloudflare Pages 项目 `bloghao` 已删除，docs 里的 bloghao.pages.dev 提法仅是历史/文档概念）
+- 演示站：**https://demo.bloghao.com**（DEMO_MODE 门控，机制见 docs/DEMO.md；官网导航 / Hero / 快速开始 / 页脚的演示入口都指向这里。2026-10-11 实测由**甲骨文 docker 演示租户**服务——CF 账号无 xwblog-demo-db、xwblog-demo Worker 无部署记录、响应带回源特征；wrangler.demo.jsonc 的 CF 部署路径保留，供需要 CF 形态演示时使用）
+- Cloudflare 资源：Worker `xwblog`、D1 `xwblog-db`、R2 `xwblog-images`（binding 均见 wrangler.jsonc）。2026-10-11 清理：已删 Pages 项目 `bloghao` 与老库 D1 `bloghao-db`；R2 `bloghao-images` 非空（code 10008）暂留待站长清点后删；D1 `xwblog-db-apac`（2026-10-11 建，含博客数据副本且 24h 有 2,366 次活跃读）用途待站长确认前不动
+- 平台定位（2026-10-11 拍板）：**Cloudflare 是博客号的最终部署归宿**——文档与官网引导部署时优先指向 Cloudflare 教程（部署一键/ wrangler / Workers Builds）；甲骨文 docker 仅作体验/中转（让朋友快速感受），不是推荐的自托管长期形态
 - 使用手册 docs/GUIDE.md、部署教程 docs/DEPLOY.md——涉及访问地址、备份命令时写上面的正式域名与资源名
 
 ## 常用命令
