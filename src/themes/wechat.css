@@ -609,9 +609,28 @@ a.wx-account:hover { opacity: 0.75; }
 .wx-snav-member:hover { color: #fff; opacity: 0.88; }
 .wx-snav-member.is-active { color: #fff; }
 @media (max-width: 480px) {
-  .wx-snav { gap: 14px; }
+  /* 单行横滑（2026-10-11 修：会员开启时 RSS 图标成为最后一根稻草，会员药丸被 wrap 挤成孤儿行）——
+   * 一行装不下就横向轻扫，滚动条隐藏；「分类话题」下拉菜单转 fixed 逃出滚动容器的裁剪
+   * （overflow-x:auto 会把 overflow-y 连带算成 auto，absolute 子菜单会被剪掉） */
+  .wx-snav {
+    gap: 14px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .wx-snav::-webkit-scrollbar { display: none; }
+  .wx-snav > * { flex: 0 0 auto; }
   .wx-snav-link { font-size: 13.5px; }
   .wx-snav-member { font-size: 12.5px; padding: 4.5px 12px; }
+  .wx-snav-dd[open] .wx-snav-menu {
+    position: fixed;
+    top: 56px;
+    left: 14px;
+    right: 14px;
+    min-width: 0;
+    max-width: none;
+  }
 }
 
 /* 「分类话题」折叠菜单：details/summary 原生折叠，site.js 只负责点外部收起 */

@@ -171,6 +171,7 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 - 视口 meta 保持 `viewport-fit=cover, interactive-widget=resizes-content`
 - 宽内容（表格、pre）在小屏用 `overflow-x: auto` 横向滚动，不撑破容器
 - 覆盖层（抽屉、弹窗）小屏下要有明确的关闭按钮，且默认不挡内容
+- 导航/页头类布局改动必须过「配置变体」：本地默认库会员是关闭的，**开启 membersEnabled 后导航会多一格会员药丸**（2026-10-11 实抓：RSS 图标上线把它挤成孤儿行）——390px 检查要覆盖会员开/关与站点模式四口径，别只换视口不换配置；wechat 主题移动端导航已是单行横滑（下拉菜单转 fixed 逃出滚动容器裁剪），改它先看这段
 
 ## 结构速查
 
