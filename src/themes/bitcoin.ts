@@ -22,6 +22,7 @@ import {
   plural,
   yearStatsSuffix,
   postNeighborsHtml,
+  heatmapHtml,
   rankListHtml,
   shareBtn,
   siteMode,
@@ -193,6 +194,7 @@ export function archives(d: ArchivesData): string {
   </header>
   <h1 class="bt-title bt-page-title">${tr(en, '归档')}</h1>
   <p class="bt-page-sub">${d.total > 0 ? (en ? `${d.total} ${plural(d.total, 'post', 'posts')} · newest year first` : `共 ${d.total} 篇 · 按年份倒序`) : en ? 'Every post lands here.' : '写下的每一篇都会收进这里'}${yearStatsSuffix(d.yearStats, en)}</p>
+  ${heatmapHtml(d.heatmap, en)}
   <main class="bt-archives">${archiveListHtml(d.groups, en) || '<p class="bt-empty">Nothing here yet. Start writing.</p>'}</main>
   ${foot(s, en ? FOOT_LINKS_EN.home : FOOT_LINKS.home)}
 </div>`

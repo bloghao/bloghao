@@ -1372,3 +1372,16 @@ main .gb-section { margin-top: 8px; }
   transition: color 0.15s ease;
 }
 .pn-cell:hover .pn-title { color: var(--jrn-accent); }
+
+/* ---------- 创作热力图（.hm-* 结构由 render.ts heatmapHtml 输出）：色阶 = accent 透明度四档 ---------- */
+.hm { margin: 2px 0 26px; }
+.hm-scroll { overflow-x: auto; }
+.hm-grid { display: grid; grid-auto-flow: column; grid-auto-columns: 9px; grid-template-rows: 13px repeat(7, 9px); gap: 2px; width: max-content; padding: 2px 0; }
+.hm-month { font-size: 9.5px; line-height: 13px; color: var(--jrn-ink-soft); white-space: nowrap; }
+.hm-cell { width: 9px; height: 9px; border-radius: 2px; background: var(--jrn-line); }
+.hm-l1 { background: var(--jrn-accent); opacity: 0.18; }
+.hm-l2 { background: var(--jrn-accent); opacity: 0.38; }
+.hm-l3 { background: var(--jrn-accent); opacity: 0.62; }
+.hm-l4 { background: var(--jrn-accent); }
+.hm-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0 0; font-size: 11px; color: var(--jrn-ink-soft); }
+.hm-legend { display: inline-flex; align-items: center; gap: 3px; }

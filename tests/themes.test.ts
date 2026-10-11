@@ -7,7 +7,7 @@ import type { ThemeModule } from '../src/themes/registry.ts'
 import type { AboutData, ArchivesData, GuestbookData, HomeData, LinksData, MemberData, PageData, RankData, WeiboData } from '../src/themes/registry.ts'
 import type { HomePostView, MemberView, RankEntryView, WeiboItemView, ArchiveYearGroup, FriendLinkView, CategoryLink, TagCount } from '../src/render.ts'
 import type { CommentRow } from '../src/types.ts'
-import { commentsHtml, headingAnchors, memberCardHtml, postNeighborsHtml, rankListHtml } from '../src/render.ts'
+import { commentsHtml, headingAnchors, heatmapHtml, memberCardHtml, postNeighborsHtml, rankListHtml } from '../src/render.ts'
 import { esc } from '../src/utils.ts'
 import { packMatrix, qrMatrix } from '../src/qrcode.ts'
 
@@ -245,6 +245,11 @@ for (const [themeId, theme] of Object.entries(THEMES as Record<string, ThemeModu
     assert.ok(withStats.includes('今年已写 3 篇'))
     assert.ok(withStats.includes('约 2.3 万字'))
     assert.ok(!html.includes('今年已写'), '未传 yearStats 不产生该后缀')
+    // 创作热力图：传了才渲染（结构共享 render.ts heatmapHtml，色阶走各主题 accent 透明度）
+    const withHm = theme.archives({ ...archivesData(), heatmap: { days: [{ day: '2026-10-01', count: 2 }], total: 2 } })
+    assert.ok(withHm.includes('hm-grid'), `${themeId}.archives 传 heatmap 应渲染热力图`)
+    assert.ok(withHm.includes('hm-l2'), 'count=2 落第二档色阶')
+    assert.ok(!html.includes('hm-grid'), `${themeId}.archives 未传 heatmap 不渲染热力图`)
   })
 
   test(`${themeId}: guestbook 渲染`, () => {
@@ -499,6 +504,36 @@ test('wechat 桌面增强：home 有标签/分类时出侧栏，全空则退单�
   assert.ok(html.includes('共 1 篇'), '话题卡头带文章总数')
   const bare = THEMES.wechat.home({ ...homeData(), tags: [], categories: [] })
   assert.ok(!bare.includes('wx-side'), '无标签无分类不出侧栏（单栏版式）')
+})
+
+// ── 创作热力图（结构共享，色阶 = 各主题 accent 透明度四档） ──
+
+test('heatmapHtml：周列网格 + 月份标签 + 四档色阶 + 图例，无数据出空串', () => {
+  // 北京 2026-10-11 00:00 = UTC 2026-10-10 16:00
+  const now = Date.UTC(2026, 9, 10, 16)
+  const data = {
+    days: [
+      { day: '2026-10-11', count: 5 },
+      { day: '2026-10-05', count: 2 },
+      { day: '2025-01-01', count: 1 }, // 窗口外：db 只回传过去一年，渲染端同样不该出格子
+    ],
+    total: 7,
+  }
+  const zh = heatmapHtml(data, false, now)
+  assert.ok(zh.startsWith('<section class="hm">'), 'section 开场')
+  assert.ok(zh.includes('hm-grid'), '网格容器')
+  assert.ok(zh.includes('hm-l4'), 'count≥4 落满档')
+  assert.ok(zh.includes('title="2026-10-11 · 5 篇"'), '非空格带原生 tooltip')
+  assert.ok(zh.includes('10月'), '月份标签（中文口径）')
+  assert.ok(zh.includes('过去一年写了 7 篇'), '汇总行')
+  assert.ok(zh.includes('hm-legend'), '图例')
+  const en = heatmapHtml(data, true, now)
+  assert.ok(en.includes('Oct'), '英文月份缩写')
+  assert.ok(en.includes('7 posts in the last year'))
+  assert.ok(en.includes('title="2026-10-05 · 2 posts"'))
+  assert.ok(!zh.includes('2025-01-01'), '窗口外日期不渲染格子（db 只回传窗口内日期，渲染端不补）')
+  assert.equal(heatmapHtml(undefined), '', '未传数据')
+  assert.equal(heatmapHtml({ days: [], total: 0 }), '', '空数据')
 })
 
 // ── 上一篇/下一篇导航（结构共享，样式各主题 .pn-*） ──

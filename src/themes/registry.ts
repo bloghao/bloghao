@@ -179,6 +179,12 @@ export interface PageData {
   navActive?: string
 }
 
+/** 创作热力图数据（render.ts heatmapHtml 消费；days 只含有文章的北京日，YYYY-MM-DD） */
+export interface HeatmapData {
+  days: { day: string; count: number }[]
+  total: number
+}
+
 /** 文章归档页（/archives）：全部已发布文章按年分组，pages 层构建好 groups */
 export interface ArchivesData {
   settings: SettingsMap
@@ -190,6 +196,8 @@ export interface ArchivesData {
   groups: ArchiveYearGroup[]
   /** 「今年已写」统计（当前北京年的篇数与正文字符量，render.ts yearStatsSuffix 渲染）；旧调用不传 = 不显示 */
   yearStats?: { count: number; chars: number }
+  /** 创作热力图（GitHub 风年历，render.ts heatmapHtml 渲染）；未传不显示 */
+  heatmap?: HeatmapData
 }
 
 /** 留言板页（/guestbook）：html 为 commentsHtml({ guestbook: true }) 构建的留言墙 + 表单 */

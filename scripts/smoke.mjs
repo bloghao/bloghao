@@ -132,6 +132,8 @@ try {
   await check('GET', '/post/smoke-multi-tag', 200, 'application/ld+json')
   await check('GET', `/tag/${encodeURIComponent('冒烟测试')}`, 200, 'smoke-multi-tag')
   await check('GET', '/archives', 200)
+  // 创作热力图：归档页渲染年历网格（夹具与运行期创建的文章均落过去一年）
+  await check('GET', '/archives', 200, 'hm-grid')
   await check('GET', '/weibo', 200)
   // 前台微博卡管理（roadmap：管理员前台管理随手记）：访客 HTML 里不得出现管理按钮
   await check('GET', '/weibo', 200, undefined, { notContains: 'data-wb-admin' })

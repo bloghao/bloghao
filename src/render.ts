@@ -396,6 +396,56 @@ export function headingAnchors(contentHtml: string): { html: string; items: { le
   return { html, items }
 }
 
+/** 创作热力图（归档页，GitHub 风年历）：过去一年按北京日聚合的发文密度。
+ * 色阶 = 各主题 accent 的透明度四档（零依赖、任何浏览器都正确），空格 = 主题分隔线色；
+ * 列 = 周（周日行首），行 1 放月份标签；now 可注入以便 Node 测试钉住日期。
+ * 无数据返回空串；legend 与「过去一年写了 N 篇」一并输出 */
+export function heatmapHtml(
+  data: { days: { day: string; count: number }[]; total: number } | undefined,
+  en = false,
+  now = Date.now()
+): string {
+  if (!data || !data.days.length) return ''
+  const counts = new Map<string, number>()
+  for (const d of data.days) counts.set(d.day, d.count)
+  // 北京墙上的「今天」：+8h 后取 UTC 分量（与 cstDate 同口径），锚成 UTC 午夜日期做日步进
+  const bj = new Date(now + 8 * 3_600_000)
+  const DAY = 86_400_000
+  const end = Date.UTC(bj.getUTCFullYear(), bj.getUTCMonth(), bj.getUTCDate())
+  const start = end - (52 * 7 + new Date(end).getUTCDay()) * DAY
+  const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const totalDays = Math.floor((end - start) / DAY) + 1
+  const cols = Math.ceil(totalDays / 7)
+  let lastMonth = -1
+  let body = ''
+  for (let c = 0; c < cols; c++) {
+    const colStart = start + c * 7 * DAY
+    const d0 = new Date(colStart)
+    // 行 1：月份标签（该列首日进入新月份时贴一个），否则占位空格保持网格对位
+    if (d0.getUTCMonth() !== lastMonth) {
+      body += `<span class="hm-month">${en ? MONTHS_EN[d0.getUTCMonth()] : d0.getUTCMonth() + 1 + '月'}</span>`
+      lastMonth = d0.getUTCMonth()
+    } else {
+      body += '<span class="hm-sp"></span>'
+    }
+    for (let r = 0; r < 7; r++) {
+      const t = colStart + r * DAY
+      if (t > end) break
+      const day = new Date(t).toISOString().slice(0, 10)
+      const n = counts.get(day) || 0
+      const lvl = n >= 4 ? 4 : n
+      const title = n > 0 ? ` title="${day} · ${n} ${en ? (n === 1 ? 'post' : 'posts') : '篇'}"` : ''
+      body += `<i class="hm-cell${lvl ? ` hm-l${lvl}` : ''}"${title}></i>`
+    }
+  }
+  const summary = en
+    ? `${data.total} ${plural(data.total, 'post', 'posts')} in the last year`
+    : `过去一年写了 ${data.total} 篇`
+  const legend = `<i class="hm-cell"></i><i class="hm-cell hm-l1"></i><i class="hm-cell hm-l2"></i><i class="hm-cell hm-l3"></i><i class="hm-cell hm-l4"></i>`
+  return `<section class="hm"><div class="hm-scroll"><div class="hm-grid">${body}</div></div>` +
+    `<p class="hm-foot"><span>${summary}</span><span class="hm-legend">${en ? 'Less' : '少'}${legend}${en ? 'More' : '多'}</span></p></section>`
+}
+
 /** 上一篇/下一篇导航（prev = 更早一篇、next = 更新一篇）：七主题共享结构、各主题按自己的
  * 变量调 .pn-* 样式；缺一侧出占位空格保持两端对齐，两侧都空返回空串（不产生任何输出） */
 export function postNeighborsHtml(

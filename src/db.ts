@@ -270,6 +270,20 @@ export async function yearArchiveStats(db: D1Database): Promise<{ count: number;
   return { count: row?.n ?? 0, chars: row?.c ?? 0 }
 }
 
+/** 归档页创作热力图数据：过去一年（约 366 天）按北京日聚合的已发布篇数。
+ * 只返回有文章的日期（空日由渲染端补零），total 为合计；日聚合按惯例 +28800 取北京墙上年月日 */
+export async function postHeatmap(db: D1Database): Promise<{ days: { day: string; count: number }[]; total: number }> {
+  const since = Date.now() - 366 * 86_400_000
+  const { results } = await db
+    .prepare(
+      "SELECT strftime('%Y-%m-%d', COALESCE(published_at, created_at) / 1000 + 28800, 'unixepoch') AS day, COUNT(*) AS n FROM posts WHERE status = 'published' AND deleted_at IS NULL AND COALESCE(published_at, created_at) >= ? GROUP BY day"
+    )
+    .bind(since)
+    .all<{ day: string; n: number }>()
+  const days = (results ?? []).map((r) => ({ day: r.day, count: r.n }))
+  return { days, total: days.reduce((sum, d) => sum + d.count, 0) }
+}
+
 /** 相邻文章（PostData.prev / next）：prev = 更早一篇、next = 更新一篇，口径与列表一致（published、未删）；
  * 锚点用 COALESCE(published_at, created_at)，与归档分组同口径 */
 export async function adjacentPosts(

@@ -10,6 +10,7 @@ import {
   getSettings,
   adjacentPosts,
   listAllPublishedArchives,
+  postHeatmap,
   yearArchiveStats,
   listApprovedComments,
   listCategories,
@@ -678,12 +679,13 @@ export async function renderArchive(c: C): Promise<Response> {
   const settings = await getSettings(c.env.DB)
   const theme = getTheme(settings.theme)
   const en = isEn(settings)
-  const [rows, categories, tags, pages, yearStats] = await Promise.all([
+  const [rows, categories, tags, pages, yearStats, heatmap] = await Promise.all([
     listAllPublishedArchives(c.env.DB),
     navCategories(c),
     navTags(c),
     navPages(c),
     yearArchiveStats(c.env.DB),
+    postHeatmap(c.env.DB),
   ])
   const html = theme.archives({
     settings,
@@ -693,6 +695,7 @@ export async function renderArchive(c: C): Promise<Response> {
     total: rows.length,
     groups: archiveGroups(rows),
     yearStats,
+    heatmap,
   })
   c.header('Cache-Control', 'no-cache')
   return c.html(

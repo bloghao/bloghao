@@ -23,6 +23,7 @@ import {
   plural,
   yearStatsSuffix,
   postNeighborsHtml,
+  heatmapHtml,
   rankListHtml,
   shareBtn,
   siteMode,
@@ -220,6 +221,7 @@ export function archives(d: ArchivesData): string {
   <main>
   <h1 class="jrn-title jrn-page-title">${tr(en, '归档')}</h1>
   <p class="jrn-intro jrn-page-sub">${d.total > 0 ? (en ? `This journal holds ${d.total} ${plural(d.total, 'entry', 'entries')} in all` : `这本手账一共写了 ${d.total} 篇`) : en ? 'Every post lands here.' : '写下的每一篇都会收进这里'}${yearStatsSuffix(d.yearStats, en)}</p>
+  ${heatmapHtml(d.heatmap, en)}
   <section class="jrn-archives">${archiveListHtml(d.groups, en) || `<p class="jrn-empty">${en ? 'This page is still empty.' : '这一页还空着。'}</p>`}</section>
   </main>
   ${foot(s, en ? FOOT_LINKS_EN.archive : FOOT_LINKS.archive)}
