@@ -149,6 +149,34 @@ export function validateIngest(body: unknown): ValidatedIngest {
   return out
 }
 
+/**
+ * 微博补漏条目规整（pull 用，docs/PLAZA.md「微博补漏」）：站点补漏端点（GET /api/public/weibo）
+ * 给出的每条数据按 ingest 同款字段标准规整，ref/title 缺失、url 非 https、超 30 天的条目返回
+ * null 由调用方跳过——pull 只做存在性兜底，绝不 fabricate。publishedAt 缺失/畸形回退 now。
+ */
+export function normalizePulledWeibo(
+  w: Record<string, unknown>,
+  now = Date.now()
+): { kind: PlazaKind; ref: string; title: string; summary: string; url: string; image: string; publishedAt: number } | null {
+  const ref = cleanStr(w.ref, 200)
+  const title = cleanStr(w.title, 200)
+  const url = safeUrl(w.url)
+  if (!ref || !title || !url) return null
+  const publishedAt = Number(w.publishedAt)
+  const ts = Number.isFinite(publishedAt) && publishedAt > 0 && publishedAt < 4102444800000 ? publishedAt : now
+  if (now - ts > 30 * 86_400_000) return null
+  return {
+    kind: 'weibo',
+    ref,
+    title,
+    // pull 来源是未签名的公开端点：summary 剥 HTML 标签（与 pullSiteRss 的 RSS 描述同口径）
+    summary: cleanStr(String(w.summary ?? '').replace(/<[^>]+>/g, ''), 500),
+    url,
+    image: safeUrl(w.image),
+    publishedAt: ts,
+  }
+}
+
 /* ---------------- 信息流评分 ---------------- */
 
 export interface ScoreOptions {

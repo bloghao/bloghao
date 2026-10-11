@@ -13,6 +13,7 @@ import type { Context } from 'hono'
 import { cors } from 'hono/cors'
 import {
   generatePlazaToken,
+  normalizePulledWeibo,
   parseRssItems,
   rssDateToMs,
   scoreFeed,
@@ -472,6 +473,12 @@ app.patch('/api/admin/items/:kind/:ref', async (c) => {
   return c.json({ ok: true })
 })
 
+/** 手动触发全站补漏（ops）：不等 6 小时 cron，新接入站点 / 新上线的微博补漏口可立即对齐 */
+app.post('/api/admin/pull', async (c) => {
+  const pulled = await pullAllSites(c.env.DB)
+  return c.json({ ok: true, pulled })
+})
+
 /* ---------------- RSS pull 补漏（cron 每 6 小时） ---------------- */
 
 /** pull 只做存在性兜底：单站单次 20 条、只灌 30 天内旧文、绝不覆盖 push 数据（source 守卫） */
@@ -506,21 +513,65 @@ async function pullSiteRss(env: Env, site: SiteRow): Promise<number> {
   return n
 }
 
+/** 微博补漏：站点可选提供 GET /api/public/weibo（出参与 ingest 条目同形，见 docs/PLAZA.md）。
+ *  RSS 只覆盖文章，微博漏推（发布瞬间推送失败即永久丢失）没有别的自愈路；
+ *  没有该接口的站点 404 / 非 JSON 静默跳过，不影响其余补漏。 */
+async function pullSiteWeibo(env: Env, site: SiteRow): Promise<number> {
+  const res = await fetch(`${site.site_url}/api/public/weibo?limit=20`, {
+    headers: { 'user-agent': 'BlogHaoPlaza/1.0 (+https://bloghao.com/plaza/)' },
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (!res.ok) return 0
+  const buf = await readBodyLimited(res, 2 * 1024 * 1024)
+  if (!buf) return 0
+  let list: Array<Record<string, unknown>>
+  try {
+    const data = JSON.parse(new TextDecoder().decode(buf)) as { weibo?: unknown } | null
+    list = Array.isArray(data?.weibo) ? (data.weibo as Array<Record<string, unknown>>) : []
+  } catch {
+    return 0
+  }
+  let n = 0
+  for (const w of list) {
+    const item = normalizePulledWeibo(w)
+    if (!item) continue
+    await env.DB.prepare(
+      `INSERT INTO items (site_id, kind, ref, title, summary, url, image, published_at, source, hidden, synced_at)
+       VALUES (?, 'weibo', ?, ?, ?, ?, ?, ?, 'pull', 0, ?)
+       ON CONFLICT(site_id, kind, ref) DO UPDATE SET
+         title = excluded.title, summary = excluded.summary, synced_at = excluded.synced_at
+       WHERE items.source = 'pull'`
+    )
+      .bind(site.id, item.ref, item.title, item.summary, item.url, item.image, item.publishedAt, Date.now())
+      .run()
+    n++
+  }
+  return n
+}
+
+/** 全站补漏：RSS（文章）+ 微博补漏口（可选），单站失败不影响其余 */
+async function pullAllSites(env: Env): Promise<number> {
+  let pulled = 0
+  const { results } = await env.DB.prepare(
+    'SELECT * FROM sites WHERE disabled = 0 AND pull_enabled = 1 LIMIT 500'
+  ).all<SiteRow>()
+  for (const site of results ?? []) {
+    try {
+      pulled += await pullSiteRss(env, site)
+      pulled += await pullSiteWeibo(env, site)
+    } catch {
+      /* 单站失败不影响其余 */
+    }
+  }
+  return pulled
+}
+
 /** cron：pull 补漏 + 顺手把 180 天无心跳的站点自动休眠（不删站，管理员回来重新启用即可） */
 export async function scheduledCron(env: Env): Promise<{ pulled: number; dormant: number }> {
   let pulled = 0
   let dormant = 0
   try {
-    const { results } = await env.DB.prepare(
-      'SELECT * FROM sites WHERE disabled = 0 AND pull_enabled = 1 LIMIT 500'
-    ).all<SiteRow>()
-    for (const site of results ?? []) {
-      try {
-        pulled += await pullSiteRss(env, site)
-      } catch {
-        /* 单站失败不影响其余 */
-      }
-    }
+    pulled = await pullAllSites(env)
     const r = await env.DB.prepare(
       'UPDATE sites SET disabled = 1 WHERE disabled = 0 AND last_seen_at > 0 AND last_seen_at < ?'
     )

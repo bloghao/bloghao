@@ -1916,6 +1916,29 @@ api.get('/public/posts', async (c) => {
   })
 })
 
+// 广场微博补漏口（docs/PLAZA.md「微博补漏」）：hub 的 RSS 拉取只覆盖文章，微博漏推
+// （发布瞬间的推送失败即永久丢失）没有自愈路——这里按 ingest 条目同形出参公开已发布
+// 微博，hub 定时拉取对齐（source='pull'，不覆盖 push）。只读公开数据：listWeibo 已过
+// 回收站与 status 过滤，微博无锁文概念，出参无敏感字段。
+api.get('/public/weibo', async (c) => {
+  const r = await listWeibo(c.env.DB, { status: 'published', limit: clampInt(c.req.query('limit'), 1, 50, 20) })
+  const origin = new URL(c.req.url).origin
+  return c.json({
+    weibo: r.items.map((w) => {
+      const img = weiboImageList(w)[0]
+      return {
+        ref: String(w.id),
+        title: excerpt(w.content, 80),
+        summary: excerpt(w.content, 500),
+        url: `${origin}/weibo#wb-${w.id}`,
+        // 与插件推送同口径：站内 /images/ 补前缀，https 外链原样，其余置空（hub 只收 https）
+        image: img ? (img.startsWith('/images/') ? origin + img : /^https:\/\//i.test(img) ? img : '') : '',
+        publishedAt: w.published_at || w.created_at,
+      }
+    }),
+  })
+})
+
 /* ---------------- 公开留言公共核心（文章评论 / 留言板 / 微博评论三路共用） ----------------
  * 开关检查、限流、蜜罐、作者回复、先审后展入库、TG 通知与插件广播全在这里；
  * 三路的差异（称呼文案、归属列、是否收 email/website、通知上下文）由 opts 描述。

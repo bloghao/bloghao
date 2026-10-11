@@ -51,6 +51,26 @@ npx wrangler deploy -c plaza/wrangler.jsonc
 - `GET /api/sites`——站点名录（认证标、条数）
 - `POST /api/ingest`——博客端上报（协议见下）
 
+### 管理端点（Bearer PLAZA_ADMIN_TOKEN）补充
+
+| 端点 | 说明 |
+| --- | --- |
+| `POST /api/admin/pull` | 手动触发全站补漏（RSS + 微博口），不等 6 小时 cron——新接入站点 / 新补漏口上线时立即对齐 |
+
+### 微博补漏（站点可选提供）
+
+RSS 只有文章，微博漏推（发布瞬间的推送失败即永久丢失）没有自愈路——站点可以提供
+`GET /api/public/weibo?limit=20` 补漏口，hub 的 pull cron 会顺带拉取（**只补 30 天内**、
+`source='pull'`、不覆盖 push）。出参就是 ingest 条目的同形数组（少 kind，hub 固定按 weibo 收）：
+
+```json
+{ "weibo": [{ "ref": "微博id", "title": "前 80 字", "summary": "前 500 字",
+              "url": "https://…/weibo#wb-<id>", "image": "https://…（可空）", "publishedAt": 1718000000000 }] }
+```
+
+博客号内核（2026-10 起的版本）已内置该接口，无需配置；第三方系统可选实现，没有该接口的站点
+hub 静默跳过，不影响其余补漏。管理端 `POST /api/admin/pull` 可立即触发一次。
+
 ### 混排口径
 
 `score = recency + weight + jitter`，三因素都压在 0~1.5 区间，没有谁能一票定序：

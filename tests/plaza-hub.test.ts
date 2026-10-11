@@ -249,3 +249,35 @@ test('validateIngest：顶层 avatar 白名单（https 才收、超长截断、�
   assert.equal(validateIngest(base).avatar, '')
   assert.equal(validateIngest({ ...base, avatar: 'https://' + 'a'.repeat(600) + '.png' }).avatar.length, 500)
 })
+
+test('normalizePulledWeibo：微博补漏条目规整——https 校验、30 天窗口、字段截断、垃圾丢弃', async () => {
+  const { normalizePulledWeibo } = await import('../plaza/src/core.ts')
+  const now = 1_800_000_000_000
+  const ok = normalizePulledWeibo(
+    { ref: '7001', title: '真微博', summary: '<b>正文</b>', url: 'https://x.test/weibo#wb-7001', publishedAt: now - 1000, image: 'https://x.test/images/a.jpg' },
+    now
+  )
+  assert.deepEqual(ok, {
+    kind: 'weibo',
+    ref: '7001',
+    title: '真微博',
+    summary: '正文',
+    url: 'https://x.test/weibo#wb-7001',
+    image: 'https://x.test/images/a.jpg',
+    publishedAt: now - 1000,
+  })
+  // http url 拒收（防 pull 变成任意 URL 注入面）；缺 ref / 缺 title 丢弃
+  assert.equal(normalizePulledWeibo({ ref: '1', title: 't', url: 'http://x.test/w' }, now), null)
+  assert.equal(normalizePulledWeibo({ title: 't', url: 'https://x.test/w' }, now), null)
+  assert.equal(normalizePulledWeibo({ ref: '1', url: 'https://x.test/w' }, now), null)
+  // 超 30 天丢弃（与 RSS 补漏窗口同口径）；publishedAt 缺失/畸形回退 now
+  assert.equal(normalizePulledWeibo({ ref: '1', title: 't', url: 'https://x.test/w', publishedAt: now - 31 * 86_400_000 }, now), null)
+  assert.equal(normalizePulledWeibo({ ref: '1', title: 't', url: 'https://x.test/w' }, now)?.publishedAt, now)
+  assert.equal(normalizePulledWeibo({ ref: '1', title: 't', url: 'https://x.test/w', publishedAt: '垃圾' }, now)?.publishedAt, now)
+  // image 非 https 丢弃；各字段超长截断（200/200/500）
+  assert.equal(normalizePulledWeibo({ ref: '1', title: 't', url: 'https://x.test/w', image: 'javascript:alert(1)' }, now)?.image, '')
+  const long = normalizePulledWeibo({ ref: 'x'.repeat(300), title: 't'.repeat(300), summary: 's'.repeat(900), url: 'https://x.test/w' }, now)
+  assert.equal(long?.ref.length, 200)
+  assert.equal(long?.title.length, 200)
+  assert.equal(long?.summary.length, 500)
+})
