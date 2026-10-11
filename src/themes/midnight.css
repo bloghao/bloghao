@@ -732,8 +732,7 @@ img { max-width: 100%; height: auto; }
 .hm-grid { display: grid; grid-auto-flow: column; grid-auto-columns: 9px; grid-template-rows: 13px repeat(7, 9px); gap: 2px; width: max-content; padding: 2px 0; }
 .hm-month { font-size: 9.5px; line-height: 13px; color: var(--md-sub); white-space: nowrap; }
 .hm-cell { width: 9px; height: 9px; border-radius: 2px; background: var(--md-line); }
-/* 暗底上低透明度会淹没在空格色里，暗色主题整体抬高一档 */
-.hm-l1 { background: var(--md-accent); opacity: 0.32; }
+.hm-l1 { background: var(--md-accent); opacity: 0.30; }
 .hm-l2 { background: var(--md-accent); opacity: 0.55; }
 .hm-l3 { background: var(--md-accent); opacity: 0.78; }
 .hm-l4 { background: var(--md-accent); }

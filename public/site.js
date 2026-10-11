@@ -1749,6 +1749,13 @@
     }
   })()
 
+  /* ---------------- 创作热力图：窄屏横向溢出时默认滚到最右（最新的周），一眼看到最近更新 ----------------
+   * 不溢出（桌面端整年放得下）时赋值无效，天然不滚动 */
+  ;(function () {
+    var scrollers = document.querySelectorAll('.hm-scroll')
+    for (var i = 0; i < scrollers.length; i++) scrollers[i].scrollLeft = scrollers[i].scrollWidth
+  })()
+
   /* ---------------- 会员（/member：登录 / 注册 / 退出，API 见 DEVPLAN 附录 A5） ----------------
    * 表单为服务端渲染（memberAuthHtml），这里只接管提交与双表单切换；
    * 无 JS 时两个表单都可见可直接提交，有 JS 时只显当前一个 */
