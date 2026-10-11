@@ -7,7 +7,7 @@ import type { ThemeModule } from '../src/themes/registry.ts'
 import type { AboutData, ArchivesData, GuestbookData, HomeData, LinksData, MemberData, PageData, RankData, WeiboData } from '../src/themes/registry.ts'
 import type { HomePostView, MemberView, RankEntryView, WeiboItemView, ArchiveYearGroup, FriendLinkView, CategoryLink, TagCount } from '../src/render.ts'
 import type { CommentRow } from '../src/types.ts'
-import { commentsHtml, headingAnchors, heatmapHtml, memberCardHtml, postNeighborsHtml, rankListHtml } from '../src/render.ts'
+import { commentsHtml, footCardHtml, headingAnchors, heatmapHtml, memberCardHtml, newSiteGuideHtml, postNeighborsHtml, rankListHtml } from '../src/render.ts'
 import { esc } from '../src/utils.ts'
 import { packMatrix, qrMatrix } from '../src/qrcode.ts'
 
@@ -547,6 +547,35 @@ test('wechat 桌面增强：home 有标签/分类时出侧栏，全空则退单�
   assert.ok(html.includes('共 1 篇'), '话题卡头带文章总数')
   const bare = THEMES.wechat.home({ ...homeData(), tags: [], categories: [] })
   assert.ok(!bare.includes('wx-side'), '无标签无分类不出侧栏（单栏版式）')
+})
+
+// ── 页脚站点名片 + 新站引导卡（结构共享，主题 CSS 塑形） ──
+
+test('footCardHtml：统计行（万字换算/起始年）、未播种只出名片、脏 JSON 容错、英文口径', () => {
+  const s = {
+    siteName: '山野手记',
+    siteDescription: '手写笔记',
+    siteFoot: JSON.stringify({ posts: 205, chars: 43000, since: Date.UTC(2024, 0, 1, 4) }),
+  }
+  const html = footCardHtml(s)
+  assert.ok(html.includes('fc-name'), '名片半边')
+  assert.ok(html.includes('fc-desc'), '简介')
+  assert.match(html, /fc-stats">共 205 篇 · 约 4\.3 万字 · 2024 年写起/)
+  const bare = footCardHtml({ siteName: 'X', siteFoot: '' })
+  assert.ok(bare.includes('fc-name') && !bare.includes('fc-stats'), '未播种只出名片半边')
+  assert.ok(!footCardHtml({ siteName: 'X', siteFoot: 'not-json' }).includes('fc-stats'), '脏 JSON 按未播种容错')
+  const en = footCardHtml({ siteName: 'X', siteFoot: JSON.stringify({ posts: 1, chars: 500, since: 0 }) }, true)
+  assert.ok(en.includes('1 post · 500 characters'), '英文语序（since=0 不出年份）')
+})
+
+test('newSiteGuideHtml：三步开张卡（后台直达链接 + 双语词条）', () => {
+  const zh = newSiteGuideHtml()
+  assert.ok(zh.includes('开张大吉'), '标题')
+  assert.ok(zh.includes('href="/admin"'), '写第一篇直达后台')
+  assert.ok(zh.includes('href="/admin/#/appearance"'), '皮肤页直达')
+  assert.ok(zh.includes('href="/admin/#/settings"'), '设置页直达')
+  const en = newSiteGuideHtml(true)
+  assert.ok(en.includes('Welcome aboard'), '英文标题走词典')
 })
 
 // ── 创作热力图（结构共享，色阶 = 各主题 accent 透明度四档） ──

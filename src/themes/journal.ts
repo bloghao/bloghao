@@ -22,6 +22,8 @@ import {
   paywallHtml,
   plural,
   yearStatsSuffix,
+  footCardHtml,
+  newSiteGuideHtml,
   postNeighborsHtml,
   heatmapHtml,
   rankListHtml,
@@ -49,7 +51,7 @@ const id = 'journal'
 function foot(s: SettingsMap, links: string): string {
   const en = isEn(s)
   return `<footer class="jrn-footer">
-    <span class="jrn-footer-note">${esc(tr(en, s.footerText || ''))}</span>
+    ${footCardHtml(s, en)}<span class="jrn-footer-note">${esc(tr(en, s.footerText || ''))}</span>
     <span class="jrn-footer-links">${footLinks(s, links)}</span>
   </footer>`
 }
@@ -120,6 +122,7 @@ export function home(d: HomeData): string {
   </header>
   <main>
   ${d.notice ? `<div class="jrn-notice">${d.notice}</div>` : ''}
+  ${d.newSite ? newSiteGuideHtml(en) : ''}
   ${d.weiboFeed ? weiboHomeFeed({ settings: s, items: d.weiboFeed.items, total: d.weiboFeed.total, avatarHtml: avatar(s), allowComments: d.weiboFeed.allowComments, adminName: d.weiboFeed.adminName, memberName: d.weiboFeed.memberName }) : ''}
   ${d.weibo ? weiboHomeEntry({ ...d.weibo, en }) : ''}
   ${onThisDayCard(d.onThisDay, en)}

@@ -52,6 +52,8 @@ export interface HomeData {
   notice?: string
   /** 空列表文案（搜索/分类页有定制文案） */
   emptyText?: string
+  /** 新站引导（仅真首页）：一篇文章和一条微博都没有时出「三步开张」卡，发布内容后自动消失 */
+  newSite?: boolean
   /** 首页微博入口卡数据（仅「博客+微博」模式的首页传入；没有已发布微博时为 null） */
   weibo?: { items: WeiboItemView[]; total: number } | null
   /**

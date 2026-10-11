@@ -121,6 +121,8 @@ try {
 
   console.log('\n▸ 路由断言')
   await check('GET', '/', 200)
+  // 页脚站点名片：全站页脚渲染（统计由 cron 夜更 + 冷启动播种）
+  await check('GET', '/', 200, 'fc-name')
   // 回归守卫：多标签文章（relatedPosts OR 拼接）与无标签文章（兜底查询）都必须 200
   await check('GET', '/post/smoke-multi-tag', 200, '冒烟测试：多标签文章')
   await check('GET', '/post/smoke-no-tag', 200)

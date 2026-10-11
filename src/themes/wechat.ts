@@ -22,6 +22,8 @@ import {
   paywallHtml,
   plural,
   yearStatsSuffix,
+  footCardHtml,
+  newSiteGuideHtml,
   postNeighborsHtml,
   heatmapHtml,
   rankListHtml,
@@ -45,7 +47,7 @@ const id = 'wechat'
 /** 页脚公共件：八个页面只差链接组，文案与结构统一在这里 */
 function foot(s: SettingsMap, links: string): string {
   const en = isEn(s)
-  return `<footer class="wx-footer">${esc(tr(en, s.footerText || ''))}<span class="wx-footer-links">${footLinks(s, links)}</span></footer>`
+  return `<footer class="wx-footer">${footCardHtml(s, en)}${esc(tr(en, s.footerText || ''))}<span class="wx-footer-links">${footLinks(s, links)}</span></footer>`
 }
 /** 页脚链接组：compact 顶栏收窄后，留言板/友情链接/排行榜/随机降级到页脚（排行随会员开关，纯微博不出「随机」，与顶栏同口径） */
 function footLinksFor(s: SettingsMap, en: boolean): { home: string; archive: string; article: string; about: string } {
@@ -146,6 +148,7 @@ export function home(d: HomeData): string {
     ${s.siteDescription ? `<p class="wx-masthead-desc">${esc(tr(en, s.siteDescription))}</p>` : ''}
   </header>
   ${d.notice ? `<div class="wx-notice">${d.notice}</div>` : ''}
+  ${d.newSite ? newSiteGuideHtml(en) : ''}
   ${side ? `<div class="wx-cols"><div class="wx-maincol">` : ''}
   ${d.weiboFeed ? weiboHomeFeed({ settings: s, items: d.weiboFeed.items, total: d.weiboFeed.total, avatarHtml: avatar(s), allowComments: d.weiboFeed.allowComments, adminName: d.weiboFeed.adminName, memberName: d.weiboFeed.memberName }) : ''}
   ${d.weibo ? weiboHomeEntry({ ...d.weibo, en }) : ''}

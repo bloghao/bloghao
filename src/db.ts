@@ -32,6 +32,9 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   // 主题外观变量（B9 · 内测）：扁平 JSON（角色键 → 色值 + font/fontSize），渲染期按当前主题
   // 映射回主题自己的 CSS 变量输出覆盖样式，空串 = 未配置，机制见 src/appearance.ts
   appearance: '',
+  // 页脚「站点足迹」统计 JSON（{posts,chars,since}）：每晚 cron 刷新 + 冷启动首次播种
+  // （refreshFootStats），前台页脚名片读这里——展示口径滞后一夜可接受，不值得每次渲染都聚合
+  siteFoot: '',
   footerText: '由 博客号 驱动 · 住在 Cloudflare 上',
   allowComments: '1',
   moderateComments: '0',
@@ -988,6 +991,24 @@ export async function ensureSchema(db: D1Database): Promise<void> {
       /* 并发 isolate 已处理：不记账也无碍，下次冷启动重试 */
     }
   }
+  // 页脚「站点足迹」统计冷启动播种：键缺失（新装/老站升级）时算一次，此后交给每晚 cron 刷新。
+  // upsert 幂等，并发 isolate 重复算也只是同值覆盖
+  const footRow = await db.prepare("SELECT value FROM settings WHERE key = 'siteFoot'").first()
+  if (!footRow) await refreshFootStats(db).catch(() => {})
+}
+
+/** 页脚「站点足迹」统计：累计已发布篇数 / 正文字符量 / 最早发文时间（北京年口径）。
+ * 每晚备份 cron 刷新一次 + 冷启动首次播种（键缺失时），页脚名片读 settings.siteFoot */
+export async function refreshFootStats(db: D1Database): Promise<void> {
+  const row = await db
+    .prepare(
+      "SELECT COUNT(*) AS n, COALESCE(SUM(LENGTH(content)), 0) AS c, COALESCE(MIN(COALESCE(published_at, created_at)), 0) AS since FROM posts WHERE status = 'published' AND deleted_at IS NULL"
+    )
+    .first<{ n: number; c: number; since: number }>()
+  await db
+    .prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+    .bind('siteFoot', JSON.stringify({ posts: row?.n ?? 0, chars: row?.c ?? 0, since: row?.since ?? 0 }))
+    .run()
 }
 
 export async function countUsers(db: D1Database): Promise<number> {

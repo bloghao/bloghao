@@ -13,6 +13,7 @@ import { buildRss, buildSitemap } from './rss'
 import { siteBase } from './render'
 import { purgeVisits } from './stats'
 import { purgeTrash } from './trash'
+import { refreshFootStats } from './db'
 import type { Env, SessionUser } from './types'
 import { isDemo } from './utils'
 
@@ -248,6 +249,8 @@ export default {
           await purgeVisits(env.DB).catch((e) => console.error('purgeVisits failed:', e))
           // 回收站滚动清理：到期（30 天）的软删行彻底删除并级联评论（src/trash.ts）
           await purgeTrash(env.DB).catch((e) => console.error('purgeTrash failed:', e))
+          // 页脚「站点足迹」统计夜更（db.ts refreshFootStats，页脚名片读 settings.siteFoot）
+          await refreshFootStats(env.DB).catch((e) => console.error('refreshFootStats failed:', e))
         }
       })()
     )

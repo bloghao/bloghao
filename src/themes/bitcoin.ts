@@ -21,6 +21,8 @@ import {
   paywallHtml,
   plural,
   yearStatsSuffix,
+  footCardHtml,
+  newSiteGuideHtml,
   postNeighborsHtml,
   heatmapHtml,
   rankListHtml,
@@ -53,7 +55,7 @@ const BTC_LOGO =
 function foot(s: SettingsMap, links: string): string {
   const en = isEn(s)
   return `<footer class="bt-footer">
-  <div class="bt-footer-row"><span>${esc(tr(en, s.footerText || ''))}</span><span class="bt-footer-links">${footLinks(s, links)}</span></div>
+  ${footCardHtml(s, en)}<div class="bt-footer-row"><span>${esc(tr(en, s.footerText || ''))}</span><span class="bt-footer-links">${footLinks(s, links)}</span></div>
   <p class="bt-footer-motto">${BTC_LOGO}Don&#39;t trust, verify.</p>
 </footer>`
 }
@@ -112,6 +114,7 @@ export function home(d: HomeData): string {
     <p class="bt-hero-lead">${esc(tr(en, s.siteDescription))}</p>
   </header>
   ${d.notice ? `<div class="bt-notice">${d.notice}</div>` : ''}
+  ${d.newSite ? newSiteGuideHtml(en) : ''}
   ${d.weiboFeed ? weiboHomeFeed({ settings: s, items: d.weiboFeed.items, total: d.weiboFeed.total, avatarHtml: mark(s), allowComments: d.weiboFeed.allowComments, adminName: d.weiboFeed.adminName, memberName: d.weiboFeed.memberName }) : ''}
   ${d.weibo ? weiboHomeEntry({ ...d.weibo, en }) : ''}
   ${onThisDayCard(d.onThisDay, en)}

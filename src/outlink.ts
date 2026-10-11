@@ -212,7 +212,7 @@ p{font-size:14px;line-height:1.8}
 <body>
 <div class="card">
 <div class="badge" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></div>
-<h1>You are leaving this site</h1>
+<h1>You are leaving "${esc(site)}"</h1>
 <p>The link you clicked points to a third-party website: <span class="host">${esc(target.hostname)}</span></p>
 <div class="url">${esc(target.href)}</div>
 <div class="warn"><b>Disclaimer</b>: this link does not belong to this site. The third-party website's content, privacy policy and security are unrelated to this site, and this site makes no guarantee about them. Verify the information yourself, watch out for phishing and scams, and never enter this site's password or sensitive personal information on an unfamiliar website.</div>
@@ -271,7 +271,7 @@ p{font-size:14px;line-height:1.8}
 <body>
 <div class="card">
 <div class="badge" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></div>
-<h1>即将离开本站</h1>
+<h1>即将离开「${esc(site)}」</h1>
 <p>你点击的链接指向第三方网站：<span class="host">${esc(target.hostname)}</span></p>
 <div class="url">${esc(target.href)}</div>
 <div class="warn"><b>免责声明</b>：该链接不属于本站，第三方网站的内容、隐私政策与安全性与本站无关，本站对其不作任何担保。请自行核实信息真伪，谨防钓鱼与诈骗，不要在陌生网站输入本站密码或敏感个人信息。</div>

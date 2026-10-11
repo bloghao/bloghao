@@ -294,6 +294,18 @@
         btn.classList.toggle('liked', !liked)
         var count = btn.querySelector('[data-count]')
         if (count && typeof d.likes === 'number') count.textContent = String(d.likes)
+        // 点赞成功心跳一下（取消赞不弹）：Web Animations API 不可用就安静跳过
+        if (!liked && btn.animate) {
+          btn.animate(
+            [
+              { transform: 'scale(1)' },
+              { transform: 'scale(1.25)', offset: 0.35 },
+              { transform: 'scale(0.92)', offset: 0.65 },
+              { transform: 'scale(1)' },
+            ],
+            { duration: 420, easing: 'ease-out' }
+          )
+        }
       })
       .catch(function () {})
       .finally(function () {

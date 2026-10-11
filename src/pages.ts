@@ -412,6 +412,14 @@ async function renderList(
     notice,
     emptyText,
     weiboFeed,
+    // 新站引导（仅真首页）：一篇文章都没有、也没有微博时，首页出「三步开张」引导卡
+    newSite:
+      opts.mode === 'home' &&
+      !tag &&
+      r.page === 1 &&
+      r.total === 0 &&
+      !weibo &&
+      !(weiboFeed && weiboFeed.items.length),
     // 搜索页微博结果（ROADMAP B4）：仅 /search 带关键词且有命中时非空
     searchWeibo: searchWeiboView,
     // 纯博客模式：历史上的今天只保留文章条目（微博模块已隐藏）

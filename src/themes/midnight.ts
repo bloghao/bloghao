@@ -20,6 +20,8 @@ import {
   paywallHtml,
   plural,
   yearStatsSuffix,
+  footCardHtml,
+  newSiteGuideHtml,
   postNeighborsHtml,
   heatmapHtml,
   rankListHtml,
@@ -43,7 +45,7 @@ const id = 'midnight'
 /** 页脚公共件：八个页面只差链接组，结构统一在这里 */
 function foot(s: SettingsMap, links: string): string {
   const en = isEn(s)
-  return `<footer class="md-footer"><span>${esc(tr(en, s.footerText || ''))}</span><span>${footLinks(s, links)}</span></footer>`
+  return `<footer class="md-footer">${footCardHtml(s, en)}<span>${esc(tr(en, s.footerText || ''))}</span><span>${footLinks(s, links)}</span></footer>`
 }
 const FOOT_LINKS = {
   home: '<a href="/weibo">微博</a><a href="/rss.xml">RSS</a><a href="/admin">管理</a>',
@@ -100,6 +102,7 @@ export function home(d: HomeData): string {
     <p>${esc(tr(en, s.siteDescription))}</p>
   </section>
   ${d.notice ? `<div class="md-notice">${d.notice}</div>` : ''}
+  ${d.newSite ? newSiteGuideHtml(en) : ''}
   ${d.weiboFeed ? weiboHomeFeed({ settings: s, items: d.weiboFeed.items, total: d.weiboFeed.total, avatarHtml: logoMark(s), allowComments: d.weiboFeed.allowComments, adminName: d.weiboFeed.adminName, memberName: d.weiboFeed.memberName }) : ''}
   ${d.weibo ? weiboHomeEntry({ ...d.weibo, en }) : ''}
   ${onThisDayCard(d.onThisDay, en)}

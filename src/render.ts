@@ -306,6 +306,8 @@ export function siteNav(o: {
   ${menu}
 </details>`
       : ''
+  // RSS 订阅图标：博客文化的入口，内联塑造（currentColor 随各主题导航链接色），compact 与完整形态都保留
+  const rssIcon = `<a class="${o.cls}-rss" href="/rss.xml" title="${tr(en, 'RSS 订阅')}" aria-label="RSS" style="display:inline-flex;align-items:center;opacity:.55"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.18 17.82a2.18 2.18 0 1 1-4.36 0 2.18 2.18 0 0 1 4.36 0zM2 8.73a13.27 13.27 0 0 1 13.27 13.27h-3.64A9.64 9.64 0 0 0 2 12.36V8.73zm0-6.36A19.64 19.64 0 0 1 21.64 22H18A16 16 0 0 0 2 6V2.36z"/></svg></a>`
   // 纯微博：'/' 即微博时间线，导航首位「微博」直达 /weibo（首页 item 退出）；纯博客：去掉「微博」
   const weiboItem = m === 'blog' ? '' : item('/weibo', tr(en, '微博'), o.active === 'weibo' || (m === 'weibo' && o.active === 'home'))
   const homeItem = m === 'weibo' ? '' : item('/', tr(en, '首页'), o.active === 'home')
@@ -321,6 +323,7 @@ export function siteNav(o: {
   ${m === 'weibo' ? '' : drop}
   ${(o.pages || []).map((p) => item(p.href, p.title, o.active === p.key)).join('')}
   ${item('/about', tr(en, '关于我'), o.active === 'about')}
+  ${rssIcon}
   ${memberPill}
 </nav>`
   }
@@ -336,6 +339,7 @@ export function siteNav(o: {
   ${o.memberEnabled ? item('/rank', tr(en, '排行榜'), o.active === 'rank') : ''}
   ${item('/about', tr(en, '关于我'), o.active === 'about')}
   ${m === 'weibo' ? '' : item('/random', tr(en, '随机'))}
+  ${rssIcon}
 </nav>`
 }
 
@@ -396,6 +400,61 @@ export function headingAnchors(contentHtml: string): { html: string; items: { le
     return `<${tag}${attrs} id="${id}">${inner}</${tag}>`
   })
   return { html, items }
+}
+
+/** 页脚「站点名片 + 足迹」（七主题共享）：左侧头像/站名/简介，右侧累计篇数、字数与写作年份。
+ * 统计读 settings.siteFoot（cron 每晚刷新 + 冷启动播种，滞后一夜属展示口径），未播种只出名片半边 */
+export function footCardHtml(s: SettingsMap, en = false): string {
+  let stats: { posts: number; chars: number; since: number } | null = null
+  try {
+    const v: unknown = JSON.parse(s.siteFoot || 'null')
+    if (v && typeof v === 'object' && typeof (v as { posts?: unknown }).posts === 'number') {
+      stats = v as { posts: number; chars: number; since: number }
+    }
+  } catch {
+    /* 脏数据按未播种处理，名片照常 */
+  }
+  const ch = (s.siteName || (en ? 'B' : '博')).trim().charAt(0) || (en ? 'B' : '博')
+  const avatar = s.avatarUrl
+    ? `<span class="fc-avatar"><img src="${esc(s.avatarUrl)}" alt="${esc(tr(en, s.siteName))}"></span>`
+    : `<span class="fc-avatar" aria-hidden="true">${esc(ch)}</span>`
+  let statsHtml = ''
+  if (stats) {
+    const year = stats.since ? cstDate(stats.since).getUTCFullYear() : 0
+    const parts = en
+      ? [`${stats.posts} ${plural(stats.posts, 'post', 'posts')}`, `${stats.chars} characters`, year ? `since ${year}` : '']
+      : [
+          `共 ${stats.posts} 篇`,
+          stats.chars >= 10000 ? `约 ${(stats.chars / 10000).toFixed(1)} 万字` : stats.chars > 0 ? `约 ${stats.chars} 字` : '',
+          year ? `${year} 年写起` : '',
+        ]
+    const line = parts.filter(Boolean).join(' · ')
+    if (line) statsHtml = `<div class="fc-stats">${line}</div>`
+  }
+  return `<div class="fc">
+  <div class="fc-id">${avatar}<div class="fc-main"><span class="fc-name">${esc(tr(en, s.siteName))}</span>${
+    s.siteDescription ? `<span class="fc-desc">${esc(tr(en, s.siteDescription))}</span>` : ''
+  }</div></div>
+  ${statsHtml}
+</div>`
+}
+
+/** 新站引导卡（首页空状态）：一篇文章和一条微博都没有时给部署者指路——三步开张，直达后台对应页。
+ * 无背景虚线卡 + currentColor 中性半透明，任何主题（亮暗）都长在自己的语言里，七主题零 CSS 成本 */
+export function newSiteGuideHtml(en = false): string {
+  const step = (href: string, label: string) =>
+    `<a href="${href}" style="display:block;padding:10px 14px;border-radius:10px;background:rgba(128,128,128,0.08);color:inherit;text-decoration:none;font-size:14px;text-align:left;">${label}</a>`
+  return `<section class="xw-guide" style="max-width:560px;margin:34px auto 8px;padding:26px 24px 20px;border:2px dashed rgba(128,128,128,0.35);border-radius:16px;text-align:center;">
+  <div style="font-size:30px;line-height:1;" aria-hidden="true">🎉</div>
+  <h2 style="font-size:17px;margin:10px 0 6px;">${tr(en, '开张大吉，还差三步')}</h2>
+  <p style="font-size:13.5px;opacity:.75;margin:0 0 16px;">${tr(en, '这里还是一张白纸。登录后台，几分钟就能迎来第一位读者：')}</p>
+  <div style="display:flex;flex-direction:column;gap:8px;max-width:320px;margin:0 auto 14px;">
+    ${step('/admin', '✍️ ' + tr(en, '写下第一篇文章'))}
+    ${step('/admin/#/appearance', '🎨 ' + tr(en, '挑一套顺眼的皮肤'))}
+    ${step('/admin/#/settings', '⚙️ ' + tr(en, '补上站名、头像与简介'))}
+  </div>
+  <p style="font-size:12px;opacity:.5;margin:0;">${tr(en, '这张卡片只在没有内容时出现，发布第一篇后自动消失')}</p>
+</section>`
 }
 
 /** 创作热力图（归档页，GitHub 风年历）：过去一年按北京日聚合的发文密度。

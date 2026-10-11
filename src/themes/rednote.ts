@@ -21,6 +21,8 @@ import {
   paywallHtml,
   plural,
   yearStatsSuffix,
+  footCardHtml,
+  newSiteGuideHtml,
   postNeighborsHtml,
   heatmapHtml,
   rankListHtml,
@@ -61,7 +63,7 @@ const MAGNIFIER =
 function foot(s: SettingsMap, links: string): string {
   const en = isEn(s)
   return `<footer class="rn-footer">
-  <div class="rn-footer-row"><span>${esc(tr(en, s.footerText || ''))}</span><span class="rn-footer-links">${footLinks(s, links)}</span></div>
+  ${footCardHtml(s, en)}<div class="rn-footer-row"><span>${esc(tr(en, s.footerText || ''))}</span><span class="rn-footer-links">${footLinks(s, links)}</span></div>
   <p class="rn-footer-motto">${HEART}${en ? 'Mark my life.' : '标记我的生活'}</p>
 </footer>`
 }
@@ -124,6 +126,7 @@ export function home(d: HomeData): string {
     ${d.total > 0 ? `<p class="rn-hero-count">${en ? `${d.total} ${plural(d.total, 'post', 'posts')}` : `共 ${d.total} 篇 · 持续更新`}</p>` : ''}
   </header>
   ${d.notice ? `<div class="rn-notice">${d.notice}</div>` : ''}
+  ${d.newSite ? newSiteGuideHtml(en) : ''}
   ${d.weiboFeed ? weiboHomeFeed({ settings: s, items: d.weiboFeed.items, total: d.weiboFeed.total, avatarHtml: mark(s), allowComments: d.weiboFeed.allowComments, adminName: d.weiboFeed.adminName, memberName: d.weiboFeed.memberName }) : ''}
   ${d.weibo ? weiboHomeEntry({ ...d.weibo, en }) : ''}
   ${onThisDayCard(d.onThisDay, en)}
