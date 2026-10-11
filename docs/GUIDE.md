@@ -45,7 +45,7 @@
 | [/search?q=](https://blog.xiaowuleyi.com/search) | **搜索页**：全文关键词搜索（FTS5 索引，结果按相关度排序），文章展示前 50 条、站内微博一并纳入（前 20 条）；不足 3 个字的短词自动退回普通匹配 |
 | [/about](https://blog.xiaowuleyi.com/about) | **关于我**：独立的作者介绍页，内容在后台「页面」维护（页面系统承载） |
 | [/random](https://blog.xiaowuleyi.com/random) | **随机阅读**：随机跳到一篇已发布文章 |
-| [/rss.xml](https://blog.xiaowuleyi.com/rss.xml) · [/sitemap.xml](https://blog.xiaowuleyi.com/sitemap.xml) | RSS 全文订阅与站点地图（自动生成） |
+| [/rss.xml](https://blog.xiaowuleyi.com/rss.xml) · [/sitemap.xml](https://blog.xiaowuleyi.com/sitemap.xml) | RSS 全文订阅与站点地图（自动生成）；常用别名路径（`/feed`、`/rss`、`/atom.xml`、`/index.xml`、`/feeds/posts/default`、`?feed=rss2`）同样可订阅，前端与站点地图只展示规范地址 |
 | [/admin/](https://blog.xiaowuleyi.com/admin/) | **管理后台**（下文的主角） |
 
 ## 2. 第一次进入后台

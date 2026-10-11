@@ -72,6 +72,12 @@ function enGuard(h: PublicHandler): PublicHandler {
 }
 
 /* ---------------- 公开页面（SSR + 主题渲染） ---------------- */
+// WordPress 风格订阅盲猜（/?feed=rss2 / rss / atom 等）：统一 302 到规范订阅地址
+// （须注册在 renderHome 之前——终点 handler 不调 next，后注册的中间件不会再被执行）
+app.get('/', async (c, next) => {
+  if (c.req.query('feed')) return c.redirect('/rss.xml')
+  await next()
+})
 app.get('/', enGuard(renderHome))
 app.get('/tag/:tag', enGuard(renderHome))
 app.get('/category/:slug', enGuard(renderCategory))
@@ -146,14 +152,34 @@ app.post('/post/:slug/unlock', async (c) => {
   return c.redirect(back, 303)
 })
 
-app.get('/rss.xml', async (c) => {
+/* ---------------- RSS 订阅（规范地址 /rss.xml，别名路径盲猜兜底） ----------------
+ * 主题页脚 / head rel=alternate / sitemap 只展示规范地址；别名是纯服务端路由，不出现在任何
+ * 前端出口。内容同 buildRss 一份输出——阅读器按内容嗅探格式，atom.xml 等文件名不影响解析，
+ * atom:link rel=self 恒指规范地址（顺带把订阅器引回 /rss.xml）。闭站中间件对别名同样 503 */
+const RSS_ALIASES = [
+  '/rss',
+  '/rss/',
+  '/feed',
+  '/feed/',
+  '/feed.xml',
+  '/feed/rss.xml',
+  '/feed/rss',
+  '/atom',
+  '/atom/',
+  '/atom.xml',
+  '/index.xml',
+  '/feeds/posts/default', // Blogger 惯例路径
+]
+const rssHandler: PublicHandler = async (c) => {
   const settings = await getSettings(c.env.DB)
   const { items } = await listPosts(c.env.DB, { status: 'published', limit: 50 })
   const siteUrl = siteBase(settings, new URL(c.req.url).origin)
   c.header('Content-Type', 'application/rss+xml; charset=utf-8')
   c.header('Cache-Control', 'public, max-age=600')
   return c.body(buildRss(settings, items, siteUrl))
-})
+}
+app.get('/rss.xml', rssHandler)
+for (const p of RSS_ALIASES) app.get(p, rssHandler)
 
 app.get('/sitemap.xml', async (c) => {
   const settings = await getSettings(c.env.DB)
