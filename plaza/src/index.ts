@@ -475,7 +475,7 @@ app.patch('/api/admin/items/:kind/:ref', async (c) => {
 
 /** 手动触发全站补漏（ops）：不等 6 小时 cron，新接入站点 / 新上线的微博补漏口可立即对齐 */
 app.post('/api/admin/pull', async (c) => {
-  const pulled = await pullAllSites(c.env.DB)
+  const pulled = await pullAllSites(c.env)
   return c.json({ ok: true, pulled })
 })
 
