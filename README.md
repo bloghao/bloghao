@@ -187,6 +187,7 @@ bloghao/
 | [docker-poc/DEPLOY.md](docker-poc/DEPLOY.md) | 自托管服务器部署清单：选机、端口与反代、HTTPS 与缓存、验收与升级 |
 | [docs/wechat-typography-spec.md](docs/wechat-typography-spec.md) | 微信排版规范落地对照 + 体检规则表 |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | 开发方向备忘：已调研未启动的功能方向（会员体系等）与待拍板决策 |
+| [docs/VERSIONS.md](docs/VERSIONS.md) | **版本更新说明**：从项目诞生到今天的大版本大事记，每个版本带来了什么 |
 
 ## ❓ FAQ
 
