@@ -7,7 +7,7 @@
 INSERT OR REPLACE INTO users (id, username, password_hash, salt, display_name, avatar, created_at, updated_at) VALUES
   (990001, 'smokeadmin', '2323288e1077952c3f52b9bf7568bcf94e516c63f261f4e64a0d64df29846327', 'smoke-salt-000000', '冒烟管理员', '', 1767225600000, 1767225600000);
 INSERT OR REPLACE INTO posts (id, slug, title, content, summary, tags, status, pinned, views, published_at, created_at, updated_at) VALUES
-  (990001, 'smoke-multi-tag', '冒烟测试：多标签文章', '<p>冒烟测试夹具正文。</p>', '冒烟测试夹具摘要', '["冒烟测试","测试标签甲","测试标签乙"]', 'published', 0, 1, 1767225600000, 1767225600000, 1767225600000),
+  (990001, 'smoke-multi-tag', '冒烟测试：多标签文章', '<h2>冒烟测试章节</h2><p>冒烟测试夹具正文。</p>', '冒烟测试夹具摘要', '["冒烟测试","测试标签甲","测试标签乙"]', 'published', 0, 1, 1767225600000, 1767225600000, 1767225600000),
   (990002, 'smoke-no-tag', '冒烟测试：无标签文章', '<p>冒烟测试夹具正文。</p>', '冒烟测试夹具摘要', '[]', 'published', 0, 1, 1767225600000, 1767225600000, 1767225600000);
 
 -- 微博夹具：17 条已发布（每页 15 条，最老的 990101 落在第 2 页），守住 /weibo?wb= 深链定位——

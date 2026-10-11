@@ -1352,3 +1352,23 @@ main .gb-section { margin-top: 8px; }
 .paywall-title { margin: 10px 0 6px; font-size: 15.5px; font-weight: 700; color: var(--jrn-ink); }
 .paywall-text { margin: 0 0 16px; font-size: 13.5px; line-height: 1.7; color: var(--jrn-ink-soft); }
 .paywall-cta { display: inline-block; padding: 10px 26px; border-radius: 999px; background: var(--jrn-accent); color: #fff; font-size: 14px; font-weight: 700; text-decoration: none; }
+
+/* ---------- 上一篇/下一篇（.pn-* 结构由 render.ts postNeighborsHtml 输出，主题自调色） ---------- */
+.pn-nav { display: flex; gap: 12px; margin: 26px 0 0; }
+.pn-cell {
+  flex: 1; min-width: 0; display: block;
+  padding: 12px 14px;
+  border: 1px solid var(--jrn-line);
+  border-radius: 10px;
+  background: var(--jrn-card);
+  text-decoration: none;
+}
+.pn-next { text-align: right; }
+.pn-empty { pointer-events: none; border-style: dashed; opacity: 0.55; }
+.pn-label { display: block; font-size: 12px; color: var(--jrn-ink-soft); margin-bottom: 4px; }
+.pn-title {
+  display: block; font-size: 13.5px; font-weight: 500; color: var(--jrn-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: color 0.15s ease;
+}
+.pn-cell:hover .pn-title { color: var(--jrn-accent); }

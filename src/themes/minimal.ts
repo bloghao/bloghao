@@ -20,6 +20,7 @@ import {
   paywallHtml,
   plural,
   yearStatsSuffix,
+  postNeighborsHtml,
   rankListHtml,
   shareBtn,
   siteMode,
@@ -136,6 +137,7 @@ export function post(d: PostData): string {
       <div class="mn-tags">${d.category ? `<a href="${categoryLink(d.category)}">${esc(d.category.name)}</a>` : ''}${p.tags.map((t) => `<a href="${tagLink(t)}">${esc(t)}</a>`).join('')}</div>
     </div>
     ${related}
+    ${postNeighborsHtml(d.prev, d.next, en)}
     ${d.comments.html}
   </article>
   ${foot(d.settings, en ? FOOT_LINKS_EN.article : FOOT_LINKS.article)}

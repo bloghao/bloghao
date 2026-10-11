@@ -22,6 +22,7 @@ import {
   paywallHtml,
   plural,
   yearStatsSuffix,
+  postNeighborsHtml,
   rankListHtml,
   shareBtn,
   siteMode,
@@ -65,18 +66,6 @@ function footLinksFor(s: SettingsMap, en: boolean): { home: string; archive: str
 /** 桌面端侧栏公共卡（首页话题/分类、文章页目录/文章信息共用一张卡面） */
 function sideCard(title: string, sub: string, body: string): string {
   return `<section class="wx-side-card"><h2 class="wx-side-title">${title}${sub ? `<span class="wx-side-sub">${sub}</span>` : ''}</h2>${body}</section>`
-}
-
-/** 桌面端文章目录：从已净化正文提取 h2/h3 并注入 toc-N 锚点 id（id 值由渲染端生成、非用户输入，
- * 不触净化器「不放行 id」的 DOM clobbering 防线），返回注入后的正文与目录项；无标题时正文原样返回 */
-function tocOf(contentHtml: string): { html: string; items: { level: 2 | 3; text: string; id: string }[] } {
-  const items: { level: 2 | 3; text: string; id: string }[] = []
-  const html = contentHtml.replace(/<(h[23])((?:\s[^>]*)?)>([\s\S]*?)<\/\1>/g, (_m: string, tag: string, attrs: string, inner: string) => {
-    const id = `toc-${items.length + 1}`
-    items.push({ level: tag === 'h2' ? 2 : 3, text: inner.replace(/<[^>]*>/g, '').trim(), id })
-    return `<${tag}${attrs} id="${id}">${inner}</${tag}>`
-  })
-  return { html, items }
 }
 
 /** 站点头像：设置过 avatarUrl 用图片，否则退回站名首字 */
@@ -180,7 +169,8 @@ export function post(d: PostData): string {
   const s = d.settings
   const en = isEn(s)
   const p = d.post
-  const toc = tocOf(p.contentHtml)
+  // 目录数据来自 pages.ts headingAnchors 注入的标题锚点（toc-N id 已在 contentHtml 里）
+  const tocItems = d.headings || []
   const tagChips = p.tags
     .map((t) => `<a class="wx-tag" href="${tagLink(t)}"># ${esc(t)}</a>`)
     .join('')
@@ -202,11 +192,11 @@ export function post(d: PostData): string {
     : ''
   // 桌面端右栏：目录（≥2 条标题才值得挂）+ 文章信息卡；移动端 CSS 隐藏，版式不变
   const tocCard =
-    toc.items.length >= 2
+    tocItems.length >= 2
       ? sideCard(
           tr(en, '目录'),
           '',
-          `<nav class="wx-toc">${toc.items
+          `<nav class="wx-toc">${tocItems
             .map((i) => `<a class="wx-toc-lv${i.level}" href="#${i.id}">${i.text}</a>`)
             .join('')}</nav>`
         )
@@ -235,7 +225,7 @@ export function post(d: PostData): string {
     </div>
   </div>
   ${p.cover ? `<div class="wx-cover"><img src="${esc(p.cover)}" alt=""></div>` : ''}
-  <article class="rich" id="rich-content">${toc.html}</article>
+  <article class="rich" id="rich-content">${p.contentHtml}</article>
   ${p.locked ? paywallHtml(p.minTier, en) : ''}
   ${tagChips || catChip ? `<div class="wx-tags">${catChip}${tagChips}</div>` : ''}
   <div class="wx-actions">
@@ -247,6 +237,7 @@ export function post(d: PostData): string {
     ${d.share ? shareBtn(d.share.url, d.share.qr, en) : ''}
   </div>
   ${related}
+  ${postNeighborsHtml(d.prev, d.next, en)}
   ${d.comments.html}
   </div><aside class="wx-side">${side}</aside></div>
   ${foot(s, footLinksFor(s, en).article)}

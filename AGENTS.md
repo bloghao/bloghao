@@ -37,7 +37,7 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 **XSS / 净化（tests/sanitize.test.ts、tests/markdown.test.ts）**
 
 - URL 白名单校验（sanitize.ts `safeUrl`、markdown.ts `safeUrlMd`）必须**先剥离 `\t\r\n`** 再做前缀判断——URL 解析器会忽略这些字符，`jav\tascript:` 这类混淆靠原始字符串拦不住；放行出的属性值必须再经 `escAttr`（实体二次转义也是防线）
-- 净化器**不放行 `id` 属性**（DOM clobbering 会打瘫评论区）；`<meta data-og-image>` 是唯一例外，改 OG 卡图功能时同步 tests/sanitize.test.ts 与 docs/API.md 白名单摘要
+- 净化器**不放行 `id` 属性**（DOM clobbering 会打瘫评论区）；`<meta data-og-image>` 是唯一例外，改 OG 卡图功能时同步 tests/sanitize.test.ts 与 docs/API.md 白名单摘要；正文标题锚点同源例外——pages.ts renderPost 用 render.ts `headingAnchors` 在净化**之后**给 h2/h3 注入渲染期生成的 `toc-N` id（非用户输入），wechat 主题目录卡与 site.js 标题 hover ¶ 共用这份 id
 - markdown.ts 的 `inline()` 收到的文本已经 `escLine` 转义过，属性上下文只能用 `escQuote` 补引号，**严禁再过 `escAttr`**（会把 `&` 打成 `&amp;amp;`，含参数的链接/图片 URL 全坏）
 - 图片转存（collect.ts）**只认文件魔数**（`sniffImageExt`），不信任源站 Content-Type / URL 参数；`/images/` 路由必须保留 `X-Content-Type-Options: nosniff`
 - sanitizeHtml 的**透传段统一过 `escapeStrayLt`**：未终结的标签前缀（`<img src=x onerror=…` 无 `>`）与未闭合 `<!--` 曾原样透传，浏览器会把后续页面标记当 img 属性（内联事件复活）或把整页吞进注释——改净化器别拆这个防护

@@ -270,6 +270,27 @@ export async function yearArchiveStats(db: D1Database): Promise<{ count: number;
   return { count: row?.n ?? 0, chars: row?.c ?? 0 }
 }
 
+/** 相邻文章（PostData.prev / next）：prev = 更早一篇、next = 更新一篇，口径与列表一致（published、未删）；
+ * 锚点用 COALESCE(published_at, created_at)，与归档分组同口径 */
+export async function adjacentPosts(
+  db: D1Database,
+  ts: number,
+  id: number
+): Promise<{ prev: { slug: string; title: string } | null; next: { slug: string; title: string } | null }> {
+  const where = "FROM posts WHERE status = 'published' AND deleted_at IS NULL AND id != ? AND COALESCE(published_at, created_at)"
+  const [prev, next] = await Promise.all([
+    db
+      .prepare(`SELECT slug, title ${where} < ? ORDER BY COALESCE(published_at, created_at) DESC LIMIT 1`)
+      .bind(id, ts)
+      .first<{ slug: string; title: string }>(),
+    db
+      .prepare(`SELECT slug, title ${where} > ? ORDER BY COALESCE(published_at, created_at) ASC LIMIT 1`)
+      .bind(id, ts)
+      .first<{ slug: string; title: string }>(),
+  ])
+  return { prev: prev ?? null, next: next ?? null }
+}
+
 /** sitemap 用的轻量列表：slug + updated_at（不走 listPosts——它的 limit 被 clamp 到 100） */
 export async function listSitemapPosts(db: D1Database): Promise<{ slug: string; updated_at: number }[]> {
   const { results } = await db

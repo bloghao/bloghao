@@ -20,6 +20,7 @@ import {
   paywallHtml,
   plural,
   yearStatsSuffix,
+  postNeighborsHtml,
   rankListHtml,
   shareBtn,
   siteMode,
@@ -161,6 +162,7 @@ export function post(d: PostData): string {
       ${p.tags.map((t) => `<a class="pp-tag" href="${tagLink(t)}">${esc(t)}</a>`).join('')}
     </div>
     ${related}
+    ${postNeighborsHtml(d.prev, d.next, en)}
     ${d.comments.html}
   </article>
   ${foot(d.settings, en ? footLinksEn(d.settings).post : FOOT_LINKS.post)}

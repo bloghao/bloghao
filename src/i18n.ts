@@ -61,6 +61,8 @@ const ZH_EN: Record<string, string> = {
   // 评论区
   '作者': 'Author',
   '回复': 'Reply',
+  '上一篇': 'Previous',
+  '下一篇': 'Next',
   '昵称': 'Name',
   'QQ 号（选填，展示头像）': 'QQ ID (optional, shows an avatar)',
   '仅用于抓取头像，不会公开展示': 'Only used to fetch the avatar; never shown publicly',

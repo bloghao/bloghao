@@ -7,7 +7,7 @@ import type { ThemeModule } from '../src/themes/registry.ts'
 import type { AboutData, ArchivesData, GuestbookData, HomeData, LinksData, MemberData, PageData, RankData, WeiboData } from '../src/themes/registry.ts'
 import type { HomePostView, MemberView, RankEntryView, WeiboItemView, ArchiveYearGroup, FriendLinkView, CategoryLink, TagCount } from '../src/render.ts'
 import type { CommentRow } from '../src/types.ts'
-import { commentsHtml, memberCardHtml, rankListHtml } from '../src/render.ts'
+import { commentsHtml, headingAnchors, memberCardHtml, postNeighborsHtml, rankListHtml } from '../src/render.ts'
 import { esc } from '../src/utils.ts'
 import { packMatrix, qrMatrix } from '../src/qrcode.ts'
 
@@ -180,6 +180,13 @@ for (const [themeId, theme] of Object.entries(THEMES as Record<string, ThemeModu
     assert.ok(html.includes('cmt-list'))
     // 未传 share 不渲染分享按钮
     assert.ok(!html.includes('share-btn'), `${themeId}.post 无 share 数据时不应渲染分享按钮`)
+    // 上一篇/下一篇：传了才渲染（结构由 render.ts postNeighborsHtml 共享，样式各主题 .pn-*）
+    const withPn = theme.post({ ...postData(), prev: { slug: 'older-post', title: '上一次的旅行' }, next: { slug: 'newer-post', title: '下一次的旅行' } })
+    assert.ok(withPn.includes('pn-nav'), `${themeId}.post 传 prev/next 应渲染相邻导航`)
+    assert.ok(withPn.includes('href="/post/older-post"'))
+    assert.ok(withPn.includes('上一次的旅行'))
+    assert.ok(!withPn.includes('pn-empty'), '两侧都有时无占位空格')
+    assert.ok(!html.includes('pn-nav'), `${themeId}.post 未传 prev/next 不渲染相邻导航`)
   })
 
   test(`${themeId}: post 渲染分享按钮（canonical 链接 + QR 矩阵位串无损下发）`, () => {
@@ -444,19 +451,44 @@ test('SSR 评论头像位：游客自填 QQ 的站内头像出图；与会员头
 
 // ── 桌面端增强（wechat 主题先行：≥1024px 两栏布局 + 文章页目录栏；CSS 断点见 wechat.css 桌面段） ──
 
-test('wechat 桌面增强：post 从正文提取 h2/h3 注入 toc-N 锚点并渲染目录卡', () => {
+test('headingAnchors：给净化后正文 h2/h3 注入 toc-N 生成 id（pages.ts 统一调用，七主题受益）', () => {
+  const out = headingAnchors('<h2>第一节</h2><p>内容</p><h3 class="k">子标题</h3><h2>第二节 &amp; 收尾</h2>')
+  assert.equal(
+    out.html,
+    '<h2 id="toc-1">第一节</h2><p>内容</p><h3 class="k" id="toc-2">子标题</h3><h2 id="toc-3">第二节 &amp; 收尾</h2>',
+    '原属性保留、id 注入、正文其余部分不动'
+  )
+  assert.deepEqual(
+    out.items.map((i) => [i.level, i.id, i.text]),
+    [
+      [2, 'toc-1', '第一节'],
+      [3, 'toc-2', '子标题'],
+      [2, 'toc-3', '第二节 &amp; 收尾'],
+    ],
+    'text 是剥标签后的已转义片段（主题插入时不再 esc）'
+  )
+  assert.deepEqual(headingAnchors('<p>无标题</p>').items, [])
+  assert.equal(headingAnchors('<p>无标题</p>').html, '<p>无标题</p>', '无标题正文原样返回')
+  assert.deepEqual(headingAnchors('').items, [])
+})
+
+test('wechat 桌面增强：post 按 headings 渲染目录卡（锚点 id 由 pages.ts headingAnchors 注入）', () => {
   const d = postData()
-  d.post.contentHtml = '<h2>第一节</h2><p>内容</p><h3>子标题</h3><h2>第二节 &amp; 收尾</h2>'
+  d.post.contentHtml = '<h2 id="toc-1">第一节</h2><p>内容</p><h3 id="toc-2">子标题</h3><h2 id="toc-3">第二节 &amp; 收尾</h2>'
+  d.headings = [
+    { level: 2, text: '第一节', id: 'toc-1' },
+    { level: 3, text: '子标题', id: 'toc-2' },
+    { level: 2, text: '第二节 &amp; 收尾', id: 'toc-3' },
+  ]
   const html = THEMES.wechat.post(d)
   assert.ok(html.includes('wx-toc'), '应渲染目录卡')
-  assert.ok(html.includes('<h2 id="toc-1">'), '标题注入锚点 id（渲染期生成，非用户输入）')
+  assert.ok(html.includes('<h2 id="toc-1">'), '正文里的锚点 id 原样保留')
   assert.ok(html.includes('<h3 id="toc-2">'))
-  assert.ok(html.includes('<h2 id="toc-3">'))
   assert.ok(html.includes('href="#toc-1"'), '目录项链接指向锚点')
   assert.ok(html.includes('第一节'), '目录文本来自标题')
-  const one = THEMES.wechat.post({ ...d, post: { ...d.post, contentHtml: '<h2>唯一一节</h2><p>内容</p>' } })
+  const one = THEMES.wechat.post({ ...d, headings: d.headings!.slice(0, 1) })
   assert.ok(!one.includes('wx-toc'), '不足 2 条标题不出目录卡')
-  assert.ok(!THEMES.wechat.post(postData()).includes('wx-toc'), '无标题正文不出目录卡（密码墙表单同理）')
+  assert.ok(!THEMES.wechat.post(postData()).includes('wx-toc'), '无 headings 不出目录卡（密码墙表单同理）')
 })
 
 test('wechat 桌面增强：home 有标签/分类时出侧栏，全空则退单栏', () => {
@@ -467,4 +499,23 @@ test('wechat 桌面增强：home 有标签/分类时出侧栏，全空则退单�
   assert.ok(html.includes('共 1 篇'), '话题卡头带文章总数')
   const bare = THEMES.wechat.home({ ...homeData(), tags: [], categories: [] })
   assert.ok(!bare.includes('wx-side'), '无标签无分类不出侧栏（单栏版式）')
+})
+
+// ── 上一篇/下一篇导航（结构共享，样式各主题 .pn-*） ──
+
+test('postNeighborsHtml：两侧齐全/缺一侧/全空三种形态', () => {
+  const prev = { slug: 'a', title: '旧文 & 转义' }
+  const next = { slug: 'b', title: '新文' }
+  const both = postNeighborsHtml(prev, next)
+  assert.ok(both.startsWith('<nav class="pn-nav">'), '语义化 nav 开场')
+  assert.ok(both.includes('href="/post/a"'), 'slug 直拼（cleanSlug 口径，esc 兜底）')
+  assert.ok(both.includes('旧文 &amp; 转义'), '标题转义')
+  assert.ok(both.includes('pn-label'), '带「上一篇/下一篇」标签')
+  assert.ok(!both.includes('pn-empty'), '两侧齐全无占位')
+  const onlyPrev = postNeighborsHtml(prev, null)
+  assert.ok(onlyPrev.includes('href="/post/a"'))
+  assert.ok(onlyPrev.includes('pn-empty'), '缺的一侧出占位空格保持两端对齐')
+  assert.ok(!onlyPrev.includes('href="/post/b"'))
+  assert.equal(postNeighborsHtml(null, undefined), '', '两侧全空返回空串')
+  assert.equal(postNeighborsHtml(null, next).includes('上一篇'), false, '只传 next 时无上一篇链接')
 })

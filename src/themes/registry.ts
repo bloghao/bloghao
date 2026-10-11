@@ -107,6 +107,19 @@ export interface LinksData {
   total: number
 }
 
+/** 正文标题锚点（render.ts headingAnchors 的产物；wechat 主题拿它渲染目录卡，site.js 据 id 出 hover ¶） */
+export interface PostHeading {
+  level: 2 | 3
+  text: string
+  id: string
+}
+
+/** 相邻文章链接（PostData.prev / next，pages 层构建） */
+export interface PostLink {
+  slug: string
+  title: string
+}
+
 export interface PostData {
   settings: SettingsMap
   post: {
@@ -131,6 +144,11 @@ export interface PostData {
   tags?: TagCount[]
   comments: { html: string; count: number }
   related: HomePostView[]
+  /** 上一篇/下一篇（prev = 更早一篇、next = 更新一篇；草稿预览不出）；主题走 render.ts postNeighborsHtml 渲染 */
+  prev?: PostLink | null
+  next?: PostLink | null
+  /** 正文标题锚点（contentHtml 里已注入对应 toc-N id；未传 = 无标题或密码墙表单） */
+  headings?: PostHeading[]
   /** 分享按钮数据：canonical 绝对链接 + 该链接的 QR 矩阵位串（src/qrcode.ts 打包；qr 为空串表示超长未生成） */
   share?: { url: string; qr: string }
 }

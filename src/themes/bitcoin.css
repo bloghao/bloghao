@@ -734,3 +734,23 @@ main .gb-section { margin-top: 12px; }
   .bt-footer-row { flex-direction: column; }
   .bt-footer-links a { margin-left: 0; margin-right: 14px; }
 }
+
+/* ---------- 上一篇/下一篇（.pn-* 结构由 render.ts postNeighborsHtml 输出，主题自调色） ---------- */
+.pn-nav { display: flex; gap: 12px; margin: 26px 0 0; }
+.pn-cell {
+  flex: 1; min-width: 0; display: block;
+  padding: 12px 14px;
+  border: 1px solid var(--bt-border);
+  border-radius: 12px;
+  background: var(--bt-surface);
+  text-decoration: none;
+}
+.pn-next { text-align: right; }
+.pn-empty { pointer-events: none; border-style: dashed; opacity: 0.55; }
+.pn-label { display: block; font-size: 12px; color: var(--bt-muted); margin-bottom: 4px; }
+.pn-title {
+  display: block; font-size: 13.5px; font-weight: 500; color: var(--bt-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: color 0.15s ease;
+}
+.pn-cell:hover .pn-title { color: var(--bt-accent-deep); }

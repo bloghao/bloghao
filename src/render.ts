@@ -382,6 +382,35 @@ export function yearStatsSuffix(stats: { count: number; chars: number } | undefi
   return ` · 今年已写 ${stats.count} 篇${wan}`
 }
 
+/** 正文标题锚点：给净化后正文 h2/h3 注入 toc-N 生成 id（id 由渲染端生成、非用户输入，
+ * 不触净化器「不放行 id」的 DOM clobbering 防线），pages.ts renderPost 对七主题统一调用；
+ * wechat 主题用返回的 items 渲染目录卡，site.js 据标题上的 id 出桌面 hover ¶ 复制链接。
+ * text 是剥标签后的已转义 HTML 片段（sanitize 前已转义），插入 HTML 时原样使用勿再 esc */
+export function headingAnchors(contentHtml: string): { html: string; items: { level: 2 | 3; text: string; id: string }[] } {
+  const items: { level: 2 | 3; text: string; id: string }[] = []
+  const html = contentHtml.replace(/<(h[23])((?:\s[^>]*)?)>([\s\S]*?)<\/\1>/g, (_m: string, tag: string, attrs: string, inner: string) => {
+    const id = `toc-${items.length + 1}`
+    items.push({ level: tag === 'h2' ? 2 : 3, text: inner.replace(/<[^>]*>/g, '').trim(), id })
+    return `<${tag}${attrs} id="${id}">${inner}</${tag}>`
+  })
+  return { html, items }
+}
+
+/** 上一篇/下一篇导航（prev = 更早一篇、next = 更新一篇）：七主题共享结构、各主题按自己的
+ * 变量调 .pn-* 样式；缺一侧出占位空格保持两端对齐，两侧都空返回空串（不产生任何输出） */
+export function postNeighborsHtml(
+  prev: { slug: string; title: string } | null | undefined,
+  next: { slug: string; title: string } | null | undefined,
+  en = false
+): string {
+  if (!prev && !next) return ''
+  const cell = (n: { slug: string; title: string } | null | undefined, label: string, side: 'prev' | 'next') =>
+    n
+      ? `<a class="pn-cell pn-${side}" href="/post/${esc(n.slug)}"><span class="pn-label">${label}</span><span class="pn-title">${esc(n.title)}</span></a>`
+      : `<span class="pn-cell pn-${side} pn-empty" aria-hidden="true"></span>`
+  return `<nav class="pn-nav">${cell(prev, tr(en, '上一篇'), 'prev')}${cell(next, tr(en, '下一篇'), 'next')}</nav>`
+}
+
 /** 归档列表 HTML：每篇一行的 <time> + 标题链接（纯静态超链接，利于搜索引擎收录）；en 时日期换英文短格式 */
 export function archiveListHtml(groups: ArchiveYearGroup[], en = false): string {
   return groups

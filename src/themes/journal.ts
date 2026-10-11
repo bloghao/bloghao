@@ -22,6 +22,7 @@ import {
   paywallHtml,
   plural,
   yearStatsSuffix,
+  postNeighborsHtml,
   rankListHtml,
   shareBtn,
   siteMode,
@@ -170,6 +171,7 @@ export function post(d: PostData): string {
     </div>
   </article>
   ${related}
+  ${postNeighborsHtml(d.prev, d.next, en)}
   ${d.comments.html}
   </main>
   ${foot(d.settings, en ? FOOT_LINKS_EN.article : FOOT_LINKS.article)}

@@ -124,6 +124,10 @@ try {
   // 回归守卫：多标签文章（relatedPosts OR 拼接）与无标签文章（兜底查询）都必须 200
   await check('GET', '/post/smoke-multi-tag', 200, '冒烟测试：多标签文章')
   await check('GET', '/post/smoke-no-tag', 200)
+  // 上一篇/下一篇：夹具 ≥2 篇已发布文章，文章页必有相邻导航
+  await check('GET', '/post/smoke-multi-tag', 200, 'pn-nav')
+  // 标题锚点：headingAnchors 给 h2/h3 注入 toc-N id（wechat 主题目录卡与 site.js hover ¶ 同源）
+  await check('GET', '/post/smoke-multi-tag', 200, 'id="toc-')
   // 结构化数据（roadmap A3）：文章页必须输出 schema.org JSON-LD
   await check('GET', '/post/smoke-multi-tag', 200, 'application/ld+json')
   await check('GET', `/tag/${encodeURIComponent('冒烟测试')}`, 200, 'smoke-multi-tag')

@@ -60,6 +60,7 @@
     '复制代码': 'Copy code',
     '已复制': 'Copied',
     '复制失败': 'Copy failed',
+    '复制本节链接': 'Copy link to this section',
   }
   function T(zh) {
     return EN ? EN_STR[zh] || zh : zh
@@ -1688,6 +1689,63 @@
         })
         wrap.appendChild(btn)
       })(pres[i])
+    }
+  })()
+
+  /* ---------------- 标题锚点 ¶：桌面 hover h2/h3 浮现，点击复制带锚点的链接 ----------------
+   * id 由服务端 pages.ts headingAnchors 注入（toc-N）；触屏无 hover 不出，防误触 */
+  ;(function () {
+    if (!window.matchMedia || !window.matchMedia('(hover: hover)').matches) return
+    var rich = document.querySelector('.rich')
+    if (!rich) return
+    var heads = rich.querySelectorAll('h2[id], h3[id]')
+    var pinned = null
+    function copyUrl(url, ok) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(ok, function () {})
+      } else {
+        var ta = document.createElement('textarea')
+        ta.value = url
+        ta.style.cssText = 'position:fixed;left:-9999px;top:0;'
+        document.body.appendChild(ta)
+        ta.select()
+        try {
+          document.execCommand('copy')
+          ok()
+        } catch (e) {}
+        document.body.removeChild(ta)
+      }
+    }
+    for (var i = 0; i < heads.length; i++) {
+      ;(function (h) {
+        h.addEventListener('mouseenter', function () {
+          if (h.querySelector('.xw-hanchor')) return
+          var a = document.createElement('a')
+          a.className = 'xw-hanchor'
+          a.href = '#' + h.id
+          a.textContent = '¶'
+          a.title = T('复制本节链接')
+          a.setAttribute('aria-label', T('复制本节链接'))
+          a.style.cssText = 'margin-left:8px;font-weight:400;text-decoration:none;opacity:0.55;color:inherit;'
+          a.addEventListener('click', function (e) {
+            e.preventDefault()
+            copyUrl(location.href.split('#')[0] + '#' + h.id, function () {
+              a.textContent = '✓'
+              pinned = a
+              setTimeout(function () {
+                pinned = null
+                if (a.parentNode) a.parentNode.removeChild(a)
+              }, 1100)
+            })
+          })
+          h.appendChild(a)
+        })
+        h.addEventListener('mouseleave', function () {
+          if (pinned && pinned.parentNode === h) return
+          var a = h.querySelector('.xw-hanchor')
+          if (a) a.parentNode.removeChild(a)
+        })
+      })(heads[i])
     }
   })()
 

@@ -8,6 +8,7 @@ import {
   getPostBySlug,
   getPostCategoryId,
   getSettings,
+  adjacentPosts,
   listAllPublishedArchives,
   yearArchiveStats,
   listApprovedComments,
@@ -34,6 +35,7 @@ import { searchPosts, searchWeibo } from './fts'
 import {
   articleJsonLd,
   archiveGroups,
+  headingAnchors,
   commentsHtml,
   HOME_SORTS,
   isEn,
@@ -444,7 +446,7 @@ export async function renderPost(c: C): Promise<Response> {
     if (!isPreview || !user) return renderNotFound(c)
   }
 
-  const [comments, related, categories, categoryId, user, tags, pages, commentTotal, member] = await Promise.all([
+  const [comments, related, categories, categoryId, user, tags, pages, commentTotal, member, neighbors] = await Promise.all([
     listApprovedComments(c.env.DB, row.id),
     relatedPosts(c.env.DB, row),
     navCategories(c),
@@ -456,6 +458,10 @@ export async function renderPost(c: C): Promise<Response> {
     commentCount(c, row.id),
     // 会员会话（付费墙可见判定用；membersEnabled 关闭时不查——关着的时候锁文对所有人生效）
     membersEnabled(settings) ? getMemberUser(c.env.DB, c.req.raw) : Promise.resolve(null),
+    // 上一篇/下一篇（prev = 更早、next = 更新）：草稿预览不出
+    row.status === 'published'
+      ? adjacentPosts(c.env.DB, row.published_at ?? row.created_at, row.id)
+      : Promise.resolve({ prev: null, next: null }),
   ])
   const categoryRow = categoryId ? await c.env.DB.prepare('SELECT name, slug FROM categories WHERE id = ?').bind(categoryId).first<{ name: string; slug: string }>() : null
 
@@ -500,13 +506,18 @@ export async function renderPost(c: C): Promise<Response> {
     en,
   })
 
+  // 正文 HTML：密码墙出解锁表单，locked 只下发试读段；标题锚点由 render.ts headingAnchors 对
+  // 七主题统一注入 toc-N 生成 id（wechat 主题目录卡与 site.js 标题 ¶ 同源），密码墙正文零参与
+  const bodyHtml = pwLocked ? passwordFormHtml(row.slug, { error: lockedError, en }) : locked ? teaserHtml(fullHtml) : fullHtml
+  const anchored = pwLocked ? { html: bodyHtml, items: [] } : headingAnchors(bodyHtml)
+
   const html = theme.post({
     settings,
     post: {
       slug: row.slug,
       title: row.title,
       // 封面图与正文首图重复时渲染正文去掉首图，避免一图两现；密码墙出解锁表单，locked 只下发试读段
-      contentHtml: pwLocked ? passwordFormHtml(row.slug, { error: lockedError, en }) : locked ? teaserHtml(fullHtml) : fullHtml,
+      contentHtml: anchored.html,
       summary: row.summary,
       cover: row.cover,
       tags: parseTags(row),
@@ -523,6 +534,9 @@ export async function renderPost(c: C): Promise<Response> {
     pages,
     comments: { html: commentsBlock, count: commentTotal },
     related: related.map((p) => toHomePost(p, parseTags(p))),
+    prev: neighbors.prev,
+    next: neighbors.next,
+    headings: anchored.items,
     share,
   })
   c.header('Cache-Control', 'no-cache')
