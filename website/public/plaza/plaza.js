@@ -70,7 +70,8 @@
         '<a class="plaza-card-link" href="' + esc(it.url) + '" target="_blank" rel="noopener">' +
         '<h3 class="plaza-card-title">' + esc(it.title) + '</h3>' +
         '</a>' +
-        (it.summary && it.summary !== it.title ? '<p class="plaza-card-summary">' + esc(it.summary) + '</p>' : '') +
+        // 摘要与标题是同文截断关系时（微博 title=前80字、summary=前500字）不再重复渲染
+        (it.summary && it.summary !== it.title && !(it.summary && it.summary.startsWith(it.title)) ? '<p class="plaza-card-summary">' + esc(it.summary) + '</p>' : '') +
         '<div class="plaza-card-meta">' +
         '<a class="plaza-site-link" href="' + esc(it.siteUrl) + '" target="_blank" rel="noopener">' + esc(it.siteName) + '</a>' +
         (it.siteVerified ? '<span class="plaza-badge" title="站点已通过所有权验证">' + BADGE_SVG + '</span>' : '') +
