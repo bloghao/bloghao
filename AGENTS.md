@@ -145,6 +145,7 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 
 - schema.sql 与 db.ts 的 SCHEMA_COLUMNS/SCHEMA_TABLES 是同一 schema 的两份表达：**加列/表必须两处同步**，且 cron（index.ts `scheduled()`）入口已强制先跑 ensureSchema——冷启动 isolate 不经过 fetch 中间件
 - 「关于我」→ 页面系统的播种在 ensureSchema 末尾：以 settings 记账位 `pagesSeeded` 防重复（页面删了也不复活），改迁移逻辑别破坏这个幂等性
+- 页脚「站点足迹」统计（settings `siteFoot` JSON：累计篇数/字数/最早发文）由备份 cron 夜更（db.ts `refreshFootStats`）+ ensureSchema 冷启动键缺失时播种，页脚名片（render.ts `footCardHtml`，七主题 .fc-*）只读不查——别改成页面渲染时实时聚合
 - 导出 zip 是流式生成（zip.ts 用数据描述符，图片从 R2 边流边算 CRC）——改导出逻辑别把图片改成整包缓冲，Workers 内存扛不住；新表记得手动加进 backup.ts 的 BACKUP_TABLES
 - 备份表数超过 `TABLE_ROW_LIMIT` 会在文件与 TG 中告警（backup.ts），改备份逻辑别把告警删了
 - 一键闭站（src/closed.ts，index.ts 挂中间件）的白名单是「关站后自己进得去」的底线：`/admin`、`/api/admin`、`/api/auth`、`/api/meta`、`/api/health`、`/images` 必须放行，其余（页面 / RSS / sitemap / 公开 API）一律 503 + Retry-After（保搜索收录），已登录管理员放行预览——tests/site-status.test.ts 与冒烟「一键闭站链路」守着，动入口中间件先跑；灰度开关是 render.ts 往 `<html>` 注入 `filter:grayscale(100%)`，filter 会改 fixed 后代的定位基准，新主题引入 fixed 元素时先复查
