@@ -44,6 +44,7 @@
       <li><a href="typography.html">🩺 排版规范</a></li>
       <li><a href="demo.html">🎪 演示站指南</a></li>
       <li><a class="is-active" href="roadmap.html">🗺️ 路线图</a></li>
+      <li><a href="versions.html">🏷️ 版本更新说明</a></li>
       </ul>
       <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
     </aside>
@@ -155,8 +156,8 @@
 </tr>
 <tr>
 <td>B9</td>
-<td>主题外观变量</td>
-<td>颜色 / 圆角 / 字体后台可调、不动代码——主题生态数量为零时降低使用门槛的最短路径</td>
+<td>🔶 主题外观变量（2026-10-11 内测 v1 落地）</td>
+<td>后台「皮肤 → 外观变量」（内测标）：颜色 7 语义角色（主色/正文/次要/背景/卡片/分隔线/链接）+ 正文字体（衬线/黑体预设 + 自定义栈）+ 正文字号，映射到各主题自己的 CSS 变量输出覆盖样式；机制在 src/appearance.ts（含 bitcoin/rednote 主色 color-mix 深浅衍生），防线见 AGENTS.md。<strong>v1 未做</strong>：圆角（主题 border-radius 未变量化，做之前要先把各主题圆角收成 token，另行排期）、编辑器内实时预览</td>
 </tr>
 <tr>
 <td>B10</td>
@@ -301,7 +302,7 @@
   
   <nav class="docs-pager">
     <a class="docs-pager-link is-prev" href="demo.html"><span>← 上一篇</span><b>🎪 演示站指南</b></a>
-    <span></span>
+    <a class="docs-pager-link is-next" href="versions.html"><span>下一篇 →</span><b>🏷️ 版本更新说明</b></a>
   </nav>
   </main>
   

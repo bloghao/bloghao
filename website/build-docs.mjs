@@ -27,6 +27,7 @@ const DOCS = [
   { slug: 'typography', file: 'wechat-typography-spec.md', icon: '🩺', title: '排版规范', desc: '微信编辑器插件开发规范的落地对照表与体检规则。' },
   { slug: 'demo', file: 'DEMO.md', icon: '🎪', title: '演示站指南', desc: '官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫。' },
   { slug: 'roadmap', file: 'ROADMAP.md', icon: '🗺️', title: '路线图', desc: '已上线能力与近期计划，按 A / B / C 优先级管理的开发方向。' },
+  { slug: 'versions', file: 'VERSIONS.md', icon: '🏷️', title: '版本更新说明', desc: '从 2026-10-03 项目诞生到今天的大版本大事记：每个版本带来了什么，博客号一路怎么长成现在这样。' },
 ]
 const byFile = new Map(DOCS.map((d) => [d.file, d]))
 

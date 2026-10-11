@@ -62,6 +62,7 @@ grep -rn "<关键词>" . --exclude-dir=node_modules   # 剔除后搜残留引用
 ### 4. 回填版本档案（属于本次发布提交的一部分）
 
 - 根目录 CHANGELOG.md：Unreleased 区整段移入新版本小节，写日期与版本号，更新底部 compare 链接
+- docs/VERSIONS.md 版本大事记（官网「版本更新说明」页源文件）：新版本补一节要点并同步「版本速览」表
 - `package.json`：`version` bump 到本次版本号
 
 ### 5. 三道闸 + 单提交推 upstream

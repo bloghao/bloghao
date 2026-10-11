@@ -14,7 +14,7 @@
 - 技术栈：Cloudflare Workers（hono 路由）+ D1（SQLite）+ R2（图片存储）；公开页服务端渲染，后台原生 JS SPA，无构建链
 - 目录速查：
   - `src/pages.ts` 渲染公开页；`src/api.ts` 全部 JSON API；`src/collect.ts` 公众号采集插件服务端
-  - `src/themes/` 六套主题（wechat / paper / minimal / midnight / journal / bitcoin）+ `registry.ts` 注册表
+  - `src/themes/` 七套主题（wechat / paper / minimal / midnight / journal / bitcoin / rednote）+ `registry.ts` 注册表
   - `public/admin/` 后台（app.js 路由与页面、editor.js 写作编辑器）；`public/plugins/` 编辑器插件
 - 常用命令：`npm run dev` 本地开发；`npm run typecheck` 与 `npm test` 提交前必须通过；`npm run smoke` 本地路由冒烟
 
@@ -28,6 +28,7 @@
 - [API 参考](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/API.md)：全部公开 / 管理接口，HTML 净化白名单摘要也在这里，写自己的客户端
 - [微信排版规范](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/wechat-typography-spec.md)：微信编辑器插件开发规范的落地对照表与体检规则
 - [路线图](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/ROADMAP.md)：已上线能力与近期计划
+- [版本更新说明](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/VERSIONS.md)：从项目诞生到今天的大版本大事记，每个版本带来了什么
 
 ## 给智能体与贡献者的提示
 
