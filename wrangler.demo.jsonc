@@ -17,9 +17,11 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-09-01",
 
-  // 官方演示站独立域名（bloghao.com 同账号 zone）：部署时自动绑定 Custom Domain 并签发证书，
-  // 官网 bloghao.com 的演示入口指向这里；不需要时删掉本条再重新部署即可
-  "routes": [{ "pattern": "demo.bloghao.com", "custom_domain": true }],
+  // 官方演示站域名：**2026-10-11 起演示站自托管迁往甲骨文服务器（146）的 bloghao-demo
+  // Docker 容器**（此前跑在另一台小服务器上由 nginx 反代；从未走过 Worker——本配置里的
+  // D1/R2 是按 docs/DEMO.md 预留的第二套资源，database_id 仍是占位符）。自托管形态要绑
+  // 官方域名时才恢复本条（需先建好 D1/R2 并替换占位 id）再 `npm run deploy:demo`。
+  // "routes": [{ "pattern": "demo.bloghao.com", "custom_domain": true }],
 
   "assets": {
     "directory": "./public",

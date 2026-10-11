@@ -78,6 +78,14 @@ npm run dev:demo
 演示守卫），适合给服务器侧的体验环境用。本仓库与它只保持「代码快照」关系——体验站的功能
 以这里为准，改种子内容后按该仓库内的同步脚本重新导出即可。
 
+> **官方演示站现行形态（2026-10-11 起）**：https://demo.bloghao.com 就是这个 Docker 自托管
+> 版——跑在甲骨文服务器（`/home/ubuntu/apps/bloghao-demo`，容器 127.0.0.1:8786，Caddy
+> demo 站点块反代），租户 `tenants.json` 配 `demo.bloghao.com`；此前跑在另一台小服务器
+> （nginx 反代）的旧部署已停。上面的 Worker 形态保留作备用：`wrangler.demo.jsonc` 里的
+> D1/R2 资源尚未创建（database_id 是占位符）、routes 已注释，要切回 Worker 形态需先建
+> 资源再 `npm run deploy:demo`。同步流程：主仓库改动后本地跑
+> `scripts/sync-from-bloghao.sh` 提交推送，服务器 `git pull && docker compose up --build -d`。
+
 ## 改种子内容
 
 种子数据全部在代码里（重置时可从代码原样重建，不依赖外部服务）：
