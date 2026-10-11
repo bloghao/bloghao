@@ -152,12 +152,14 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 
 ## Git 约定
 
-- **单仓库**（2026-10-11 起，废止旧「双仓库、两角色」约定）：origin = `github.com/bloghao/bloghao`，唯一远端——滚动开发直接进 main，日常提交验证通过后即推 origin；远端有新提交时先 `git rebase origin/main` 再推，保持历史线性。旧开发仓库 `lovexw/bloghao-xwblog` 仍在但已停用归档（内容与本仓 main 已分叉），不再向其推送，也不做本仓之外的操作
-- 版本线口径（与单仓库配套）：main 即开发版，**git tag 即稳定版**——攒完一个功能批次跑全量 `typecheck + test + smoke`，通过后打 `vX.Y.Z` tag 并回填 CHANGELOG；Cloudflare 主站跟 main 滚动部署，docker 自托管分站跟 tag（服务器 `git checkout <tag>` 后 `docker compose up --build -d`），演示站跟 main
-- 旧「upstream 默认冻结 + squash 挑洗发布」流程随之废止：docs/RELEASING.md 的发布清单仅作历史参考；文末「个人定制台账」降级为备忘录（记哪些内容属本站专属运营属性），不再承担发布挑洗职能，但本站专属内容合入 main 当天照旧登记一笔
-- 开发线定位：xwblog 已完成「互动与创收」第一批功能（会员 / 积分 / 排行榜 / 访问密码，用法见 GUIDE §15）；后续方向见 docs/ROADMAP.md
-- README / docs / 官网以「博客号 BlogHao」官方项目口吻书写；线上地址 blog.xiaowuleyi.com 在文档中一律表述为「在线示例」
-- 仓库沿革：2026-10-05 官方发布仓库由 bloghao-blog 改名 `lovexw/bloghao`（独立官网仓库删除、内容并入 `website/`）；2026-10-10 转入 `bloghao` 组织（`lovexw/bloghao` → `bloghao/bloghao`，star / Issue / CI 随转移保留）；2026-10-11 开发线并入本仓 main。遇到提旧仓名或旧双仓库流程的文档一律以现状为准
+- 本工作区服务**双仓库、两角色**（2026-10-11 晚恢复原约定——当日上午曾短暂切过单仓库，同日即废，两仓内容已互结合并）：origin = `github.com/lovexw/bloghao-xwblog`（滚动开发测试仓库，日常提交只推这里），upstream = `github.com/bloghao/bloghao`（官方稳定版仓库，对外开放部署入口，main 永远保持可部署）。不做这两个仓库之外的操作
+- 本地 remote 口径：main 的 upstream 跟踪设为 origin/main（开发仓）——裸 `git push` / `git pull` 都走开发线，推官方必须显式 `git push upstream main`，防开发历史误灌官方仓；开发仓不配 Cloudflare secrets，其 Actions 部署自动跳过（只跑 CI 测试），生产部署只会由官方仓 push 触发
+- 发布流程（**upstream 默认冻结**）：日常提交**只推 origin**；**未经用户明确指示，任何改动都不同步到 upstream**——迭代稳定、攒了成批 feat、修了安全 / 数据问题，都不构成自行发布的理由，只有用户明确说「发布」才走流程：`git fetch upstream`，从 `upstream/main` 切发布分支，`git merge --squash` 本地 main（此时按需挑选/清洗，个人实例定制与实验内容不进官方版），确认 diff 后以单个版本提交推 upstream。两仓库历史允许分叉，**不要** `git push upstream origin/main:main` 直灌开发历史。**发布操作照 docs/RELEASING.md 清单执行**（版本号规则、挑洗依据「个人定制台账」、CHANGELOG 回填与镜像回开发线）；个人定制**合入 main 当天登记进台账**
+- 同步方向永远 dev→stable 单向：**不要**从 upstream pull 覆盖本地（upstream 只接收发布，永不反向流入开发线）
+- 版本线口径：开发仓 main 即最新开发版；官方仓收到的发布提交即稳定版（发布时打 `vX.Y.Z` tag，docker 自托管分站 `git checkout <tag>` 后 `docker compose up --build -d`）；Cloudflare 主站跟官方仓 main 部署（只在发布时更新），演示站从开发线 main 手动部署（`wrangler.demo.jsonc`，见 docs/DEMO.md）
+- 开发线定位：xwblog 已完成「互动与创收」第一批功能（会员 / 积分 / 排行榜 / 访问密码，用法见 GUIDE §15）；后续方向见 docs/ROADMAP.md。本站专属的运营属性（收费配置、站点人设内容）落地时按规则登记个人定制台账，官方版挑洗时剔除
+- README / docs / 官网以「博客号 BlogHao」官方项目口吻书写，对两个仓库都自洽；线上地址 blog.xiaowuleyi.com 在文档中一律表述为「在线示例」
+- 仓库沿革：2026-10-05 官方发布仓库由 bloghao-blog 改名 `lovexw/bloghao`（独立官网仓库删除、内容并入 `website/`）；2026-10-10 转入 `bloghao` 组织（`lovexw/bloghao` → `bloghao/bloghao`，star / Issue / CI 随转移保留）；2026-10-11 上午曾切单仓库、开发线并入官方仓，同日晚恢复双仓库并完成两仓内容互结合并。遇到提旧仓名的文档一律以现名为准
 - 提交信息沿用 `theme:` / `mobile:` / `docs:` / `brand:` 等前缀的中文风格
 
 ## 全站移动端适配（长期约定）
