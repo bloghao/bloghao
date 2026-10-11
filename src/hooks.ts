@@ -250,8 +250,8 @@ export async function listBufferChannels(
  * pull 补漏路（hub 定时抓 /rss.xml 文章）在 hub 侧，见 plaza/。
  */
 
-/** 官方广场 hub（唯一官方入口）：plazaEndpoint 留空时回落到这里 */
-const PLAZA_OFFICIAL_HUB = 'https://plaza.bloghao.com'
+/** 官方广场 hub（唯一官方入口）：plazaEndpoint 留空时回落到这里。页面与数据面同域，API 挂在 /plaza 路径下 */
+const PLAZA_OFFICIAL_HUB = 'https://bloghao.com/plaza'
 
 /** 广场 ingest 签名：HMAC-SHA256(token, `ts.rawBody`) → hex。与 hub 校验端同一算法（tests 双端镜像） */
 export async function plazaSign(token: string, ts: string, rawBody: string): Promise<string> {

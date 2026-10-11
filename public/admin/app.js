@@ -2681,7 +2681,7 @@ async function viewSettings() {
         </div>
         <div class="form-item">
           <label>广场地址（广场同步插件：文章与微博发布时同步到官网广场 bloghao.com/plaza；留空 = 官方 hub，自建 hub 才填自己的地址）</label>
-          <input class="input" id="st-plazaEndpoint" placeholder="留空 = 官方 hub（https://plaza.bloghao.com）" value="${esc(s.plazaEndpoint || '')}">
+          <input class="input" id="st-plazaEndpoint" placeholder="留空 = 官方 hub（https://bloghao.com/plaza）" value="${esc(s.plazaEndpoint || '')}">
         </div>
         <div class="form-item">
           <label>广场站点 Token（在广场 hub 注册站点后发放，见 docs/PLAZA.md；未填 = 不同步）</label>

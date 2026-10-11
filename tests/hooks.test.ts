@@ -269,7 +269,7 @@ test('广场同步：只填 token 即默认同步官方 hub，未填 token 静�
     const env = fakeEnv([{ key: 'plazaToken', value: 'a'.repeat(32) }])
     await firePostPublished(env, { slug: 'a', title: 'b', summary: '', via: 'admin' })
     assert.equal(cap.calls.length, 1)
-    assert.equal(cap.calls[0].url, 'https://plaza.bloghao.com/api/ingest')
+    assert.equal(cap.calls[0].url, 'https://bloghao.com/plaza/api/ingest')
     // 未填 token（未在 hub 注册）：静默不发
     const env0 = fakeEnv([{ key: 'plazaEndpoint', value: 'https://plaza.example.com' }])
     await firePostPublished(env0, { slug: 'a', title: 'b', summary: '', via: 'admin' })

@@ -61,7 +61,8 @@
 ├── paper.ts / paper.css
 ├── minimal.ts / minimal.css
 ├── midnight.ts / midnight.css
-└── bitcoin.ts / bitcoin.css</code></pre></div><h2 id="一个主题需要提供什么">一个主题需要提供什么</h2><p>一套主题 = <strong>八个必需渲染函数</strong>（<code>home</code> / <code>weibo</code> / <code>links</code> / <code>post</code> / <code>about</code> / <code>page</code> / <code>archives</code> / <code>guestbook</code>）+ 两个可选函数（<code>member</code> 会员中心 / <code>rank</code> 排行榜，缺省时 pages.ts 渲染通用版）+ 全局 CSS。新建 <code>src/themes/mytheme.ts</code> 与 <code>src/themes/mytheme.css</code>：</p>
+├── bitcoin.ts / bitcoin.css
+└── rednote.ts / rednote.css</code></pre></div><h2 id="一个主题需要提供什么">一个主题需要提供什么</h2><p>一套主题 = <strong>八个必需渲染函数</strong>（<code>home</code> / <code>weibo</code> / <code>links</code> / <code>post</code> / <code>about</code> / <code>page</code> / <code>archives</code> / <code>guestbook</code>）+ 两个可选函数（<code>member</code> 会员中心 / <code>rank</code> 排行榜，缺省时 pages.ts 渲染通用版）+ 全局 CSS。新建 <code>src/themes/mytheme.ts</code> 与 <code>src/themes/mytheme.css</code>：</p>
 <div class="codeblock" data-lang="ts"><pre><code>import type {
   HomeData, WeiboData, LinksData, PostData, AboutData, PageData, ArchivesData, GuestbookData,
   MemberData, RankData,
@@ -76,7 +77,7 @@ import css from './mytheme.css'
 const id = 'mytheme'
 
 // 入参类型全部来自 registry 的命名类型（HomeData / WeiboData / …，字段含义以 registry.ts 注释为准），
-// 六套官方主题（wechat.ts 最完整）是现成参照。这里示范最常用的 home()：
+// 七套官方主题（wechat.ts 最完整）是现成参照。这里示范最常用的 home()：
 export function home(d: HomeData): string {
   return `&lt;div class=&quot;my-page&quot;&gt;
     ${siteNav({ cls: 'my-snav', categories: d.categories, tags: d.tags, pages: d.pages, active: d.navActive })}

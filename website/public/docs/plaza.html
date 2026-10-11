@@ -60,12 +60,12 @@
 │ 加密/会员锁文自动跳过    │         │ 混排评分 → /api/feed     │  CORS   │                     │
 └────────────────────────┘         └─────────────────────────┘         └────────────────────┘</code></pre></div><h2 id="给博客号站长三步接入">给博客号站长：三步接入</h2><ol>
 <li><strong>联系官方</strong>（<a href="https://github.com/bloghao/bloghao/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> 或社区群）提供你的站点地址，审核通过后拿到一枚 <strong>32 位站点 Token</strong></li>
-<li><strong>后台填配置</strong>：「设置 → 服务端插件」→ 广场站点 Token 粘贴进去，保存（广场地址保持默认 <code>https://plaza.bloghao.com</code>，自建 hub 才改）</li>
+<li><strong>后台填配置</strong>：「设置 → 服务端插件」→ 广场站点 Token 粘贴进去，保存（广场地址<strong>留空即官方 hub</strong> <code>https://bloghao.com/plaza</code>——唯一官方入口，稳定版 / 开发版一律由此接入；自建 hub 才改）</li>
 <li><strong>开启插件</strong>：「插件」页 → 服务端插件 → <strong>广场同步（bloghao.com）</strong> 打开</li>
 </ol>
 <p>之后<strong>每次发布</strong>（文章 / 微博，后台、定时、开放 API、TG 机器人四条路都算）会自动推一条到广场；重复编辑已发布内容不重推。不想同步了，把插件关掉即可，hub 里的历史内容可请管理员清除。</p>
 <p><strong>不会上广场的内容</strong>：加密访问的文章、会员专属（付费墙）文章——这两类在发布事件里带锁标志，插件直接跳过，标题摘要也不出。微博配图取首图（站内图自动补站点域名转绝对地址）。</p>
-<h2 id="广场-hub自建--运维">广场 hub（自建 / 运维）</h2><p>hub 是独立 Worker，源码在仓库 <code>plaza/</code> 目录（<code>src/core.ts</code> 纯函数 + <code>src/index.ts</code> 路由，零 npm 依赖，hono 单文件）。官方部署在 <code>https://plaza.bloghao.com</code>（D1 库 <code>plaza-db</code>），<strong>与博客主站完全独立</strong>，不部署也不影响博客系统。</p>
+<h2 id="广场-hub自建--运维">广场 hub（自建 / 运维）</h2><p>hub 是独立服务，源码在仓库 <code>plaza/</code> 目录（<code>src/core.ts</code> 纯函数 + <code>src/index.ts</code> 路由，零 npm 依赖，hono 单文件），Workers（D1 库）与 Node 容器（<code>demo/hub-node/</code>，D1→node:sqlite）两种形态都能跑。<strong>官方部署</strong>跑在自有服务器上的 Node 容器，由服务器 Caddy 在 <code>bloghao.com</code> 站点块内把 <code>/plaza/api/*</code> 路径反代给 hub（去掉 <code>/plaza</code> 前缀）——<strong>唯一官方入口 <code>https://bloghao.com/plaza</code></strong>，广场页（<code>/plaza/</code> 静态页）与数据面（<code>/plaza/api/*</code>）同域，没有独立子域名；<strong>与博客主站完全独立</strong>，不部署也不影响博客系统。</p>
 <div class="codeblock" data-lang="bash"><pre><code># 部署自己的 hub（自托管场景）
 npx wrangler d1 create plaza-db          # database_id 填进 plaza/wrangler.jsonc
 npx wrangler d1 execute DB --remote --file plaza/schema.sql
@@ -97,6 +97,10 @@ npx wrangler deploy -c plaza/wrangler.jsonc</code></pre></div><p>自建 hub 的�
 <tr>
 <td><code>PATCH /api/admin/items/:kind/:ref?siteId=N</code></td>
 <td>body <code>{&quot;hidden&quot;:true}</code> 下架单条（违规处置）</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/stats</code></td>
+<td>全局统计：站点 / 内容 / 今日与累计调用（feed≈广场页访问、ingest 上报）/ 近 14 天趋势（ops 控制面消费）</td>
 </tr>
 </tbody></table></div>
 <h3 id="公开端点">公开端点</h3><ul>
