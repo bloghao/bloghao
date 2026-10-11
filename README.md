@@ -234,7 +234,7 @@ npm run deploy    # schema 有更新时再执行一次 npx wrangler d1 execute D
 ## 🤝 相关仓库
 
 - **官方仓库**：[bloghao/bloghao](https://github.com/bloghao/bloghao)（本仓库）——2.0 起整合作者实例线的全部增强，欢迎提 Issue / PR；官网源码在仓库内 `website/` 目录（**[bloghao.com](https://bloghao.com)**，Cloudflare Pages 部署，官网「博客号目录」上榜请提 Issue）
-- **作者实例**：[lovexw/bloghao-xwblog](https://github.com/lovexw/bloghao-xwblog)——[blog.xiaowuleyi.com](https://blog.xiaowuleyi.com) 的源仓库，官方仓库的滚动开发线（迭代先行于此，稳定后清洗发布至官方仓库），提交信息沿用 `theme:` / `mobile:` / `feat:` / `docs:` 前缀的中文风格
+- **作者实例**：[blog.xiaowuleyi.com](https://blog.xiaowuleyi.com)——作者运营的在线示例，与本仓库同源（开发直进 main，稳定版以 git tag 发布）；提交信息沿用 `theme:` / `mobile:` / `feat:` / `docs:` 前缀的中文风格
 
 ## 📄 License
 

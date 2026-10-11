@@ -26,7 +26,7 @@ free -h     # Swap 应约 2.0Gi；没有就补：见文末「swap」
 ```bash
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker ubuntu && newgrp docker   # 免 sudo 跑 docker
-git clone https://github.com/lovexw/bloghao-xwblog.git && cd bloghao-xwblog/docker-poc
+git clone https://github.com/bloghao/bloghao.git && cd bloghao/docker-poc
 ```
 
 1GB 机**不建议在服务器上构建镜像**（esbuild 快，但 npm install 阶段容易撞 swap）。
@@ -77,7 +77,7 @@ sudo tee /etc/caddy/Caddyfile <<'EOF'
     reverse_proxy 127.0.0.1:8787
     # 图片直接吐盘、带长缓存，连应用都不过（1GB 机的省内存大招）
     handle /images/* {
-        root * /home/ubuntu/bloghao-xwblog/docker-poc/data/{labels.3}/uploads
+        root * /home/ubuntu/bloghao/docker-poc/data/{labels.3}/uploads
         file_server
         header Cache-Control "public, max-age=31536000, immutable"
     }

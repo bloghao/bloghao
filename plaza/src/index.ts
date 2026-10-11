@@ -229,7 +229,7 @@ app.get('/api/sites', async (c) => {
 app.get('/', (c) =>
   c.html(
     `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>博客号广场 hub</title></head>
-<body><p>博客号广场数据服务。<a href="https://bloghao.com/plaza/">去官网看广场 →</a>　<a href="https://github.com/lovexw/bloghao-xwblog/blob/main/docs/PLAZA.md">接入文档</a></p></body></html>`
+<body><p>博客号广场数据服务。<a href="https://bloghao.com/plaza/">去官网看广场 →</a>　<a href="https://github.com/bloghao/bloghao/blob/main/docs/PLAZA.md">接入文档</a></p></body></html>`
   )
 )
 
