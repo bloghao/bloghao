@@ -257,6 +257,19 @@ export async function listAllPublishedArchives(db: D1Database): Promise<{ slug: 
   return results ?? []
 }
 
+/** 归档页「今年已写」统计：当前北京时间年份的已发布篇数与正文字符量。
+ * LENGTH() 对 TEXT 计字符数，含 Markdown 标记——展示口径用「约」；年份聚合按惯例 +28800 取北京墙上年 */
+export async function yearArchiveStats(db: D1Database): Promise<{ count: number; chars: number }> {
+  const year = String(cstDate(Date.now()).getUTCFullYear())
+  const row = await db
+    .prepare(
+      "SELECT COUNT(*) AS n, COALESCE(SUM(LENGTH(content)), 0) AS c FROM posts WHERE status = 'published' AND deleted_at IS NULL AND strftime('%Y', COALESCE(published_at, created_at) / 1000 + 28800, 'unixepoch') = ?"
+    )
+    .bind(year)
+    .first<{ n: number; c: number }>()
+  return { count: row?.n ?? 0, chars: row?.c ?? 0 }
+}
+
 /** sitemap 用的轻量列表：slug + updated_at（不走 listPosts——它的 limit 被 clamp 到 100） */
 export async function listSitemapPosts(db: D1Database): Promise<{ slug: string; updated_at: number }[]> {
   const { results } = await db

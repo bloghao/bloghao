@@ -19,6 +19,7 @@ import {
   pagerHtml,
   paywallHtml,
   plural,
+  yearStatsSuffix,
   rankListHtml,
   shareBtn,
   siteMode,
@@ -191,7 +192,7 @@ export function archives(d: ArchivesData): string {
   ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'pp-snav', categories: d.categories, tags: d.tags, pages: d.pages, active: 'archives', en })}
   <header class="wb-page-head">
     <h1 class="wb-page-title">${tr(en, '归档')}</h1>
-    <p class="wb-page-sub">${d.total > 0 ? (en ? `Every word keeps time · ${d.total} ${plural(d.total, 'post', 'posts')} in all` : `字字皆岁月 · 共 ${d.total} 篇`) : en ? 'Every post lands here.' : '写下的每一篇都会收进这里'}</p>
+    <p class="wb-page-sub">${d.total > 0 ? (en ? `Every word keeps time · ${d.total} ${plural(d.total, 'post', 'posts')} in all` : `字字皆岁月 · 共 ${d.total} 篇`) : en ? 'Every post lands here.' : '写下的每一篇都会收进这里'}${yearStatsSuffix(d.yearStats, en)}</p>
   </header>
   <main class="pp-archives">${archiveListHtml(d.groups, en) || `<p class="wb-empty">${en ? 'The page is blank — a good time to start writing.' : '纸上还无字，正是落笔时。'}</p>`}</main>
   ${foot(s, en ? footLinksEn(s).archive : FOOT_LINKS.archive)}

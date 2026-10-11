@@ -372,6 +372,16 @@ export function archiveGroups(posts: ArchiveItemView[]): ArchiveYearGroup[] {
     }))
 }
 
+/** 归档页头部「今年已写」统计后缀：拼进各主题的副标题 <p>（muted 样式随主题）。
+ * 无数据/零篇不出声；字数口径 = 正文字符量（含 Markdown 标记，db.ts yearArchiveStats），展示用「约」 */
+export function yearStatsSuffix(stats: { count: number; chars: number } | undefined, en = false): string {
+  if (!stats || !stats.count) return ''
+  if (en) return ` · ${stats.count} ${plural(stats.count, 'post', 'posts')} this year`
+  const wan =
+    stats.chars >= 10000 ? ` · 约 ${(stats.chars / 10000).toFixed(1)} 万字` : stats.chars > 0 ? ` · 约 ${stats.chars} 字` : ''
+  return ` · 今年已写 ${stats.count} 篇${wan}`
+}
+
 /** 归档列表 HTML：每篇一行的 <time> + 标题链接（纯静态超链接，利于搜索引擎收录）；en 时日期换英文短格式 */
 export function archiveListHtml(groups: ArchiveYearGroup[], en = false): string {
   return groups

@@ -296,7 +296,9 @@ export async function notifyAdminComment(env: Env, n: CommentNotice): Promise<vo
           : '💬 留言板有新留言'
     const flag = n.pending ? '⏳ 待审核 · ' : ''
     const link = n.siteBase ? `\n\n👉 ${n.siteBase}${n.path}` : ''
-    await notifyAdminText(env, `${head}\n${flag}来自 ${n.nickname}\n\n${content}${link}`)
+    // 待审时附一条后台深链：评论页支持 ?status=pending，手机上点开即到审核位
+    const admin = n.pending && n.siteBase ? `\n🛠 去审核：${n.siteBase}/admin/#/comments?status=pending` : ''
+    await notifyAdminText(env, `${head}\n${flag}来自 ${n.nickname}\n\n${content}${link}${admin}`)
   } catch {
     /* 通知失败不影响留言本身 */
   }

@@ -56,6 +56,10 @@
     '退出失败，请重试': 'Failed to log out — please try again',
     '说点什么…': 'Say something…',
     '😊 表情': '😊 Emoji',
+    '返回顶部': 'Back to top',
+    '复制代码': 'Copy code',
+    '已复制': 'Copied',
+    '复制失败': 'Copy failed',
   }
   function T(zh) {
     return EN ? EN_STR[zh] || zh : zh
@@ -1591,6 +1595,100 @@
       e.preventDefault()
       open(t)
     })
+  })()
+
+  /* ---------------- 返回顶部：长文滚动过一屏后右下角浮现 ----------------
+   * 纯 JS + 内联 style（灯箱同路），样式自含不给七主题加负担；底部贴 safe-area */
+  ;(function () {
+    var btn = document.createElement('button')
+    btn.type = 'button'
+    btn.setAttribute('aria-label', T('返回顶部'))
+    btn.title = T('返回顶部')
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>'
+    btn.style.cssText =
+      'display:none;position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:50;' +
+      'width:40px;height:40px;border:none;border-radius:50%;cursor:pointer;' +
+      'background:rgba(40,38,34,0.78);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.18);' +
+      '-webkit-tap-highlight-color:transparent;align-items:center;justify-content:center;'
+    var visible = false
+    function update() {
+      var y = window.pageYOffset || document.documentElement.scrollTop || 0
+      var show = y > 480
+      if (show === visible) return
+      visible = show
+      btn.style.display = show ? 'flex' : 'none'
+    }
+    window.addEventListener('scroll', update, { passive: true })
+    btn.addEventListener('click', function () {
+      var smooth = 'scrollBehavior' in document.documentElement.style &&
+        !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+      if (smooth) window.scrollTo({ top: 0, behavior: 'smooth' })
+      else window.scrollTo(0, 0)
+    })
+    document.body.appendChild(btn)
+    update()
+  })()
+
+  /* ---------------- 代码块一键复制：.rich pre 右上角常驻小按钮 ----------------
+   * 包一层定位容器（七主题无 .rich > pre 子选择器，安全），剪贴板 API 不可用时回落 execCommand */
+  ;(function () {
+    function flash(btn, text) {
+      btn.textContent = text
+      clearTimeout(btn.__xwTimer)
+      btn.__xwTimer = setTimeout(function () {
+        btn.textContent = T('复制代码')
+      }, 1400)
+    }
+    function legacyCopy(text) {
+      var ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.cssText = 'position:fixed;left:-9999px;top:0;'
+      document.body.appendChild(ta)
+      ta.focus()
+      ta.select()
+      var ok = false
+      try {
+        ok = document.execCommand('copy')
+      } catch (e) {}
+      document.body.removeChild(ta)
+      return ok
+    }
+    var pres = document.querySelectorAll('.rich pre')
+    for (var i = 0; i < pres.length; i++) {
+      ;(function (pre) {
+        var wrap = document.createElement('div')
+        wrap.style.cssText = 'position:relative;'
+        pre.parentNode.insertBefore(wrap, pre)
+        wrap.appendChild(pre)
+        var btn = document.createElement('button')
+        btn.type = 'button'
+        btn.textContent = T('复制代码')
+        btn.setAttribute('aria-label', T('复制代码'))
+        btn.style.cssText =
+          'position:absolute;top:8px;right:8px;z-index:1;padding:4px 10px;font-size:12px;line-height:1.4;' +
+          'border:1px solid rgba(0,0,0,0.1);border-radius:8px;cursor:pointer;' +
+          'background:rgba(255,255,255,0.85);color:#555;backdrop-filter:blur(2px);' +
+          '-webkit-tap-highlight-color:transparent;'
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation()
+          var text = pre.innerText || pre.textContent || ''
+          var done = function () {
+            flash(btn, T('已复制'))
+          }
+          var fail = function () {
+            flash(btn, T('复制失败'))
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, function () {
+              ;(legacyCopy(text) ? done : fail)()
+            })
+          } else {
+            ;(legacyCopy(text) ? done : fail)()
+          }
+        })
+        wrap.appendChild(btn)
+      })(pres[i])
+    }
   })()
 
   /* ---------------- 会员（/member：登录 / 注册 / 退出，API 见 DEVPLAN 附录 A5） ----------------

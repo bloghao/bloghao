@@ -20,6 +20,7 @@ import {
   pagerHtml,
   paywallHtml,
   plural,
+  yearStatsSuffix,
   rankListHtml,
   shareBtn,
   siteMode,
@@ -189,7 +190,7 @@ export function archives(d: ArchivesData): string {
     <nav class="bt-nav"><a class="bt-nav-link is-active" href="/archives">${tr(en, '归档')}</a><a class="bt-nav-link" href="/guestbook">${tr(en, '留言板')}</a><a class="bt-nav-link" href="/about">${tr(en, '关于我')}</a></nav>
   </header>
   <h1 class="bt-title bt-page-title">${tr(en, '归档')}</h1>
-  <p class="bt-page-sub">${d.total > 0 ? (en ? `${d.total} ${plural(d.total, 'post', 'posts')} · newest year first` : `共 ${d.total} 篇 · 按年份倒序`) : en ? 'Every post lands here.' : '写下的每一篇都会收进这里'}</p>
+  <p class="bt-page-sub">${d.total > 0 ? (en ? `${d.total} ${plural(d.total, 'post', 'posts')} · newest year first` : `共 ${d.total} 篇 · 按年份倒序`) : en ? 'Every post lands here.' : '写下的每一篇都会收进这里'}${yearStatsSuffix(d.yearStats, en)}</p>
   <main class="bt-archives">${archiveListHtml(d.groups, en) || '<p class="bt-empty">Nothing here yet. Start writing.</p>'}</main>
   ${foot(s, en ? FOOT_LINKS_EN.home : FOOT_LINKS.home)}
 </div>`

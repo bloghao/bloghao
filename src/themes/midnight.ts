@@ -19,6 +19,7 @@ import {
   pagerHtml,
   paywallHtml,
   plural,
+  yearStatsSuffix,
   rankListHtml,
   shareBtn,
   siteMode,
@@ -176,7 +177,7 @@ export function archives(d: ArchivesData): string {
   </header>
   <section class="md-hero md-hero-slim">
     <h1>${tr(en, '归档')}</h1>
-    <p>${d.total > 0 ? (en ? `// ${d.total} ${plural(d.total, 'post', 'posts')} · newest year first` : `// 共 ${d.total} 篇 · 按年份倒序`) : en ? '// Every post lands here' : '// 写下的每一篇都会收进这里'}</p>
+    <p>${d.total > 0 ? (en ? `// ${d.total} ${plural(d.total, 'post', 'posts')} · newest year first` : `// 共 ${d.total} 篇 · 按年份倒序`) : en ? '// Every post lands here' : '// 写下的每一篇都会收进这里'}${yearStatsSuffix(d.yearStats, en)}</p>
   </section>
   <main class="md-archives">${archiveListHtml(d.groups, en) || `<p class="md-empty">${en ? 'The night log is still empty.' : '夜航日志还是空的。'}</p>`}</main>
   ${foot(s, en ? FOOT_LINKS_EN.home : FOOT_LINKS.home)}

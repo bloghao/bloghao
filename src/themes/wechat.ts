@@ -21,6 +21,7 @@ import {
   pagerHtml,
   paywallHtml,
   plural,
+  yearStatsSuffix,
   rankListHtml,
   shareBtn,
   siteMode,
@@ -284,7 +285,7 @@ export function archives(d: ArchivesData): string {
   ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'archives', en })}
   <header class="wb-page-head">
     <h1 class="wb-page-title">${tr(en, '归档')}</h1>
-    <p class="wb-page-sub">${d.total > 0 ? (en ? `Everything written here · ${d.total} ${plural(d.total, 'post', 'posts')} in all` : `写下的每一篇 · 共 ${d.total} 篇`) : en ? 'Every post lands here.' : '写下的每一篇都会收进这里'}</p>
+    <p class="wb-page-sub">${d.total > 0 ? (en ? `Everything written here · ${d.total} ${plural(d.total, 'post', 'posts')} in all` : `写下的每一篇 · 共 ${d.total} 篇`) : en ? 'Every post lands here.' : '写下的每一篇都会收进这里'}${yearStatsSuffix(d.yearStats, en)}</p>
   </header>
   <main class="wx-archives">${archiveListHtml(d.groups, en) || `<p class="wb-empty">${en ? 'No posts yet — write your first one in the admin.' : '还没有文章，去后台写下第一篇吧。'}</p>`}</main>
   ${foot(s, footLinksFor(s, en).archive)}

@@ -170,6 +170,8 @@ export interface ArchivesData {
   /** 文章总篇数（页头副标题用） */
   total: number
   groups: ArchiveYearGroup[]
+  /** 「今年已写」统计（当前北京年的篇数与正文字符量，render.ts yearStatsSuffix 渲染）；旧调用不传 = 不显示 */
+  yearStats?: { count: number; chars: number }
 }
 
 /** 留言板页（/guestbook）：html 为 commentsHtml({ guestbook: true }) 构建的留言墙 + 表单 */

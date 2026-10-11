@@ -233,6 +233,11 @@ for (const [themeId, theme] of Object.entries(THEMES as Record<string, ThemeModu
     const html = theme.archives(archivesData())
     checkPage(themeId, 'archives', html)
     assert.ok(html.includes('你好世界'))
+    // 「今年已写」统计后缀：传 yearStats 时出现（七主题同一段共享后缀），不传时不出声
+    const withStats = theme.archives({ ...archivesData(), yearStats: { count: 3, chars: 23456 } })
+    assert.ok(withStats.includes('今年已写 3 篇'))
+    assert.ok(withStats.includes('约 2.3 万字'))
+    assert.ok(!html.includes('今年已写'), '未传 yearStats 不产生该后缀')
   })
 
   test(`${themeId}: guestbook 渲染`, () => {

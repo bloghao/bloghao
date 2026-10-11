@@ -9,6 +9,7 @@ import {
   getPostCategoryId,
   getSettings,
   listAllPublishedArchives,
+  yearArchiveStats,
   listApprovedComments,
   listCategories,
   listFriendLinks,
@@ -663,11 +664,12 @@ export async function renderArchive(c: C): Promise<Response> {
   const settings = await getSettings(c.env.DB)
   const theme = getTheme(settings.theme)
   const en = isEn(settings)
-  const [rows, categories, tags, pages] = await Promise.all([
+  const [rows, categories, tags, pages, yearStats] = await Promise.all([
     listAllPublishedArchives(c.env.DB),
     navCategories(c),
     navTags(c),
     navPages(c),
+    yearArchiveStats(c.env.DB),
   ])
   const html = theme.archives({
     settings,
@@ -676,6 +678,7 @@ export async function renderArchive(c: C): Promise<Response> {
     pages,
     total: rows.length,
     groups: archiveGroups(rows),
+    yearStats,
   })
   c.header('Cache-Control', 'no-cache')
   return c.html(
@@ -1008,7 +1011,10 @@ export async function renderNotFound(c: C): Promise<Response> {
       body: `<div style="max-width:480px;margin:18vh auto 0;padding:0 24px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif;">
   <div style="font-size:64px;font-weight:700;letter-spacing:.05em;">404</div>
   <p style="color:#999;margin:12px 0 28px;">${en ? 'This page wandered off. Head back home?' : '这一页飘走了，回首页看看吧。'}</p>
-  <a href="/" style="display:inline-block;padding:10px 28px;border-radius:999px;background:#b23a29;color:#fff;text-decoration:none;font-size:14px;">${en ? 'Back to Home' : '回首页'}</a>
+  <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+    <a href="/" style="display:inline-block;padding:10px 28px;border-radius:999px;background:#b23a29;color:#fff;text-decoration:none;font-size:14px;">${en ? 'Back to Home' : '回首页'}</a>
+    <a href="/random" style="display:inline-block;padding:10px 24px;border-radius:999px;border:1px solid #d9d2c7;color:#666;text-decoration:none;font-size:14px;">${en ? '🎲 Surprise me' : '🎲 随机一篇'}</a>
+  </div>
 </div>`,
     })),
     404

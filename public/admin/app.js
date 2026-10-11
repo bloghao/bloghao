@@ -1414,12 +1414,20 @@ async function viewTrash() {
       : s === 'scheduled'
         ? '<span class="chip chip-warn">定时</span>'
         : '<span class="chip chip-gray">草稿</span>'
+  // 保留期与 src/trash.ts 的 TRASH_RETENTION_DAYS 同口径（30 天）；到期后由当晚 00:30 的清理任务彻底删除
+  const TRASH_RETENTION_DAYS = 30
+  const daysLeft = (deleted_at) =>
+    Math.max(0, Math.ceil((deleted_at + TRASH_RETENTION_DAYS * 86400000 - Date.now()) / 86400000))
+  const purgeHint = (deleted_at) => {
+    const d = daysLeft(deleted_at)
+    return d > 0 ? `${d} 天后自动彻底清除` : '今晚自动彻底清除'
+  }
   const rows = d.items
     .map(
       (it) => `<div class="post-row" data-type="${it.type}" data-id="${it.id}">
       <div class="post-main">
         <div class="post-title">${esc(it.label || '（无文字内容）')}<span class="chip">${TRASH_TYPE_LABEL[it.type] || it.type}</span>${statusChip(it.status)}</div>
-        <div class="post-meta"><span>删除于 ${fmtDateTime(it.deleted_at)}</span><span>·</span><span>30 天后自动彻底清除</span></div>
+        <div class="post-meta"><span>删除于 ${fmtDateTime(it.deleted_at)}</span><span>·</span><span>${purgeHint(it.deleted_at)}</span></div>
       </div>
       <div class="post-ops">
         <button class="btn btn-ghost btn-sm" data-act="restore">恢复</button>
