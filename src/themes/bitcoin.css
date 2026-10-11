@@ -479,7 +479,7 @@ img { max-width: 100%; height: auto; }
 }
 .wb-link { color: inherit; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--bt-border-strong); }
 .wb-link:hover { text-decoration-color: var(--bt-accent); }
-.wb-topic { color: inherit; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--bt-border-strong); }
+.wb-topic { color: inherit; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--bt-border-strong); background: var(--bt-accent-soft); border-radius: 4px; padding: 1px 5px; }
 .wb-topic:hover { text-decoration-color: var(--bt-accent); }
 .wb-topics { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 4px; }
 .wb-topic-chip {

@@ -760,7 +760,7 @@ async function readWeiboPayload(c: { req: { json: () => Promise<unknown> } }) {
   const content = String(b.content ?? '').trim().slice(0, WEIBO_MAX_CHARS)
   return {
     content,
-    // 话题从正文 #话题# 自动提取，不接受客户端直传
+    // 话题从正文 #话题（或成对 #话题#）自动提取，不接受客户端直传
     topics: extractWeiboTopics(content),
     images: parseWeiboImages(b.images),
     status: b.status === 'published' ? 'published' : 'draft',

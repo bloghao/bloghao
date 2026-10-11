@@ -1010,11 +1010,12 @@
   ;(function () {
     var WB_MAX_IMAGES = 9
     var WB_MAX_CHARS = 5000
-    // 与后端 weiboTextHtml（src/render.ts）同口径：URL 与 #话题# 单次扫描二选一（先转链接再扫
-    // 话题会把 href 里的 #fragment 误判成话题），URL 不吞 CJK 与全角标点。
+    // 与后端 weiboTextHtml（src/render.ts）/ utils.ts WEIBO_TOPIC_RE 三处同口径：URL 与 #话题
+    // 单次扫描二选一（先转链接再扫话题会把 href 里的 #fragment 误判成话题），URL 不吞 CJK 与
+    // 全角标点；话题名汉字后可跟、ASCII 字母数字防误判（C#）、句读（，。！？等）即停。
     // 用捕获组消费「# 前的字符」代替 lookbehind——Safari ≤ 16.3 不支持 lookbehind，
     // 正则字面量在解析期就抛 SyntaxError，会让整个 site.js 瘫掉（匹配语义与服务端一致）
-    var WB_TEXT_RE = /(https?:\/\/[^\s<>"'\u3000-\u303f\uff00-\uffef\u4e00-\u9fff]+)|((^|[^\p{L}\p{N}#])(#[^\s#&<>"']{1,24}(?:#|(?=\s)|$)))/gu
+    var WB_TEXT_RE = /(https?:\/\/[^\s<>"'\u3000-\u303f\uff00-\uffef\u4e00-\u9fff]+)|((^|[^A-Za-z0-9#])(#[^\s#&<>"'，。！？；：、…~～,.!?;:]{1,24}(?:#|(?=[\s，。！？；：、…~～,.!?;:])|$)))/gu
 
     // 与 src/outlink.ts 的 TRUSTED_OUT_DOMAINS 手工同步：前四项是站长自有域名，其余主流大站；
     // 白名单外域包 /go 中间页（外链提醒 + 免责声明），同源与白名单直出

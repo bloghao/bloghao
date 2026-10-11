@@ -947,6 +947,9 @@ img { max-width: 100%; height: auto; }
   text-decoration: underline dashed;
   text-decoration-color: rgba(224, 106, 60, 0.5);
   text-underline-offset: 4px;
+  background: rgba(224, 106, 60, 0.08);
+  border-radius: 4px;
+  padding: 1px 5px;
 }
 .wb-topic:hover { text-decoration-style: solid; }
 .wb-imgs { margin-top: 13px; display: grid; gap: 6px; }

@@ -108,9 +108,9 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 **外链中间页（tests/outlink.test.ts、冒烟「外链中间页」，机制在 src/outlink.ts）**
 
 - 第三方链接一律走 `outHref` 判定：白名单（`TRUSTED_OUT_DOMAINS`，主域名 + 子域跟随）与本站同源直出，其余包成 `/go?u=<encodeURIComponent>` 确认页（免责声明、noindex、无 JS 不自动跳转——`/go` 路由只对白名单/同源 302 直跳，非白名单**永不**服务端跳转，不构成开放重定向；目标必须 http(s) 且 ≤2048 字符，非法一律回首页）。新增「想给外链加中间页」的公开面只准调 `outHref` / `wrapAnchorHref`，别手搓白名单判断
-- **包装只发生在渲染层**：文章/页面/关于我走 `sanitizeHtml(html, { origin })`（不传 origin 的存库/RSS/导出路径保持原始 URL，`/go?u=` 是相对地址所以重复净化天然幂等），微博文本走 render.ts `weiboTextHtml`；weiboTextHtml 用 URL 与 #话题# **单次扫描**的分词正则（先转链接再扫话题会把 href 的 #fragment 误判成话题），URL 字符集排除 CJK 与全角标点（`https://x.com的官网` 链接停在汉字前）
+- **包装只发生在渲染层**：文章/页面/关于我走 `sanitizeHtml(html, { origin })`（不传 origin 的存库/RSS/导出路径保持原始 URL，`/go?u=` 是相对地址所以重复净化天然幂等），微博文本走 render.ts `weiboTextHtml`；weiboTextHtml 用 URL 与 #话题 **单次扫描**的分词正则（先转链接再扫话题会把 href 的 #fragment 误判成话题），URL 字符集排除 CJK 与全角标点（`https://x.com的官网` 链接停在汉字前）。话题主推**单井号**写法 `#话题`（成对 `#话题#` 兼容旧内容），三处镜像同口径：utils.ts `WEIBO_TOPIC_RE`（提取落库）/ render.ts 分词（SSR 渲染）/ site.js `WB_TEXT_RE`（客户端）——话题名**汉字后可直接跟**（中文不打空格），守卫只拦 ASCII 字母数字紧贴的 `#`（C# 不算话题），单井号话题名到**句读即停**（`，。！？` 等，`#日常，今天` 的话题是「日常」），`/` 不在停顿集（Memos 层级标签 `#软件/apple/mac` 整个算一个）；改话题边界三处同改并跑 tests/utils.test.ts + tests/outlink.test.ts，话题高亮样式在七主题 `.wb-topic`（同改）
 - **site.js 的 `wbTextHtml` / `TRUSTED_OUT` / `outHrefJs` / `trimUrlTailJs` 是服务端的手工镜像**（白名单表、分词正则、尾标点修剪四处同步），改任一侧必须两边同改并跑 tests/outlink.test.ts（其中的镜像守卫用例把 site.js 源码切片执行、与服务端同输入比对输出）；**改正则先数捕获组**——wbTextHtml 分支曾用错捕获组序号（m[4] 当 URL），前台编辑微博保存后假报错，tests 拦不住客户端代码直到镜像守卫补上；客户端仍守 ES5 与禁 lookbehind 老规矩
-- 白名单前四项是站长自有域名（bloghao.com / xiaowuleyi.com / habfut.com / btchao.com），官方版挑洗时按 RELEASING 个人定制台账处理；友链页是站长逐条审核的收录结果，属「把握的域名」，不走中间页
+- 白名单前四项是站长自有域名（bloghao.com / xiaowuleyi.com / habfut.com / btchao.com，属本站专属内容、已登记个人定制备忘录）；友链页是站长逐条审核的收录结果，属「把握的域名」，不走中间页
 
 **后台交互（public/admin/，无自动化测试，靠约定）**
 
@@ -152,13 +152,12 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 
 ## Git 约定
 
-- 本工作区服务**双仓库、两角色**：origin = `github.com/lovexw/bloghao-xwblog`（滚动开发测试仓库，日常提交只推这里），upstream = `github.com/bloghao/bloghao`（官方稳定版仓库，对外开放部署入口，main 永远保持可部署）。不做这两个仓库之外的操作
-- 发布流程（2026-10-06 起废止旧「双推、两仓库同一提交」约定；同日收紧为 **upstream 默认冻结**）：日常提交**只推 origin**；**未经用户明确指示，任何改动都不同步到 upstream**——迭代稳定、攒了成批 feat、修了安全 / 数据问题，都不构成自行发布的理由，只有用户明确说「发布」才走流程：`git fetch upstream`，从 `upstream/main` 切发布分支，`git merge --squash` 本地 main（此时按需挑选/清洗，个人实例定制与实验内容不进官方版），确认 diff 后以单个版本提交推 upstream。两仓库历史自此允许分叉，**不要** `git push upstream origin/main:main` 直灌开发历史。**发布操作照 docs/RELEASING.md 清单执行**（版本号规则、挑洗依据「个人定制台账」、CHANGELOG 回填与镜像回开发线）；个人定制**合入 main 当天登记进台账**
-- 开发线定位：xwblog 已完成「互动与创收」第一批功能（会员 / 积分 / 排行榜 / 访问密码，用法见 GUIDE §15）；后续方向见 docs/ROADMAP.md。本站专属的运营属性（收费配置、站点人设内容）落地时按规则登记个人定制台账，官方版挑洗时剔除
-- README / docs / 官网以「博客号 BlogHao」官方项目口吻书写，对两个仓库都自洽；线上地址 blog.xiaowuleyi.com 在文档中一律表述为「在线示例」
-- 同步方向永远 dev→stable 单向：**不要**从 upstream pull 覆盖本地（upstream 只接收发布，永不反向流入开发线）
-- 2026-10-05 仓库整理：官方发布仓库由 bloghao-blog **改名**为 `lovexw/bloghao`（旧地址 GitHub 自动重定向）；更早的独立官网仓库已删除、内容并入 `website/`——遇到提这两个旧名字的链接/文档一律以现名为准
-- 2026-10-10 官方仓库转移至 `bloghao` 组织：`lovexw/bloghao` → **`bloghao/bloghao`**（组织集中承载全部官方项目；star / Issue / CI 随转移保留，旧地址永久重定向，全仓文档与代码引用已统一切新地址）
+- **单仓库**（2026-10-11 起，废止旧「双仓库、两角色」约定）：origin = `github.com/bloghao/bloghao`，唯一远端——滚动开发直接进 main，日常提交验证通过后即推 origin；远端有新提交时先 `git rebase origin/main` 再推，保持历史线性。旧开发仓库 `lovexw/bloghao-xwblog` 仍在但已停用归档（内容与本仓 main 已分叉），不再向其推送，也不做本仓之外的操作
+- 版本线口径（与单仓库配套）：main 即开发版，**git tag 即稳定版**——攒完一个功能批次跑全量 `typecheck + test + smoke`，通过后打 `vX.Y.Z` tag 并回填 CHANGELOG；Cloudflare 主站跟 main 滚动部署，docker 自托管分站跟 tag（服务器 `git checkout <tag>` 后 `docker compose up --build -d`），演示站跟 main
+- 旧「upstream 默认冻结 + squash 挑洗发布」流程随之废止：docs/RELEASING.md 的发布清单仅作历史参考；文末「个人定制台账」降级为备忘录（记哪些内容属本站专属运营属性），不再承担发布挑洗职能，但本站专属内容合入 main 当天照旧登记一笔
+- 开发线定位：xwblog 已完成「互动与创收」第一批功能（会员 / 积分 / 排行榜 / 访问密码，用法见 GUIDE §15）；后续方向见 docs/ROADMAP.md
+- README / docs / 官网以「博客号 BlogHao」官方项目口吻书写；线上地址 blog.xiaowuleyi.com 在文档中一律表述为「在线示例」
+- 仓库沿革：2026-10-05 官方发布仓库由 bloghao-blog 改名 `lovexw/bloghao`（独立官网仓库删除、内容并入 `website/`）；2026-10-10 转入 `bloghao` 组织（`lovexw/bloghao` → `bloghao/bloghao`，star / Issue / CI 随转移保留）；2026-10-11 开发线并入本仓 main。遇到提旧仓名或旧双仓库流程的文档一律以现状为准
 - 提交信息沿用 `theme:` / `mobile:` / `docs:` / `brand:` 等前缀的中文风格
 
 ## 全站移动端适配（长期约定）

@@ -1,5 +1,5 @@
 /* 微博分享卡片生成器（按需由 site.js 动态 import，不占常驻体积）
- * 纯 Canvas 2D 手绘，无任何依赖：暖纸底 + 白色浮卡，头像/站名 → 正文（#话题#高亮）→ 九宫格配图 → 时间 + 域名。
+ * 纯 Canvas 2D 手绘，无任何依赖：暖纸底 + 白色浮卡，头像/站名 → 正文（#话题高亮）→ 九宫格配图 → 时间 + 域名。
  * 图片全部先经 loadImage（跨域强制 crossOrigin='anonymous'，失败返回 null 画占位），
  * 保证画布永不被跨域内容污染，toBlob 导出必成功。
  * 产出 1280px 宽 PNG：弹窗内 <img> 预览（手机长按可存），「保存到相册」在手机端走系统分享面板
@@ -38,7 +38,7 @@ const MAX_H = 1920 // 成品高度上限（逻辑值），超出自动压缩正�
 
 const INK = '#33302a' // 正文墨色
 const SUB = '#a29a89' // 次级（时间/描述）
-const TOPIC = '#b95c38' // #话题# 赭红
+const TOPIC = '#b95c38' // #话题 赭红
 const LINE = '#eee8dc' // 分割线
 const CARD = '#fffdf9' // 卡片底
 const AVBG = '#f3ecdf' // 首字头像底
@@ -138,15 +138,16 @@ function drawPlaceholder(ctx, x, y, w, h, r) {
   ctx.restore()
 }
 
-/* ---------------- 文本：#话题# 分词 + 原子化换行（与 render.ts weiboTextHtml 同一话题口径） ---------------- */
+/* ---------------- 文本：#话题 分词 + 原子化换行（与 render.ts weiboTextHtml 同一话题口径：
+   汉字后可直接跟、ASCII 字母数字防误判、句读即停，成对 #话题# 兼容旧内容） ---------------- */
 function tokenize(text) {
   const out = []
-  const re = /#[^\s#&<>"']{1,24}(?:#|(?=\s)|$)/gu
+  const re = /#[^\s#&<>"'，。！？；：、…~～,.!?;:]{1,24}(?:#|(?=[\s，。！？；：、…~～,.!?;:])|$)/gu
   let last = 0
   let m
   while ((m = re.exec(text))) {
     const prev = m.index ? text.charAt(m.index - 1) : ''
-    if (prev && /[\p{L}\p{N}#]/u.test(prev)) continue // 紧贴字母数字/# 的不算话题
+    if (prev && /[A-Za-z0-9#]/.test(prev)) continue // 紧贴 ASCII 字母数字/# 的不算话题（C#）
     if (m.index > last) out.push({ t: text.slice(last, m.index) })
     out.push({ t: m[0], topic: true })
     last = re.lastIndex

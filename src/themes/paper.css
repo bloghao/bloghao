@@ -507,7 +507,7 @@ img { max-width: 100%; height: auto; }
   font-size: 11px; line-height: 1; padding: 4px 9px; border-radius: 3px;
   color: var(--pp-accent); border: 1px solid var(--pp-accent); letter-spacing: 0.1em;
 }
-.wb-topic { color: var(--pp-accent); }
+.wb-topic { color: var(--pp-accent); background: rgba(160, 60, 46, 0.08); border-radius: 4px; padding: 1px 5px; }
 .wb-link { color: var(--pp-accent); }
 .wb-text a.wb-topic:hover { text-decoration: underline; text-underline-offset: 4px; }
 .wb-topics { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }

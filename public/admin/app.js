@@ -734,7 +734,7 @@ async function viewWeibo() {
     `<div class="page-head"><div><div class="page-title">微博</div><div class="page-sub">随手记：短文字 + 图片，不用起标题</div></div></div>
     <div class="panel wb-composer">
       <textarea class="textarea wb-input" id="wb-content" maxlength="${WB_MAX_CHARS}" placeholder="有什么新鲜事？">${esc(wbEditing?.content || '')}</textarea>
-      <div class="wb-hint">支持 ⌘/Ctrl+V 粘贴截图、把图片拖进来，或点下方「加图」；正文里写 #话题# 可归类，如 #晚餐日记#</div>
+      <div class="wb-hint">支持 ⌘/Ctrl+V 粘贴截图、把图片拖进来，或点下方「加图」；正文里写 #话题 即可归类并高亮，如 #晚餐日记</div>
       <div class="wb-imgs" id="wb-imgs"></div>
       <div class="wb-composer-foot">
         <button class="btn btn-ghost btn-sm" id="wb-add-img" type="button">${I.image} 加图（${images.length}/${WB_MAX_IMAGES}）</button>
@@ -2677,7 +2677,7 @@ async function viewSettings() {
             <input class="input" id="st-bufferChannelId" style="flex:1;min-width:200px;font-family:ui-monospace,monospace;" placeholder="如 6ac89…" value="${esc(s.bufferChannelId || '')}">
             <button class="btn btn-sm" id="btn-buffer-channels" type="button">拉取渠道</button>
           </div>
-          <div class="sec-desc" id="buffer-channels-status" style="margin-top:6px;">同步时机：微博「发布」时自动推一条到所选渠道（X 免费档 280 字符，超出自动截断；#话题# 会转成 X 的话题格式）</div>
+          <div class="sec-desc" id="buffer-channels-status" style="margin-top:6px;">同步时机：微博「发布」时自动推一条到所选渠道（X 免费档 280 字符，超出自动截断；#话题 会转成 X 的话题格式）</div>
         </div>
         <div class="form-item">
           <label>广场地址（广场同步插件：文章与微博发布时同步到官网广场 bloghao.com/plaza；留空 = 官方 hub，自建 hub 才填自己的地址）</label>

@@ -123,6 +123,18 @@ test('weiboTextHtml：既有话题语义不回归（C# 不算话题、无 URL �
   assert.ok(weiboTextHtml('纯文本，没有链接。').includes('纯文本，没有链接。'))
 })
 
+test('weiboTextHtml：单井号话题句读即停并高亮（汉字后可直接跟话题）', () => {
+  // 中文不打空格：话题名到句读为止，句中后文留在锚点外（旧版会把整句吞进话题名）
+  const html = weiboTextHtml('#日常，今天很开心')
+  assert.ok(html.includes('<a class="wb-topic" href="/weibo?topic=' + encodeURIComponent('日常') + '">'))
+  assert.ok(html.includes('#日常</a>，今天很开心'))
+  // 句中汉字后跟话题也成立
+  assert.equal((weiboTextHtml('今天心情不错#打卡，真开心').match(/class="wb-topic"/g) || []).length, 1)
+  assert.ok(weiboTextHtml('今天心情不错#打卡，真开心').includes(encodeURIComponent('打卡')))
+  // ASCII 字母紧贴的 # 仍不算话题（C#）
+  assert.equal((weiboTextHtml('写C#的日常').match(/class="wb-topic"/g) || []).length, 0)
+})
+
 // ── 正文渲染期包装（sanitizeHtml opts）：存库/RSS/导出不传 origin，行为不变 ──
 test('sanitizeHtml：传 origin 时非白名单外链包装 /go，白名单与同源保持原样', () => {
   const wrapped = sanitizeHtml('<p><a href="https://example.com/x">外链</a></p>', { origin: 'https://s.test' })
@@ -184,6 +196,13 @@ test('site.js wbTextHtml 镜像：与服务端 weiboTextHtml 同输入同输出'
     '"https://example.com/x"',
     'https://example.com/?a=1&b=2',
     '开头 #开工# 结尾 https://v2ex.com/t/1 完',
+    // 单井号话题：句读即停、汉字后跟话题、ASCII 防误判、Memos 层级
+    '#日常，今天很开心',
+    '今天心情不错#打卡，真开心',
+    '写C#的日常',
+    '#软件/apple/mac 收藏',
+    '#生活#与#代码#',
+    '#日常。睡了 #todo. 买牛奶',
   ]
   for (const s of samples) {
     assert.equal(client.wbTextHtml(s), weiboTextHtml(s), `双端输出不一致，输入：${JSON.stringify(s)}`)

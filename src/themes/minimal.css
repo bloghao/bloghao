@@ -453,7 +453,7 @@ img { max-width: 100%; height: auto; }
 }
 .wb-link { color: inherit; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #bbb; }
 .wb-link:hover { text-decoration-color: var(--mn-ink); }
-.wb-topic { color: inherit; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #bbb; }
+.wb-topic { color: inherit; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #bbb; background: rgba(17, 17, 17, 0.05); border-radius: 4px; padding: 1px 5px; }
 .wb-topic:hover { text-decoration-color: var(--mn-ink); }
 .wb-topics { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .wb-topic-chip {

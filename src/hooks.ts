@@ -170,8 +170,8 @@ async function bufferCreatePost(
   }
 }
 
-/** 微博文本 → Buffer/X 帖文：话题 #xx# 改 #xx（X 话题语法，长度口径与站内话题提取同限 1-24 字），
- *  超 270 码点截断（emoji 截半个也不破头） */
+/** 微博文本 → Buffer/X 帖文：站内成对 #xx# 转 X 的 #xx（X 话题语法；单 # 写法本就是 X 格式，
+ *  原样通过），长度口径与站内话题提取同限 1-24 字，超 270 码点截断（emoji 截半个也不破头） */
 export function bufferPostText(content: string): string {
   const t = content.replace(/#([^#\n]{1,24})#/g, '#$1').trim()
   if ([...t].length <= BUFFER_X_CHARS) return t
@@ -245,13 +245,9 @@ export async function listBufferChannels(
 /* ---------------- 广场同步（roadmap B17：官网 bloghao.com/plaza 内容聚合流） ----------------
  * push 主路：文章/微博发布时把公开条目推给广场 hub（独立 Worker，协议见 docs/PLAZA.md）。
  * 「是否同步到广场」的开关就是后台「插件」页启停本插件（opt-in），配置在「设置 → 服务端插件」：
- * 广场地址留空 = 官方 hub（唯一官方入口，稳定版 / 开发版一律由此接入），填自建 hub 才改；
- * 注册 token 由 hub 站长审核发放。加密文 / 会员锁文不上广场。
+ * 广场地址（默认官方 hub）+ 注册 token（hub 站长审核发放）。加密文 / 会员锁文不上广场。
  * pull 补漏路（hub 定时抓 /rss.xml 文章）在 hub 侧，见 plaza/。
  */
-
-/** 官方广场 hub（唯一官方入口）：plazaEndpoint 留空时回落到这里 */
-const PLAZA_OFFICIAL_HUB = 'https://plaza.bloghao.com'
 
 /** 广场 ingest 签名：HMAC-SHA256(token, `ts.rawBody`) → hex。与 hub 校验端同一算法（tests 双端镜像） */
 export async function plazaSign(token: string, ts: string, rawBody: string): Promise<string> {
@@ -268,6 +264,9 @@ export async function plazaSign(token: string, ts: string, rawBody: string): Pro
   for (let i = 0; i < v.length; i++) s += v[i].toString(16).padStart(2, '0')
   return s
 }
+
+/** 官方广场 hub（唯一官方入口）：plazaEndpoint 留空时回落到这里 */
+const PLAZA_OFFICIAL_HUB = 'https://plaza.bloghao.com'
 
 const plazaSync: ServerPlugin = {
   id: 'plaza-sync',

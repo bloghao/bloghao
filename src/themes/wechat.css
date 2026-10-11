@@ -722,7 +722,7 @@ a.wx-account:hover { opacity: 0.75; }
   font-size: 11px; line-height: 1; padding: 4px 9px; border-radius: 999px;
   color: var(--wx-accent); background: rgba(178, 58, 41, 0.07); letter-spacing: 0.05em;
 }
-.wb-topic { color: var(--wx-accent); }
+.wb-topic { color: var(--wx-accent); background: rgba(178, 58, 41, 0.07); border-radius: 4px; padding: 1px 5px; }
 .wb-link { color: var(--wx-accent); }
 .wb-text a.wb-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .wb-text a.wb-topic:hover { text-decoration: underline; text-underline-offset: 3px; }

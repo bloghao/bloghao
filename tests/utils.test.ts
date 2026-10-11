@@ -109,12 +109,30 @@ test('clampInt 边界与非数字回退', () => {
   assert.equal(clampInt('abc', 1, 10, 3), 3)
 })
 
-test('extractWeiboTopics 防误判：紧贴字母/汉字的 # 不算话题开头', () => {
-  // 「C#」「与#代码」的 # 前是字母/汉字，按设计不提取（防 C# 被当话题）
+test('extractWeiboTopics 防误判：ASCII 字母/数字紧贴的 # 不算话题开头', () => {
+  // 「写C#的日常」「F#」「12#月」的 # 前是 ASCII 字母/数字，按设计不提取（防 C# 被当话题）
   assert.deepEqual(extractWeiboTopics('写 C# 的日常 #随笔#'), ['随笔'])
-  assert.deepEqual(extractWeiboTopics('#生活#与#代码#'), ['生活'])
-  // 空格分隔的独立 #话题# 正常成对提取
-  assert.deepEqual(extractWeiboTopics('#生活# 和 #代码#'), ['生活', '代码'])
+  assert.deepEqual(extractWeiboTopics('写C#的日常'), [])
+  assert.deepEqual(extractWeiboTopics('F#很棒 #daily'), ['daily'])
+  assert.deepEqual(extractWeiboTopics('12#月总结'), [])
+  // 汉字后可直接跟话题（中文不打空格）：成对与单井号都成立
+  assert.deepEqual(extractWeiboTopics('#生活#与#代码#'), ['生活', '代码'])
+  assert.deepEqual(extractWeiboTopics('今天心情不错#打卡'), ['打卡'])
+})
+
+test('extractWeiboTopics 单井号主推写法：句读即停，句中后文不算话题名', () => {
+  // 中文不打空格的句子：话题名到中文标点为止，不吞整句（旧版会把「日常，今天很开心」整段当话题名）
+  assert.deepEqual(extractWeiboTopics('#日常，今天很开心'), ['日常'])
+  assert.deepEqual(extractWeiboTopics('#日常。睡了'), ['日常'])
+  assert.deepEqual(extractWeiboTopics('#打卡！下班了'), ['打卡'])
+  assert.deepEqual(extractWeiboTopics('#开心~ #todo. 买牛奶'), ['开心', 'todo'])
+  // 单井号 + 空白/结尾：与旧版一致
+  assert.deepEqual(extractWeiboTopics('#日常 今天真好'), ['日常'])
+  assert.deepEqual(extractWeiboTopics('#日常'), ['日常'])
+  // Memos 式层级标签：`/` 不在停顿集，整个词算一个话题
+  assert.deepEqual(extractWeiboTopics('#软件/apple/mac 收藏'), ['软件/apple/mac'])
+  // 成对写法兼容旧内容
+  assert.deepEqual(extractWeiboTopics('#晚餐日记#'), ['晚餐日记'])
 })
 
 // ── 回归（2026-10 安全复查）：ESCAPE '\' 声明下 \ 本身不转义会让搜索模式语义跑偏 ──

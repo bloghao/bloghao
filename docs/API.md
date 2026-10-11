@@ -195,13 +195,13 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 
 ```json
 {
-  "content": "文字内容，可含 #话题#",
+  "content": "文字内容，可含 #话题",
   "images": ["/images/u/202610/xxx.jpg"],
   "status": "published | draft"
 }
 ```
 
-约束：`content` ≤ 5000 字；`images` ≤ 9 张、只接受站内 `/images/` 与 `http(s)` 外链；`content` 与 `images` 不能同时为空；**话题不接受直传**——服务端从正文 `#话题#`（兼容 `#话题` 与 `#层级/标签`）自动提取；置顶最多 3 条，草稿不能置顶。
+约束：`content` ≤ 5000 字；`images` ≤ 9 张、只接受站内 `/images/` 与 `http(s)` 外链；`content` 与 `images` 不能同时为空；**话题不接受直传**——服务端从正文 `#话题`（兼容成对 `#话题#` 与 `#层级/标签`）自动提取；置顶最多 3 条，草稿不能置顶。
 
 ### 友情链接
 | 方法 | 路径 | 说明 |
@@ -330,7 +330,7 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 发布一条微博。`Content-Type: application/json` 与 `multipart/form-data` 均可：
 
 ```json
-{ "content": "文字，可含 #话题#", "images": ["https://外链 或 /images/站内 或 data:image/…;base64,…"], "status": "published | draft" }
+{ "content": "文字，可含 #话题", "images": ["https://外链 或 /images/站内 或 data:image/…;base64,…"], "status": "published | draft" }
 ```
 
 multipart 字段：`content`、`status`、`images`（文件，可重复；也接受图片地址字符串）。`status` 缺省为 `published`。

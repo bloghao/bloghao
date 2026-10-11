@@ -497,7 +497,7 @@ img { max-width: 100%; height: auto; }
   color: var(--md-accent); background: rgba(88, 166, 255, 0.12);
   font-family: var(--md-mono); letter-spacing: 0.05em;
 }
-.wb-topic { color: var(--md-accent); }
+.wb-topic { color: var(--md-accent); background: rgba(88, 166, 255, 0.12); border-radius: 4px; padding: 1px 5px; }
 .wb-link { color: var(--md-accent); }
 .wb-text a.wb-topic:hover { text-decoration: underline; text-underline-offset: 3px; }
 .wb-topics { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }

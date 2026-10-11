@@ -32,7 +32,7 @@
 | 表 | `weibo`（见 `schema.sql`）：`content`、`images`(JSON 数组)、`topics`(JSON 数组)、`status`(draft/published)、`pinned`、`likes`、`published_at`、`created_at`、`updated_at` |
 | 时间戳 | **毫秒**（`Date.now()`） |
 | 正文渲染 | `src/render.ts` 的 `weiboTextHtml()`：**纯文本 esc 转义 + 话题高亮**，**不支持 Markdown** → 导入前必须把 Markdown 转纯文本 |
-| 话题提取 | `src/utils.ts` `extractWeiboTopics()`：正则兼容 `#话题#` 与 `#话题`（后跟空白/行尾）两种写法，Memos 标签可直接保留 |
+| 话题提取 | `src/utils.ts` `extractWeiboTopics()`：正则兼容 `#话题`（单井号，句读即停）与 `#话题#`（成对）两种写法，Memos 标签可直接保留 |
 | 图片存储 | R2 key `u/{YYYYMM}/{base36时间戳}{随机}.{ext}`，URL 为 `/images/{key}`，同时登记 `uploads` 表（`src/api.ts` `/api/admin/upload`） |
 | 图片限制 | 仅 JPG/PNG/WebP/GIF 图片与 MP4/WebM 视频，单文件 ≤25MB（`IMAGE_MIMES`/`VIDEO_MIMES`） |
 | 置顶 | `pinned` 最多 3 条（应用层限制），导入一律 0 |

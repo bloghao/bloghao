@@ -93,7 +93,7 @@ const ZH_EN: Record<string, string> = {
   '全部 →': 'All →',
   '加载中…': 'Loading…',
   // 前台发布框（管理员）
-  '有什么新鲜事？正文里写 #话题# 可归类': "What's on your mind? Use #topic# in the text to file it",
+  '有什么新鲜事？写 #话题 即可归类': "What's on your mind? Use #topic in the text to file it",
   '加图（0/9）': 'Add photo (0/9)',
   '存草稿': 'Save draft',
   '发布': 'Publish',

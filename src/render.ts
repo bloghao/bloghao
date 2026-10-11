@@ -700,14 +700,16 @@ export function trimUrlTail(u: string): string {
   return s
 }
 
-/** 微博正文分词：URL 与 #话题# 共用一个正则一次扫描（先转链接再扫话题会把 href 里的
+/** 微博正文分词：URL 与 #话题 共用一个正则一次扫描（先转链接再扫话题会把 href 里的
  *  #fragment 误判成话题、把生成的锚点拆坏）。URL 不吞 CJK 字符与全角标点——
- *  「https://x.com的官网」这类中文紧贴的写法，链接应停在汉字前 */
+ *  「https://x.com的官网」这类中文紧贴的写法，链接应停在汉字前。
+ *  话题名边界与 utils.ts WEIBO_TOPIC_RE 同口径（汉字后可跟话题、ASCII 字母数字防误判、
+ *  句读即停），site.js 的 WB_TEXT_RE 是本正则的手工 ES5 镜像 */
 const WEIBO_TEXT_RE =
-  /(https?:\/\/[^\s<>"'\u3000-\u303f\uff00-\uffef\u4e00-\u9fff]+)|((?<![\p{L}\p{N}#])#[^\s#&<>"']{1,24}(?:#|(?=\s)|$))/gu
+  /(https?:\/\/[^\s<>"'\u3000-\u303f\uff00-\uffef\u4e00-\u9fff]+)|((?<![A-Za-z0-9#])#[^\s#&<>"'，。！？；：、…~～,.!?;:]{1,24}(?:#|(?=[\s，。！？；：、…~～,.!?;:])|$))/gu
 
 /** 微博正文：URL 转可点击超链（白名单外域过 /go 中间页，src/outlink.ts），
- *  #话题# 渲染成指向 /weibo?topic= 的链接；其余文本转义 */
+ *  #话题（或成对 #话题#）渲染成指向 /weibo?topic= 的高亮链接；其余文本转义 */
 export function weiboTextHtml(content: string): string {
   let out = ''
   let last = 0
@@ -728,7 +730,7 @@ export function weiboTextHtml(content: string): string {
   return out + replaceEmoji(esc(content.slice(last)))
 }
 
-/** 微博话题条：默认不显示（避免标签堆满页头）；仅从正文 #话题# 链接进入筛选时，显示「全部 + 当前话题」方便退出筛选 */
+/** 微博话题条：默认不显示（避免标签堆满页头）；仅从正文 #话题 链接进入筛选时，显示「全部 + 当前话题」方便退出筛选 */
 export function weiboTopicBar(topics: { name: string; count: number }[], active?: string, en = false): string {
   if (!active) return ''
   const hit = topics.find((t) => t.name === active)
@@ -1194,7 +1196,7 @@ export function weiboComposer(o: { adminName: string; en?: boolean }): string {
   const en = !!o.en
   return `<form class="wb-composer" data-wb-composer>
   <p class="wb-composer-as">${en ? 'Posting as' : '以作者'} <b>${esc(o.adminName)}</b>${en ? '' : ' 的身份发布'}</p>
-  <textarea class="wb-composer-textarea" name="content" maxlength="5000" rows="3" placeholder="${tr(en, '有什么新鲜事？正文里写 #话题# 可归类')}"></textarea>
+  <textarea class="wb-composer-textarea" name="content" maxlength="5000" rows="3" placeholder="${tr(en, '有什么新鲜事？写 #话题 即可归类')}"></textarea>
   <div class="wb-composer-tiles" hidden></div>
   <div class="wb-composer-foot">
     <button class="wb-composer-add" type="button">${tr(en, '加图（0/9）')}</button>
