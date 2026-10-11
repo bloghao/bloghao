@@ -103,6 +103,10 @@ npx wrangler deploy -c plaza/wrangler.jsonc</code></pre></div><p>自建 hub 的�
 <td><code>PATCH /api/admin/items/:kind/:ref?siteId=N</code></td>
 <td>body <code>{&quot;hidden&quot;:true}</code> 下架单条（违规处置）</td>
 </tr>
+<tr>
+<td><code>GET /api/admin/stats</code></td>
+<td>全局统计：站点 / 内容 / 今日与累计调用（feed≈广场页访问、ingest 上报）/ 近 14 天趋势（ops 控制面消费）</td>
+</tr>
 </tbody></table></div>
 <h3 id="公开端点">公开端点</h3><ul>
 <li><code>GET /api/feed?limit=30&amp;kind=post|weibo</code>——混排 feed（CORS 全开，官网直接消费）</li>
