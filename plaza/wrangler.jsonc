@@ -5,7 +5,7 @@
   "name": "plaza",
   "main": "src/index.ts",
   "compatibility_date": "2025-09-01",
-  "routes": [{ "pattern": "plaza.bloghao.com", "custom_domain": true }],
+  "routes": [{ "pattern": "REPLACE_WITH_YOUR_HUB_DOMAIN", "custom_domain": true }],
   "d1_databases": [
     {
       "binding": "DB",
