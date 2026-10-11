@@ -31,7 +31,13 @@ test('commentsHtml：会员评论带「会员」徽标，作者优先，游客�
     ],
   })
   assert.ok(html.includes('cmt-badge">会员</span>'), 'member_tier 非空应带会员徽标')
-  assert.ok(html.includes('cmt-badge">作者</span>'), '作者评论带作者徽标')
+  assert.ok(html.includes('cmt-badge">楼主</span>'), '作者评论在文章语境带楼主徽标')
+  const gb = commentsHtml({
+    ...base,
+    guestbook: true,
+    comments: [row({ id: 2, is_admin: 1, nickname: '作者', content: '谢谢' })],
+  })
+  assert.ok(gb.includes('cmt-badge">作者</span>'), '留言板语境沿用作者徽标')
 
   const guest = commentsHtml({ ...base, comments: [row({ nickname: '游客', content: '顶' })], count: 1 })
   assert.ok(!guest.includes('cmt-badge'), '游客评论无徽标')

@@ -61,6 +61,7 @@ const ZH_EN: Record<string, string> = {
   // 评论区
   '作者': 'Author',
   '回复': 'Reply',
+  '楼主': 'OP',
   '上一篇': 'Previous',
   '下一篇': 'Next',
   '昵称': 'Name',

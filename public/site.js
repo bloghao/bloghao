@@ -572,12 +572,13 @@
       var ch = (c.nickname || (EN ? 'G' : '客')).charAt(0) || (EN ? 'G' : '客')
       return '<span class="wb-cmt-avatar" aria-hidden="true">' + esc(ch) + '</span>'
     }
-    function item(c, nested) {
+    function item(c, nested, floor) {
       var html =
         '<li class="wb-cmt-item' + (nested ? ' wb-cmt-nested' : '') + '" id="wbc-' + c.id + '">' +
         '<div class="wb-cmt-head">' + avatarHtml(c) + '<span class="wb-cmt-name">' + esc(c.nickname) +
-        (Number(c.is_admin) ? '<span class="wb-cmt-badge">' + T('作者') + '</span>' : c.member_name ? '<span class="wb-cmt-badge">' + (EN ? 'Member' : '会员') + '</span>' : '') +
+        (Number(c.is_admin) ? '<span class="wb-cmt-badge">' + T('楼主') + '</span>' : c.member_name ? '<span class="wb-cmt-badge">' + (EN ? 'Member' : '会员') + '</span>' : '') +
         '</span><span class="wb-cmt-time">' + fmtTime(c.created_at) + '</span>' +
+        (floor ? '<span class="wb-cmt-floor" style="font-size:11px;opacity:0.45;font-variant-numeric:tabular-nums">#' + floor + '</span>' : '') +
         (isAdmin
           ? '<button type="button" class="wb-cmt-reply-btn" data-reply="' + c.id + '" data-name="' + esc(c.nickname) + '">' + T('回复') + '</button>'
           : '') +
@@ -586,7 +587,7 @@
       if (kids.length) html += '<ul class="wb-cmt-children">' + kids.map(function (k) { return item(k, true) }).join('') + '</ul>'
       return html + '</li>'
     }
-    listEl.innerHTML = '<ul class="wb-cmt-list">' + tops.map(function (c) { return item(c, false) }).join('') + '</ul>'
+    listEl.innerHTML = '<ul class="wb-cmt-list">' + tops.map(function (c, i) { return item(c, false, i + 1) }).join('') + '</ul>'
   }
 
   function loadWeiboComments(panel) {
@@ -1754,6 +1755,86 @@
   ;(function () {
     var scrollers = document.querySelectorAll('.hm-scroll')
     for (var i = 0; i < scrollers.length; i++) scrollers[i].scrollLeft = scrollers[i].scrollWidth
+  })()
+
+  /* ---------------- 阅读工具条：文章页顶部进度条 + 章节胶囊 + 吸顶导航收放 + 目录 scrollspy ----------------
+   * 进度条与章节胶囊内联样式自含（填充色走各主题一行 CSS 钩子 .xw-readbar-fill）；
+   * 带 data-xw-nav-sticky 的导航（wechat 先行）下滚收起、上滑浮现，收起后章节胶囊接力报方位；
+   * wechat 桌面目录卡（.wx-toc）随滚动高亮当前小节。rAF 节流，无标题/无滚动的短页全部空转 */
+  ;(function () {
+    var rich = document.querySelector('.rich')
+    if (!rich) return
+    var heads = rich.querySelectorAll('h2[id], h3[id]')
+    var headList = []
+    for (var i = 0; i < heads.length; i++) {
+      headList.push({ el: heads[i], text: (heads[i].textContent || '').trim(), id: heads[i].id })
+    }
+    var tocLinks = {}
+    var toc = document.querySelector('.wx-toc')
+    if (toc) {
+      var links = toc.querySelectorAll('a[href^="#"]')
+      for (var j = 0; j < links.length; j++) tocLinks[links[j].getAttribute('href').slice(1)] = links[j]
+    }
+    var bar = document.createElement('div')
+    bar.setAttribute('aria-hidden', 'true')
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:3px;z-index:80;pointer-events:none;'
+    var fill = document.createElement('i')
+    fill.className = 'xw-readbar-fill'
+    fill.style.cssText = 'display:block;height:100%;width:0;'
+    bar.appendChild(fill)
+    var chip = document.createElement('span')
+    chip.className = 'xw-readbar-chip'
+    chip.setAttribute('aria-hidden', 'true')
+    chip.style.cssText =
+      'position:fixed;top:10px;left:16px;z-index:81;max-width:60%;padding:4px 12px;border-radius:999px;' +
+      'font-size:12px;line-height:1.4;color:#fff;background:rgba(40,38,34,0.72);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);' +
+      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;opacity:0;transition:opacity 0.2s ease;'
+    document.body.appendChild(bar)
+    document.body.appendChild(chip)
+    var nav = document.querySelector('[data-xw-nav-sticky]')
+    var lastY = window.pageYOffset || 0
+
+    function currentHeading() {
+      var cur = null
+      for (var k = 0; k < headList.length; k++) {
+        if (headList[k].el.getBoundingClientRect().top <= 72) cur = headList[k]
+        else break
+      }
+      return cur
+    }
+
+    function onScroll() {
+      // 先集中读、后集中写（避免读写交错引发布局抖动）；不走 rAF——标签页失焦时 rAF
+      // 停摆会让节流阀卡死在 true、处理器永久失灵（实机抓过），处理器本身足够便宜
+      var y = window.pageYOffset || document.documentElement.scrollTop || 0
+      var doc = document.documentElement
+      var max = doc.scrollHeight - window.innerHeight
+      var pct = (max > 0 ? Math.min(1, Math.max(0, y / max)) : 0) * 100
+      var deep = y > 320
+      var cur = deep ? currentHeading() : null
+      var navWasHidden = nav ? nav.classList.contains('xw-nav-hide') : false
+      if (nav) {
+        if (y > lastY + 4 && y > 240) nav.classList.add('xw-nav-hide')
+        else if (y < lastY - 4) nav.classList.remove('xw-nav-hide')
+      }
+      lastY = y
+      var show = !!cur && (!nav || nav.classList.contains('xw-nav-hide'))
+      fill.style.width = pct.toFixed(2) + '%'
+      if (show) {
+        chip.textContent = cur.text
+        chip.style.opacity = '1'
+      } else if (navWasHidden || chip.style.opacity === '1') {
+        chip.style.opacity = '0'
+      }
+      if (toc) {
+        for (var id in tocLinks) {
+          if (tocLinks[id].classList.contains('is-current')) tocLinks[id].classList.remove('is-current')
+        }
+        if (cur && tocLinks[cur.id]) tocLinks[cur.id].classList.add('is-current')
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
   })()
 
   /* ---------------- 会员（/member：登录 / 注册 / 退出，API 见 DEVPLAN 附录 A5） ----------------

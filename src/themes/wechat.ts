@@ -139,7 +139,7 @@ export function home(d: HomeData): string {
 
   const side = homeSide(d, en)
   return `<div class="wx-page${side ? ' wx-page-wide' : ''}">
-  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, active: d.navActive, en })}
+  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, sticky: true, categories: d.categories, tags: d.tags, pages: d.pages, active: d.navActive, en })}
   <header class="wx-masthead">
     ${avatar(s)}
     <h1 class="wx-masthead-name">${esc(tr(en, s.siteName))}</h1>
@@ -215,7 +215,7 @@ export function post(d: PostData): string {
   const side = `${tocCard}${sideCard(tr(en, '文章信息'), '', `<div class="wx-side-rows">${infoRows}</div>`)}`
 
   return `<div class="wx-article wx-article-wide">
-  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, en })}
+  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, sticky: true, categories: d.categories, tags: d.tags, pages: d.pages, en })}
   <div class="wx-cols"><div class="wx-maincol">
   <h1 class="wx-title">${esc(p.title)}</h1>
   <div class="wx-meta">
@@ -248,7 +248,7 @@ export function post(d: PostData): string {
 export function about(d: AboutData): string {
   const en = isEn(d.settings)
   return `<div class="wx-article">
-  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, active: d.navActive, en })}
+  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, sticky: true, categories: d.categories, tags: d.tags, pages: d.pages, active: d.navActive, en })}
   <h1 class="wx-title">${tr(en, '关于我')}</h1>
   <div class="wx-meta"><a class="wx-meta-avatar" href="/" aria-label="${en ? 'Back to home' : '返回首页'}">${avatar(d.settings)}</a>
     <div class="wx-meta-main"><a class="wx-account" href="/">${esc(tr(en, d.settings.siteName))}</a></div>
@@ -262,7 +262,7 @@ export function about(d: AboutData): string {
 export function page(d: PageData): string {
   const en = isEn(d.settings)
   return `<div class="wx-article">
-  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, active: d.navActive, en })}
+  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, sticky: true, categories: d.categories, tags: d.tags, pages: d.pages, active: d.navActive, en })}
   <h1 class="wx-title">${esc(d.title)}</h1>
   <article class="rich">${d.contentHtml}</article>
   ${foot(d.settings, footLinksFor(d.settings, en).about)}
@@ -274,7 +274,7 @@ export function archives(d: ArchivesData): string {
   const s = d.settings
   const en = isEn(s)
   return `<div class="wx-page">
-  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'archives', en })}
+  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, sticky: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'archives', en })}
   <header class="wb-page-head">
     <h1 class="wb-page-title">${tr(en, '归档')}</h1>
     <p class="wb-page-sub">${d.total > 0 ? (en ? `Everything written here · ${d.total} ${plural(d.total, 'post', 'posts')} in all` : `写下的每一篇 · 共 ${d.total} 篇`) : en ? 'Every post lands here.' : '写下的每一篇都会收进这里'}${yearStatsSuffix(d.yearStats, en)}</p>
@@ -290,7 +290,7 @@ export function guestbook(d: GuestbookData): string {
   const s = d.settings
   const en = isEn(s)
   return `<div class="wx-page">
-  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'guestbook', en })}
+  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, sticky: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'guestbook', en })}
   <header class="wb-page-head">
     <h1 class="wb-page-title">${tr(en, '留言板')}</h1>
     <p class="wb-page-sub">${d.count > 0 ? (en ? `${d.count} ${plural(d.count, 'message', 'messages')} so far · say anything` : `已有 ${d.count} 条留言 · 随便聊聊`) : en ? 'Write whatever you would like to say' : '想说点什么，就在这里写下来'}</p>
@@ -315,7 +315,7 @@ export function weibo(d: WeiboData): string {
     memberName: d.memberName,
   })
   return `<div class="wx-page">
-  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'weibo', en })}
+  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, sticky: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'weibo', en })}
   <header class="wb-page-head">
     <h1 class="wb-page-title">${tr(en, '微博')}</h1>
     <p class="wb-page-sub">${d.topic ? (en ? `Topic #${esc(d.topic)} · ${d.total} ${plural(d.total, 'note', 'notes')}` : `话题 #${esc(d.topic)} · 共 ${d.total} 条`) : d.total > 0 ? (en ? `Notes · ${d.total} ${plural(d.total, 'note', 'notes')} in total` : `随手记 · 共 ${d.total} 条`) : en ? 'Short notes — write as you please' : '随手记，想写就写'}</p>
@@ -335,7 +335,7 @@ export function links(d: LinksData): string {
   const s = d.settings
   const en = isEn(s)
   return `<div class="wx-page">
-  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'links', en })}
+  ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'wx-snav', compact: true, sticky: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'links', en })}
   <header class="wb-page-head">
     <h1 class="wb-page-title">${tr(en, '友情链接')}</h1>
     <p class="wb-page-sub">${d.total > 0 ? (en ? `Friend sites · ${d.total} ${plural(d.total, 'link', 'links')} in all` : `朋友站点 · 共 ${d.total} 个`) : en ? 'A place to trade links with friends' : '和朋友交换链接的地方'}</p>
@@ -353,7 +353,7 @@ export function rank(d: RankData): string {
   const s = d.settings
   const en = isEn(s)
   return `<div class="wx-page">
-  ${siteNav({ mode: siteMode(d.settings), memberEnabled: s.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'rank', en })}
+  ${siteNav({ mode: siteMode(d.settings), memberEnabled: s.membersEnabled === '1', cls: 'wx-snav', compact: true, sticky: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'rank', en })}
   <header class="wb-page-head">
     <h1 class="wb-page-title">${tr(en, '排行榜')}</h1>
     <p class="wb-page-sub">${d.total > 0 ? (en ? `All-time points board · ${d.total} ${plural(d.total, 'member', 'members')}` : `会员积分总榜 · 共 ${d.total} 位`) : en ? 'Comment and come back often to make the board' : '发留言、常回来，就能上榜'}</p>
@@ -368,7 +368,7 @@ export function member(d: MemberData): string {
   const s = d.settings
   const en = isEn(s)
   return `<div class="wx-page">
-  ${siteNav({ mode: siteMode(d.settings), memberEnabled: s.membersEnabled === '1', cls: 'wx-snav', compact: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'member', en })}
+  ${siteNav({ mode: siteMode(d.settings), memberEnabled: s.membersEnabled === '1', cls: 'wx-snav', compact: true, sticky: true, categories: d.categories, tags: d.tags, pages: d.pages, active: 'member', en })}
   <header class="wb-page-head">
     <h1 class="wb-page-title">${en ? 'Membership' : '会员中心'}</h1>
     <p class="wb-page-sub">${d.member ? (en ? 'Points, comments and members-only posts live here' : '留言、常回来，积分与专属内容都在这里') : en ? 'Log in or create an account to join' : '登录或注册，加入本站会员'}</p>

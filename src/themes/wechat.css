@@ -924,7 +924,7 @@ a.wx-account:hover { opacity: 0.75; }
  * 文章页：正文列 + 右侧栏（目录锚点 + 文章信息卡），目录锚点 id 由 wechat.ts tocOf 渲染期注入
  */
 html { scroll-behavior: smooth; }
-.rich h2, .rich h3 { scroll-margin-top: 20px; }
+.rich h2, .rich h3 { scroll-margin-top: 64px; } /* 让位吸顶导航（约 47px）+ 呼吸空隙 */
 .wx-cols { display: block; }
 .wx-side { display: none; }
 .wx-side-card {
@@ -970,6 +970,15 @@ html { scroll-behavior: smooth; }
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 .wx-toc a:hover { color: var(--wx-accent); border-left-color: var(--wx-accent); }
+.wx-toc a.is-current { color: var(--wx-accent); border-left-color: var(--wx-accent); font-weight: 500; }
+
+/* ---------- 阅读工具条：导航吸顶（下滚收起 / 上滑浮现，site.js 切 xw-nav-hide） ---------- */
+.wx-snav {
+  position: sticky; top: 0; z-index: 60;
+  background: var(--wx-bg);
+  transition: transform 0.25s ease;
+}
+.wx-snav.xw-nav-hide { transform: translateY(-100%); }
 .wx-toc-lv3 { padding-left: 26px; font-size: 12.5px; color: #978f82; }
 @media (min-width: 1024px) {
   .wx-page-wide, .wx-article-wide { max-width: 1120px; }
@@ -1023,3 +1032,6 @@ html { scroll-behavior: smooth; }
 .hm-l4 { background: var(--wx-accent); }
 .hm-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0 0; font-size: 11px; color: var(--wx-sub); }
 .hm-legend { display: inline-flex; align-items: center; gap: 3px; }
+
+/* 阅读工具条进度条填充色（site.js 注入 .xw-readbar-fill，几何内联） */
+.xw-readbar-fill { background: var(--wx-accent); }

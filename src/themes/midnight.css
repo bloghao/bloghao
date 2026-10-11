@@ -738,3 +738,6 @@ img { max-width: 100%; height: auto; }
 .hm-l4 { background: var(--md-accent); }
 .hm-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0 0; font-size: 11px; color: var(--md-sub); }
 .hm-legend { display: inline-flex; align-items: center; gap: 3px; }
+
+/* 阅读工具条进度条填充色（site.js 注入 .xw-readbar-fill，几何内联） */
+.xw-readbar-fill { background: var(--md-accent); }

@@ -277,6 +277,8 @@ export function siteNav(o: {
   memberEnabled?: boolean
   /** compact 布局（主题逐个试点）：主条只留内容区入口 + 会员药丸压轴，留言板/友情链接/排行榜/随机降级到主题页脚 */
   compact?: boolean
+  /** 吸顶导航（wechat 先行）：输出 data-xw-nav-sticky 标记，site.js 据此做下滚收起/上滑浮现（阅读工具条联动） */
+  sticky?: boolean
   /** 英文测试版：导航词走词典（tr），中文路径不传即原样 */
   en?: boolean
 }): string {
@@ -312,7 +314,7 @@ export function siteNav(o: {
     const memberPill = o.memberEnabled
       ? `<a class="${o.cls}-member${o.active === 'member' ? ' is-active' : ''}" href="/member">${tr(en, '会员')}</a>`
       : ''
-    return `<nav class="${o.cls}" aria-label="${tr(en, '站点导航')}">
+    return `<nav class="${o.cls}"${o.sticky ? ' data-xw-nav-sticky' : ''} aria-label="${tr(en, '站点导航')}">
   ${homeItem || weiboItem}
   ${m === 'weibo' ? '' : weiboItem}
   ${m === 'weibo' ? '' : item('/archives', tr(en, '归档'), o.active === 'archives')}
@@ -322,7 +324,7 @@ export function siteNav(o: {
   ${memberPill}
 </nav>`
   }
-  return `<nav class="${o.cls}" aria-label="${tr(en, '站点导航')}">
+  return `<nav class="${o.cls}"${o.sticky ? ' data-xw-nav-sticky' : ''} aria-label="${tr(en, '站点导航')}">
   ${homeItem || weiboItem}
   ${m === 'weibo' ? '' : weiboItem}
   ${m === 'weibo' ? '' : item('/archives', tr(en, '归档'), o.active === 'archives')}
@@ -1242,10 +1244,11 @@ export function commentsHtml(o: {
   const orphans = o.comments.filter((c) => c.parent_id && !commentIds.has(c.parent_id))
   for (const c of orphans) tops.push({ ...c, parent_id: 0 })
 
-  const renderItem = (c: CommentRow): string => {
-    // 徽标：作者优先；会员评论（member_id > 0 时列表查询带出 member_tier，契约 DEVPLAN 附录 A）带「会员」徽标
+  const renderItem = (c: CommentRow, floor?: number): string => {
+    // 徽标：作者优先（文章语境叫「楼主」，留言板没有楼层的概念沿用「作者」）；会员评论（member_id > 0 时列表查询带出
+    // member_tier，契约 DEVPLAN 附录 A）带「会员」徽标。楼层号只标顶层评论（盖楼的是一楼一层，楼中楼不占号）
     const badge = c.is_admin
-      ? `<span class="cmt-badge">${tr(en, '作者')}</span>`
+      ? `<span class="cmt-badge">${tr(en, o.guestbook ? '作者' : '楼主')}</span>`
       : c.member_tier
         ? `<span class="cmt-badge">${en ? 'Member' : '会员'}</span>`
         : ''
@@ -1258,14 +1261,15 @@ export function commentsHtml(o: {
     ${commentAvatarHtml(c, o.adminAvatar)}
     <span class="cmt-name">${esc(c.nickname)}${badge}</span>
     <span class="cmt-time">${en ? fmtDateTimeEn(c.created_at) : fmtDateTime(c.created_at)}</span>
+    ${floor ? `<span class="cmt-floor" style="font-size:11px;opacity:0.45;font-variant-numeric:tabular-nums">#${floor}</span>` : ''}
     ${replyBtn}
   </div>
   <div class="cmt-body">${replaceEmoji(esc(c.content))}</div>
-  ${kids.length ? `<ul class="cmt-children">${kids.map(renderItem).join('')}</ul>` : ''}
+  ${kids.length ? `<ul class="cmt-children">${kids.map((k) => renderItem(k)).join('')}</ul>` : ''}
 </li>`
   }
 
-  const list = tops.map((c) => renderItem(c)).join('\n')
+  const list = tops.map((c, i) => renderItem(c, i + 1)).join('\n')
 
   const formInner = `
   <input type="hidden" name="parentId" value="">

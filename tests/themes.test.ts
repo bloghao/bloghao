@@ -385,6 +385,45 @@ test('评论头像位：作者（管理员）评论用站点头像，未设置�
   assert.match(noAvatar, /<span class="cmt-avatar" aria-hidden="true">站<\/span>/, '没设站点头像维持首字块')
 })
 
+test('评论区楼层与楼主：顶层评论带 #N 楼层号，作者徽标文章语境叫楼主、留言板沿用作者，楼中楼不占号', () => {
+  const html = commentsHtml({
+    comments: [
+      cmt({ id: 1, nickname: '游客甲' }),
+      cmt({ id: 2, is_admin: 1, nickname: '站长', parent_id: 1 }),
+      cmt({ id: 3, nickname: '游客乙' }),
+      cmt({ id: 9, nickname: '孤儿', parent_id: 999 }),
+    ],
+    slug: 'hello',
+    allowComments: true,
+    count: 4,
+    adminAvatar: '/images/u/site.png',
+  })
+  assert.match(html, /cmt-floor"[^>]*>#1</, '顶层评论按序编楼层')
+  assert.match(html, /cmt-floor"[^>]*>#2</)
+  const kidsBlock = (html.split('<ul class="cmt-children">')[1] || '').split('</ul>')[0]
+  assert.ok(kidsBlock.includes('cmt-2'), '切割到的是楼中楼块')
+  assert.ok(!kidsBlock.includes('cmt-floor'), '楼中楼不占楼层号')
+  assert.match(html, /cmt-badge">楼主</, '文章语境作者徽标 = 楼主')
+  assert.ok(!html.includes('>作者<'), '文章语境不出「作者」字样徽标')
+  // 孤儿回复按顶层展示也占楼层
+  assert.match(html, /id="cmt-9"[\s\S]*?cmt-floor"[^>]*>#3</, '孤儿回复顶层层级占号')
+  const gb = commentsHtml({
+    comments: [cmt({ id: 1, is_admin: 1, nickname: '站长' })],
+    slug: '',
+    allowComments: true,
+    count: 1,
+    guestbook: true,
+  })
+  assert.match(gb, /cmt-badge">作者</, '留言板语境沿用作者徽标')
+})
+
+// site.js 是一个 IIFE，一处解析错误全站交互瘫痪（2026-10 实抓：三元缺 else 半个文件报废）——
+// 全文件编译守卫，切片镜像测试拦不住的顶层语法错误在这里见红
+test('site.js 全文件语法守卫：可编译（不执行），解析错误即全站交互瘫痪', () => {
+  const src = readFileSync(new URL('../public/site.js', import.meta.url), 'utf8')
+  assert.doesNotThrow(() => new Function(src), 'site.js 语法错误——全站交互瘫痪')
+})
+
 // site.js 的 renderWeiboComments.avatarHtml 是服务端 commentAvatarHtml 的 ES5 手工镜像（作者评论
 // 头像走接口下发的 adminAvatar，游客自填 QQ 走行内 avatar）——把 site.js 源码切片在 Node 里执行，
 // 头像位双端同态，漂移当场见红
@@ -408,6 +447,10 @@ test('site.js 微博评论头像镜像：会员图 / 作者站点头像 / 游客
   assert.match(listEl.innerHTML, /<img class="wb-cmt-avatar wb-cmt-avatar-img" src="\/images\/u\/site\.png"/, '作者评论用站点头像')
   assert.match(listEl.innerHTML, /<img class="wb-cmt-avatar wb-cmt-avatar-img" src="\/images\/u\/guest\.png"/, '游客自填 QQ 的站内转存头像位')
   assert.match(listEl.innerHTML, /<span class="wb-cmt-avatar" aria-hidden="true">游<\/span>/, '没填 QQ 的游客退首字块')
+  // 楼层号与楼主徽标：与 SSR commentsHtml 同构（顶层 #1 起编、作者徽标微博语境叫楼主）
+  assert.match(listEl.innerHTML, /wb-cmt-floor"[^>]*>#1</, '楼层号从 #1 起编')
+  assert.match(listEl.innerHTML, /wb-cmt-floor"[^>]*>#4</, '四条顶层编到 #4')
+  assert.match(listEl.innerHTML, /wb-cmt-badge">楼主</, '作者徽标微博语境 = 楼主')
   // 接口没带 adminAvatar（站点未设头像）时，作者评论退回首字块，与 SSR 同态
   listEl.innerHTML = ''
   render({ querySelector: () => listEl }, [rows[2]], false, '')
