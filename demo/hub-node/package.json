@@ -1,0 +1,15 @@
+{
+  "name": "plaza-hub-node",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "广场 hub 的 Node 运行器（甲骨文服务器演示部署）——plaza Workers 代码零改动，D1→node:sqlite",
+  "scripts": {
+    "build": "esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.js --loader:.sql=text --log-level=warning",
+    "start": "node dist/server.js",
+    "dev": "npm run build && npm run start"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
+  }
+}
