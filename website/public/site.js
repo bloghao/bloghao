@@ -106,7 +106,6 @@
         .then(function (d) {
           if (d && d.ok) {
             showMsg('✓ 已收到，站长审核通过后就会出现在上面。', true)
-            submitForm.hidden = true
           } else {
             showMsg((d && d.error) || '提交没成功，稍后再试或去 GitHub 提 issue。', false)
           }

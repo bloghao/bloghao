@@ -239,3 +239,13 @@
   .plaza-card-avatar .plaza-media-fallback { font-size: 0.9rem; }
   .plaza-card-thumb { flex-basis: 64px; width: 64px; height: 64px; }
 }
+
+/* 侧栏投稿表单：窄容器竖排（.showcase-submit 基础样式在 style.css） */
+.plaza-side .showcase-submit { margin: 10px 0 0; }
+.plaza-side .showcase-submit input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 8px;
+}
+.plaza-side .showcase-submit button { width: 100%; }

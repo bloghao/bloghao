@@ -10,7 +10,7 @@
 <meta property="og:type" content="website">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../style.css?v=20261011g">
-<link rel="stylesheet" href="./plaza.css?v=20261011g">
+<link rel="stylesheet" href="./plaza.css?v=20261011h">
 </head>
 <body>
 
@@ -23,8 +23,10 @@
       <a href="../#features">特性</a>
       <a href="../#themes">主题</a>
       <a href="../#showcase">目录</a>
+      <a href="../#editor">编辑器</a>
+      <a href="./" class="nav-plaza is-active">广场</a>
       <a href="../#start">快速开始</a>
-      <a href="./" class="is-active">广场</a>
+      <a href="../#docs">文档</a>
     </nav>
     <div class="nav-cta">
       <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
@@ -61,6 +63,16 @@
           <h2>你的博客号也来？</h2>
           <p>部署博客号后，在后台「设置 → 服务端插件」开启<b>广场同步</b>即可上榜（广场地址留空即官方 hub —— 稳定版 / 开发版唯一接入入口）；站点认证请联系站长登记。</p>
           <p><a class="btn btn-primary" href="../#start">五分钟开个博客号</a></p>
+        </div>
+        <div class="plaza-side-card">
+          <h2>站点上榜（目录收录）</h2>
+          <p>想在官网目录「他们也在写博客号」里出现？填个地址，站长审核后上榜。</p>
+          <form id="showcase-submit" class="showcase-submit" novalidate>
+            <input type="url" id="sc-url" name="url" placeholder="https://your.bloghao.com" required>
+            <input type="text" id="sc-name" name="name" placeholder="站点名称（可选）" maxlength="40">
+            <button type="submit" id="sc-btn">提交上榜</button>
+            <p class="showcase-submit-msg" id="sc-msg" hidden></p>
+          </form>
         </div>
       </aside>
     </div>
