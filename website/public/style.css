@@ -95,6 +95,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; ba
   background: rgba(178, 58, 41, 0.09); border: 1px solid rgba(178, 58, 41, 0.25);
   border-radius: 999px; padding: 6px 16px; margin-bottom: 22px;
 }
+.hero-badge a { text-decoration: underline; text-underline-offset: 3px; font-weight: 800; }
 .hero h1 {
   font-size: clamp(38px, 7vw, 62px);
   font-weight: 800; letter-spacing: 0.01em; line-height: 1.18;
@@ -349,6 +350,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; ba
   background: var(--accent-soft); border-radius: 999px; padding: 6px 14px;
   flex: 0 0 auto;
 }
+.roadmap + .roadmap { margin-top: 14px; }
 .roadmap-items { display: flex; gap: 10px 28px; flex-wrap: wrap; }
 .roadmap-items span { font-size: 14.5px; color: #4a443c; font-weight: 600; }
 

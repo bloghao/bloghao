@@ -10,12 +10,12 @@
     "deploy": "wrangler deploy",
     "deploy:demo": "wrangler deploy -c wrangler.demo.jsonc",
     "deploy:site": "cd website && wrangler pages deploy public",
+    "build:docs": "node website/build-docs.mjs",
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
     "db:init:local": "wrangler d1 execute DB --local --file schema.sql",
     "db:init:remote": "wrangler d1 execute DB --remote --file schema.sql",
-    "test": "tsx --test tests/*.test.ts",
-    "build:docs": "node website/build-docs.mjs"
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "hono": "^4.9.0"

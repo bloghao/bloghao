@@ -28,6 +28,7 @@ const DOCS = [
   { slug: 'demo', file: 'DEMO.md', icon: '🎪', title: '演示站指南', desc: '官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫。' },
   { slug: 'roadmap', file: 'ROADMAP.md', icon: '🗺️', title: '路线图', desc: '已上线能力与近期计划，按 A / B / C 优先级管理的开发方向。' },
   { slug: 'versions', file: 'VERSIONS.md', icon: '🏷️', title: '版本更新说明', desc: '从 2026-10-03 项目诞生到今天的大版本大事记：每个版本带来了什么，博客号一路怎么长成现在这样。' },
+  { slug: 'changelog', file: '../CHANGELOG.md', icon: '📜', title: '更新日志', desc: '每个版本更新了哪些细节：新增、变更与修复，官方发布时回填；升级 = 重新部署，D1 自动迁移。' },
 ]
 const byFile = new Map(DOCS.map((d) => [d.file, d]))
 
@@ -45,7 +46,8 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-// 相对链接改写：docs 内互链 → 站内页；仓库内其他文件 → GitHub；其余原样保留
+// 相对链接改写：docs 内互链 → 站内页；仓库内其他文件（../docker-poc/DEPLOY.md、
+// CHANGELOG 里的 docs/RELEASING.md、docker-poc/DEPLOY-MICRO.md 这类带路径的）→ GitHub；其余原样保留
 function rewriteHref(href) {
   if (href === 'https://deploy.workers.cloudflare.com/button') return '../assets/deploy-button.svg'
   if (/^(https?:|mailto:|#)/.test(href)) return href
@@ -56,6 +58,7 @@ function rewriteHref(href) {
   }
   const m = clean.match(/^([^/]+\.md)(#.*)?$/)
   if (m && byFile.has(m[1])) return byFile.get(m[1]).slug + '.html' + (m[2] || '')
+  if (/^[^/]+\/.+\.md([#?]|$)/.test(clean)) return GITHUB_BLOB + clean
   if (/\.md([#?]|$)/.test(clean)) return GITHUB_BLOB + 'docs/' + clean
   return href
 }
@@ -204,13 +207,14 @@ ${FOOTER}
 }
 
 function docPage(doc, { html, headings }) {
+  const repoPath = doc.file.startsWith('../') ? doc.file.slice(3) : 'docs/' + doc.file
   const body = `
 <div class="docs-shell${headings.length >= 3 ? ' docs-shell-toc' : ''}">
   ${sidebar(doc.slug)}
   <main class="docs-main">
     <div class="docs-crumbs">
       <a href="index.html">文档中心</a><span>/</span><b>${doc.icon} ${doc.title}</b>
-      <a class="doc-edit" href="${GITHUB_BLOB}docs/${doc.file}" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
+      <a class="doc-edit" href="${GITHUB_BLOB}${repoPath}" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
     </div>
     <article class="doc-md">
 ${html}
@@ -257,7 +261,7 @@ function indexPage() {
 </main>`
   return page({
     title: '文档中心 - 博客号 BlogHao',
-    description: '博客号 BlogHao 全部中文文档：部署教程、使用手册、主题开发、插件开发、API 参考、排版规范、演示站指南与路线图。',
+    description: '博客号 BlogHao 全部中文文档：部署教程、使用手册、主题开发、插件开发、API 参考、排版规范、演示站指南、路线图、版本大事记与逐版本更新日志。',
     body,
   })
 }

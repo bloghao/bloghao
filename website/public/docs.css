@@ -172,8 +172,11 @@
   .docs-toc { display: none; }
 }
 @media (max-width: 960px) {
-  .docs-shell, .docs-shell-toc { grid-template-columns: 1fr; gap: 0; padding-top: 86px; }
-  .docs-sidebar { position: static; margin-bottom: 22px; }
+  /* minmax(0,1fr)：正文列不被长内联代码 / URL 的 min-content 撑破，配合 overflow-wrap 真断行 */
+  .docs-shell, .docs-shell-toc { grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 86px; }
+  .doc-md { font-size: 15px; overflow-wrap: anywhere; }
+  /* min-width:0 让侧栏可收缩到列宽——chips 横滑在自己内部滚动，不撑破页面 */
+  .docs-sidebar { position: static; margin-bottom: 22px; min-width: 0; max-width: 100%; }
   .docs-side-title { margin-bottom: 10px; }
   .docs-side-list {
     flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 6px;
@@ -187,7 +190,6 @@
   .doc-md h1 { font-size: 25px; }
   .doc-md h2 { font-size: 20px; }
   .doc-md h3 { font-size: 17px; }
-  .doc-md { font-size: 15px; }
   .docs-pager { flex-direction: column; }
   .docs-pager-link, .docs-pager-link.is-next { max-width: 100%; text-align: left; margin-left: 0; }
 }

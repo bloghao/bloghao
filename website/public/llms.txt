@@ -10,7 +10,7 @@
 - 在线示例：https://blog.xiaowuleyi.com （后台 /admin/）
 - 演示站：https://demo.bloghao.com （DEMO_MODE 体验环境：预置仿真数据、每 2 小时重置、后台账号 demo/demo1234，机制见 docs/DEMO.md）
 - 官网：https://bloghao.com
-- 官网文档页：https://bloghao.com/docs/ （docs/*.md 预渲染成与官网同款配色的 HTML 页，人类读者无需访问 GitHub；AI 抓取仍建议用下方 raw Markdown 直链）
+- 官网文档页：https://bloghao.com/docs/ （docs/*.md 与根目录 CHANGELOG.md 预渲染成与官网同款配色的 HTML 页，人类读者无需访问 GitHub；版本更新日志页：https://bloghao.com/docs/changelog.html ；AI 抓取仍建议用下方 raw Markdown 直链）
 - 技术栈：Cloudflare Workers（hono 路由）+ D1（SQLite）+ R2（图片存储）；公开页服务端渲染，后台原生 JS SPA，无构建链
 - 目录速查：
   - `src/pages.ts` 渲染公开页；`src/api.ts` 全部 JSON API；`src/collect.ts` 公众号采集插件服务端
@@ -27,8 +27,11 @@
 - [插件开发](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/PLUGINS.md)：一个 JS 文件扩展编辑器，`window.BlogHao` 插件 API 与加载机制
 - [API 参考](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/API.md)：全部公开 / 管理接口，HTML 净化白名单摘要也在这里，写自己的客户端
 - [微信排版规范](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/wechat-typography-spec.md)：微信编辑器插件开发规范的落地对照表与体检规则
+- [演示站指南](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/DEMO.md)：官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫
 - [路线图](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/ROADMAP.md)：已上线能力与近期计划
 - [版本更新说明](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/VERSIONS.md)：从项目诞生到今天的大版本大事记，每个版本带来了什么
+- [更新日志](https://raw.githubusercontent.com/bloghao/bloghao/main/CHANGELOG.md)：每个版本更新了哪些细节（根目录，非 docs/），官方发布时回填
+- [发布流程](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/RELEASING.md)：维护者向——开发线 → 官方仓库的发布清单、版本号规则与挑洗台账
 
 ## 给智能体与贡献者的提示
 

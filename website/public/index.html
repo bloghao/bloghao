@@ -6,7 +6,7 @@
 <title>博客号 BlogHao —— 微信有公众号，你有博客号</title>
 <meta name="description" content="博客号 BlogHao：完全运行在 Cloudflare Workers + D1 + R2 上的开源博客系统。不用申请、不用排队，五分钟部署，想写就写，数据 100% 归你。博客号，博客好！">
 <meta property="og:title" content="博客号 BlogHao —— 微信有公众号，你有博客号">
-<meta property="og:description" content="博客号，博客好！公众号风格写作 · 排版规范体检 · 六套主题 · 图片粘贴自动上云 · 免费部署">
+<meta property="og:description" content="博客号，博客好！公众号风格写作 · 排版规范体检 · 七套主题 · 会员积分与访问密码 · 图片粘贴自动上云 · 免费部署">
 <meta property="og:image" content="./assets/editor.png">
 <meta property="og:type" content="website">
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
@@ -44,7 +44,7 @@
   <section class="hero">
     <div class="hero-bg" aria-hidden="true"></div>
     <div class="wrap hero-inner">
-      <span class="hero-badge reveal">微信有公众号，你有博客号 ✌️ · v2.0 · MIT 开源</span>
+      <span class="hero-badge reveal">微信有公众号，你有博客号 ✌️ · <a href="./docs/changelog.html">v2.4</a> · MIT 开源</span>
       <h1 class="reveal">博客号，博客好。</h1>
       <p class="hero-sub reveal">
         一套完全跑在 Cloudflare（Workers + D1 + R2）上的开源博客系统。<br class="pc-only">
@@ -105,12 +105,12 @@
         <article class="card reveal">
           <div class="card-icon">🔍</div>
           <h3>搜索、排序与时光机</h3>
-          <p>首页搜索站内文章，列表按最新 / 最多阅读 / 点赞 / 留言 / 随机排序；「历史上的今天」让旧文章自动浮上来。</p>
+          <p>FTS5 全文索引，中文分词友好、按相关度排序，微博正文一并纳入；列表按最新 / 最多阅读 / 点赞 / 留言 / 随机排序；「历史上的今天」让旧文章自动浮上来。</p>
         </article>
         <article class="card reveal">
           <div class="card-icon">🎨</div>
-          <h3>六套主题即点即换</h3>
-          <p>微信公众号 / 纸墨 / 极简 / 夜航 / 手账 / 比特币，后台点一下立即生效，手机端同样完整可用。主题就是代码模块，欢迎贡献第七套。</p>
+          <h3>七套主题即点即换</h3>
+          <p>微信公众号 / 纸墨 / 极简 / 夜航 / 手账 / 比特币 / 小红书，后台点一下立即生效，手机端同样完整可用。主题就是代码模块，欢迎贡献第八套。</p>
         </article>
         <article class="card reveal">
           <div class="card-icon">🧩</div>
@@ -120,7 +120,37 @@
         <article class="card reveal">
           <div class="card-icon">🔒</div>
           <h3>安全是默认值</h3>
-          <p>PBKDF2 密码哈希、HttpOnly 会话、CSRF 同源校验、HTML 白名单净化、评论蜜罐与限流、CSP 响应头，全部默认开启。</p>
+          <p>PBKDF2 密码哈希、HttpOnly 会话、CSRF 同源校验、HTML 白名单净化、评论蜜罐与限流、CSP 响应头，全部默认开启；上传图片自动剥离 EXIF / GPS 元数据，拍摄坐标不随图公开。</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-icon">👥</div>
+          <h3>会员与积分</h3>
+          <p>访客注册登录、评论自带昵称与档位徽标（默认关闭，一键开启）；留言赚积分、<b>排行榜</b>亮相；「谁能看」四档让会员专属文章在服务端截断，未授权拿不到全文。</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-icon">🔐</div>
+          <h3>文章访问密码</h3>
+          <p>单篇文章开启「加密访问」：服务端 PBKDF2 哈希不回显，输对后 30 天免重复输入；锁定期间正文 / 摘要 / RSS / 站内搜索一概不外泄。</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-icon">😊</div>
+          <h3>微信表情</h3>
+          <p>整套 117 个微信默认表情文本码，编辑器、微博与评论区点开面板就发；存库仍是纯文本，RSS / 导出 / 搜索不受影响。</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-icon">🔗</div>
+          <h3>链接卡片与外链提醒</h3>
+          <p>粘贴网址自动抓标题 / 摘要 / 配图生成引用卡，站内文章一键插卡；第三方链接先过「即将离开本站」确认页，跳转前的最后一眼也讲究。</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-icon">🎚️</div>
+          <h3>主题外观变量（内测）</h3>
+          <p>主色、正文、背景、卡片、链接等 7 个语义色 + 正文字体与字号，后台面板不动代码即可调，保存即全站生效，随时一键恢复默认。</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-icon">🐳</div>
+          <h3>Docker 自托管</h3>
+          <p>不想跑在 Cloudflare 上？同一套业务代码零改动跑进普通 Node 容器：SQLite 存文章、磁盘或 R2 存图，单机多站，一条命令开新站。</p>
         </article>
       </div>
     </div>
@@ -129,8 +159,8 @@
   <!-- ================= 主题 ================= -->
   <section class="section section-tint" id="themes">
     <div class="wrap">
-      <h2 class="sec-title reveal">六套主题，六种心情</h2>
-      <p class="sec-sub reveal">后台「设置 → 外观」一点即换，响应式适配手机与桌面。</p>
+      <h2 class="sec-title reveal">七套主题，七种心情</h2>
+      <p class="sec-sub reveal">后台「皮肤」页一点即换，响应式适配手机与桌面。</p>
       <div class="theme-row">
         <figure class="phone reveal">
           <img src="./assets/theme-wechat.png" alt="微信公众号主题">
@@ -155,6 +185,10 @@
         <figure class="phone reveal">
           <img src="./assets/theme-bitcoin.png" alt="比特币主题">
           <figcaption><b>比特币</b><span>比特币橙 · 品牌素材风</span></figcaption>
+        </figure>
+        <figure class="phone reveal">
+          <img src="./assets/theme-rednote.png" alt="小红书主题">
+          <figcaption><b>小红书</b><span>品牌红 · 瀑布流笔记卡</span></figcaption>
         </figure>
       </div>
     </div>
@@ -204,12 +238,19 @@
     </div>
   </section>
 
-  <!-- ================= 路线图 ================= -->
+  <!-- ================= 最近更新 & 路线图 ================= -->
   <section class="section section-roadmap">
+    <div class="wrap roadmap reveal">
+      <span class="roadmap-tag">📝 最近更新</span>
+      <div class="roadmap-items">
+        <span>🎉 <a href="./docs/changelog.html">v2.4.0</a> 已发布 —— 发布前五路全面安全审计、广场微博补漏自愈与三段式信息流</span>
+      </div>
+    </div>
     <div class="wrap roadmap reveal">
       <span class="roadmap-tag">🚧 即将上线</span>
       <div class="roadmap-items">
-        <span>🎙️ 中文播客聚合 —— 让你的文字与声音同框</span>
+        <span>🧩 MCP 服务器 —— AI 助手直接帮你发文</span>
+        <span>🔔 通知渠道抽象 —— 飞书 / 企业微信 / Bark 触达</span>
         <span>✔️ <a href="./plaza/">广场</a>已上线 —— 你的文章与微博，官网首页之外再亮一次</span>
       </div>
     </div>
@@ -225,7 +266,9 @@
           <li><b>排版体检报告</b>逐条引用规范编号，支持一键修复</li>
           <li><b>定时发布</b>到点自动上线并推送 Telegram，草稿自动保存，手滑关掉页面也不丢字</li>
           <li><b>留言区</b>支持楼中楼回复、先审后展、蜜罐防机器人</li>
+          <li><b>阅读体验小件</b>——阅读进度条、目录滚动高亮、创作热力图、上一篇 / 下一篇、返回顶部与代码块一键复制</li>
           <li>自带 <b>RSS 全文输出 / sitemap / OG 分享卡</b>，SEO 开箱即用</li>
+          <li><b>一键导出</b> Markdown + 图片打包 / WordPress WXR，数据随时带走</li>
           <li>管理后台有<b>概览统计、媒体库、微博、评论、友链管理</b>，麻雀虽小</li>
         </ul>
         <div class="split-cta">
@@ -297,6 +340,9 @@ npm run deploy</code></pre>
         <a class="card card-link reveal" href="./docs/guide.html">
           <h3>📖 使用手册</h3><p>后台导览、写文章全流程、快捷键、评论与媒体管理、设置逐项说明。</p>
         </a>
+        <a class="card card-link reveal" href="./docs/plaza.html">
+          <h3>🧭 广场</h3><p>三步接入官方广场，让每篇文章与微博被更多博主看到；含混排口径与自建 hub。</p>
+        </a>
         <a class="card card-link reveal" href="./docs/themes.html">
           <h3>🎨 主题开发</h3><p>三步注册一套新主题，公共积木与排版规范底线。</p>
         </a>
@@ -314,6 +360,12 @@ npm run deploy</code></pre>
         </a>
         <a class="card card-link reveal" href="./docs/roadmap.html">
           <h3>🗺️ 路线图</h3><p>已上线能力与近期计划，按优先级管理的开发方向。</p>
+        </a>
+        <a class="card card-link reveal" href="./docs/versions.html">
+          <h3>🏷️ 版本更新说明</h3><p>从项目诞生到今天的大版本大事记：每个版本带来了什么，博客号一路怎么长成现在这样。</p>
+        </a>
+        <a class="card card-link reveal" href="./docs/changelog.html">
+          <h3>📜 更新日志</h3><p>每个版本更新了哪些细节：新增、变更与修复，官方发布时回填。</p>
         </a>
         <a class="card card-link reveal" href="./llms.txt" target="_blank" rel="noopener">
           <h3>🤖 AI 索引</h3><p>llms.txt 文档索引：AI 助手与智能体从这里一步读到全部开发文档的 Markdown 源文件。</p>
@@ -344,6 +396,7 @@ npm run deploy</code></pre>
       <a href="./plaza/">广场</a>
       <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
       <a href="./docs/">文档</a>
+      <a href="./docs/changelog.html">更新日志</a>
       <a href="./llms.txt" target="_blank" rel="noopener">AI 索引</a>
       <a href="https://developers.weixin.qq.com/doc/service/guide/product/plugin_spec.html" target="_blank" rel="noopener">微信排版规范</a>
     </span>
