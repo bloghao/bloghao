@@ -155,6 +155,14 @@ try {
   // 2 字短词退回 LIKE 老路：新旧两条路都必须能搜到
   await check('GET', `/search?q=${encodeURIComponent('冒烟')}`, 200, 'smoke-multi-tag')
   await check('GET', '/rss.xml', 200)
+  // RSS 订阅别名（src/index.ts RSS_ALIASES）：常用盲猜路径必须与规范地址同内容，断言代表样本
+  await check('GET', '/feed', 200, '<?xml')
+  await check('GET', '/feed/', 200, '<?xml')
+  await check('GET', '/atom.xml', 200, '<?xml')
+  await check('GET', '/index.xml', 200, '<?xml')
+  await check('GET', '/feeds/posts/default', 200, '<?xml')
+  // WordPress 风格 ?feed=rss2：302 到 /rss.xml（fetch 默认跟随，断言最终拿到订阅内容）
+  await check('GET', '/?feed=rss2', 200, '<?xml')
   await check('GET', '/sitemap.xml', 200)
   // 分享卡图：内置默认卡必须能被社交平台抓到，页面必须输出 og:image / twitter:card（og:image 绝不缺位）
   await check('GET', '/og-default.png', 200)
@@ -234,6 +242,7 @@ try {
   await check('GET', '/', 503, '站点暂时关闭')
   await check('GET', '/post/smoke-multi-tag', 503)
   await check('GET', '/rss.xml', 503)
+  await check('GET', '/feed', 503) // 订阅别名路径同样进闭站拦截（与规范地址同中间件链）
   await check('GET', '/sitemap.xml', 503)
   await check('POST', '/api/public/track', 503, '站点已关闭', {
     headers: { 'Content-Type': 'application/json' },
