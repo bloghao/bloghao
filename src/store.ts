@@ -3,7 +3,7 @@
  * 常量与白名单只此一份——此前三份拷贝曾漂移出行为差异（image/jpg 别名、ico），改口径一处生效。
  */
 import type { Env } from './types'
-import { sha256Hex } from './utils'
+import { cstDate, sha256Hex } from './utils'
 import { stripImageMetadata } from './exif'
 import { fetchPublicResource } from './fetchsafe'
 
@@ -40,8 +40,10 @@ export async function saveUpload(
   ext: string,
   dir = 'u'
 ): Promise<string> {
-  const now = new Date()
-  const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+  // 年月子目录按北京时间（cstDate）取墙上日期：Workers 本地时区是 UTC，直接 getMonth()
+  // 会让北京每月 1 日 0-8 点的上传归入上月目录（与全站 +8h 时间口径一致）
+  const d = cstDate(Date.now())
+  const ym = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}`
   const key = `${dir}/${ym}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.${ext}`
   const clean = stripImageMetadata(buf)
   await env.IMAGES.put(key, clean, {

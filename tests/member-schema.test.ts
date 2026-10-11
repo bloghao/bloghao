@@ -85,6 +85,19 @@ test('SCHEMA_COLUMNS 每条 ALTER 的列都必须已存在于 schema.sql（新�
   }
 })
 
+test('SCHEMA_TABLES 的建表语句必须自带本表 SCHEMA_COLUMNS 的全部列（回归：pages 曾漏 deleted_at）', () => {
+  // ensureSchema 先跑 SCHEMA_COLUMNS 的 ALTER 再 CREATE（db.ts 顺序即此）：全新库上表还不存在，
+  // ALTER 撞 no such table 被吞，CREATE 是这些列的唯一来源——上面那条「并集」测试测不出这种漏
+  for (const { table, column } of alterColumns) {
+    const dbCols = dbTables.get(table)
+    if (!dbCols) continue // 原始表（posts/comments/…）只活在 schema.sql，ALTER 纯为老库，上一条测试守着
+    assert.ok(
+      dbCols.has(column),
+      `SCHEMA_TABLES 的 ${table} 建表缺 ${column}：全新库冷启动该列永久缺失，本 isolate 内所有涉及它的查询 500`
+    )
+  }
+})
+
 test('索引归位：挂在运行时补列上的索引只进 SCHEMA_INDEXES，其余必须同步进 schema.sql', () => {
   const sqlIndexes = new Set([...schemaSql.matchAll(/CREATE INDEX IF NOT EXISTS (\w+)/g)].map((m) => m[1]))
   for (const idx of parseSchemaIndexes(dbTs)) {

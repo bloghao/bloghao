@@ -17,6 +17,7 @@
 
 import { escAttr } from './sanitize'
 import { fetchableUrl } from './linkmeta'
+import { readBodyLimited } from './fetchsafe'
 
 export type MediaType = 'book' | 'movie' | 'music'
 
@@ -152,10 +153,15 @@ async function fetchDouban(
         signal: AbortSignal.timeout(RELAY_TIMEOUT_MS),
       })
       if (!res.ok) return null
-      // 中转响应体 ≤2MB（豆瓣条目页 ~500KB），超限视为脏数据丢弃
-      const len = Number(res.headers.get('content-length') || 0)
-      if (len > MAX_BODY_BYTES) return null
-      const data = (await res.json().catch(() => null)) as { status?: number; body?: string; blocked?: boolean; finalUrl?: string } | null
+      // 响应体流式限长（content-length 缺失时 res.json() 会无上限整读进内存，防被控中转打内存）
+      const raw = await readBodyLimited(res, MAX_BODY_BYTES)
+      if (!raw) return null
+      let data: { status?: number; body?: string; blocked?: boolean; finalUrl?: string } | null = null
+      try {
+        data = JSON.parse(new TextDecoder().decode(raw)) as { status?: number; body?: string; blocked?: boolean; finalUrl?: string }
+      } catch {
+        /* 脏数据按抓不到处理 */
+      }
       if (!data) return null
       if (data.blocked) return { status: 403, text: '', blocked: true } // 中转的风控信号（无 body 字段）
       if (typeof data.body !== 'string') return null
@@ -658,7 +664,14 @@ export async function probeRelay(
       signal: AbortSignal.timeout(RELAY_TIMEOUT_MS),
     })
     if (!res.ok) return { ok: false, error: `中转响应 ${res.status}` }
-    const data = (await res.json().catch(() => null)) as { ok?: boolean; cooldownUntil?: number } | null
+    const raw = await readBodyLimited(res, 64 * 1024) // 健康探测响应很小，超限即异常
+    if (!raw) return { ok: false, error: '中转响应格式异常' }
+    let data: { ok?: boolean; cooldownUntil?: number } | null = null
+    try {
+      data = JSON.parse(new TextDecoder().decode(raw)) as { ok?: boolean; cooldownUntil?: number }
+    } catch {
+      /* 脏数据按格式异常处理 */
+    }
     if (!data?.ok) return { ok: false, error: '中转响应格式异常' }
     if (data.cooldownUntil && data.cooldownUntil > Date.now()) return { ok: true, blocked: true }
     return { ok: true }

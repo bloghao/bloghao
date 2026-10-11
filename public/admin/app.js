@@ -992,12 +992,18 @@ async function viewLinks() {
   )
   document.getElementById('fl-add').addEventListener('click', () => flModal(null))
 
+  let flMoving = false
   async function flMove(id, dir) {
+    // reorder 非幂等：请求期间连点会挪两格（全站写操作防连击约定）
+    if (flMoving) return
+    flMoving = true
     try {
       await api('/admin/links/reorder', { method: 'POST', body: { id, dir } })
       navigate() // 操作后重渲染当前路由（经 navigate 守卫，用户已切页时不拽回）
     } catch (e) {
       toast(e.message, true)
+    } finally {
+      flMoving = false
     }
   }
 
@@ -1362,12 +1368,18 @@ async function viewPages() {
 
   document.getElementById('page-add').addEventListener('click', () => pageModal(null))
 
+  let pageMoving = false
   const move = async (id, dir) => {
+    // reorder 非幂等：请求期间连点会挪两格（全站写操作防连击约定）
+    if (pageMoving) return
+    pageMoving = true
     try {
       await api('/admin/pages/reorder', { method: 'POST', body: { id, dir } })
       navigate() // 操作后重渲染当前路由（经 navigate 守卫，用户已切页时不拽回）
     } catch (e) {
       toast(e.message, true)
+    } finally {
+      pageMoving = false
     }
   }
 

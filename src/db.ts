@@ -211,6 +211,12 @@ export async function getPostById(db: D1Database, id: number): Promise<PostRow |
   return db.prepare('SELECT * FROM posts WHERE id = ?').bind(id).first<PostRow>()
 }
 
+/** 后台文章出参：password_hash 永不出接口（明文不可逆，哈希也不该喂给前端），只给 hasPassword 布尔。
+ *  放 db.ts 让 api.ts 与 collect.ts（采集草稿响应）共用同一出口，新出参一律过这里 */
+export function postAdminView(row: PostRow & { tagList?: string[]; categoryId?: number | null }) {
+  return { ...row, password_hash: undefined, hasPassword: !!row.password_hash }
+}
+
 /** slug 查重公共件：posts / pages 同一套「占用即加后缀」探测（categories 是重名即拒绝语义，不走这里）。
  *  table 只来自下方两个包装函数的字面量，无注入面。
  *  故意不过滤 deleted_at：回收站行继续占用 slug，恢复时不会撞上后来新建的同名 slug */
@@ -836,6 +842,8 @@ const SCHEMA_TABLES = [
     updated_at  INTEGER NOT NULL
   )`,
   // 独立页面（src/pages.ts renderPage）：自建页面 + 「关于我」（slug = 'about'，见 ensureSchema 末尾的一次性播种）
+  // deleted_at 必须与 schema.sql 同步在列：ensureSchema 先跑 SCHEMA_COLUMNS 的 ALTER 再建表，
+  // 全新库上 ALTER 撞「no such table」被吞，CREATE 漏列会让本 isolate 内所有 pages 查询 500
   `CREATE TABLE IF NOT EXISTS pages (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     title       TEXT    NOT NULL,
@@ -845,7 +853,8 @@ const SCHEMA_TABLES = [
     show_in_nav INTEGER NOT NULL DEFAULT 0,
     sort        INTEGER NOT NULL DEFAULT 0,
     created_at  INTEGER NOT NULL,
-    updated_at  INTEGER NOT NULL
+    updated_at  INTEGER NOT NULL,
+    deleted_at  INTEGER
   )`,
   // 访客统计日志（src/stats.ts）：只存匿名 vid 与来源域名，不进备份，保留 180 天
   `CREATE TABLE IF NOT EXISTS visit_log (
@@ -864,7 +873,8 @@ const SCHEMA_TABLES = [
   // trigram 分词适配中文。虚表可以进 schema.sql（单条无分号体）；触发器只能在这里挂——
   // demo.ts 的 ensureTables 按分号朴素切分 SQL，切不开 CREATE TRIGGER 的 BEGIN...END 体，
   // 而 ensureSchema 是所有部署形态（生产 / 本地 / 演示）每次冷启动都会跑的通用迁移路径。
-  // 虚表是可重建的派生索引：不进 BACKUP_TABLES，恢复备份后靠 ftsSeeded 记账位触发全量重建。
+  // 虚表是可重建的派生索引：不进 BACKUP_TABLES，恢复备份后靠 ftsSeeded 记账位触发全量重建
+  // （ftsSeeded 本身会随 settings 一起被备份带回，ensureSchema 里另有空索引自愈探测兜底）
   `CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(title, summary, content, tokenize='trigram', content='posts', content_rowid='id')`,
   `CREATE VIRTUAL TABLE IF NOT EXISTS weibo_fts USING fts5(content, tokenize='trigram', content='weibo', content_rowid='id')`,
 ]
@@ -953,11 +963,17 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     }
   }
   // FTS 全量重建记账（src/fts.ts）：external content 虚表建出来时倒排索引是空的，
-  // 存量数据必须 rebuild 一次才可搜。settings 记账位保证只跑一回（幂等：备份恢复、
-  // demo 清库重灌后 key 随 settings 消失，下一次冷启动会自动补重建）。触发器要在场才能
-  // 保证增量，所以这步必须排在 SCHEMA_TRIGGERS 之后。
-  const ftsSeeded = await db.prepare("SELECT value FROM settings WHERE key = 'ftsSeeded'").first<{ value: string }>()
-  if (!ftsSeeded) {
+  // 存量数据必须 rebuild 一次才可搜。settings 记账位保证只跑一回；记账位在场也复核一次
+  // 索引非空——备份把 settings 原样带走又整体恢复时 ftsSeeded 会跟着回来，落到空索引的库
+  // 会让 ≥3 码点搜索静默无结果，这一探测兜住所有恢复路径（posts_fts_docsize 每个已索引
+  // 文档恰好一行，空索引恒为 0；直接查 posts_fts 读的是原表，测不出索引空）。触发器要在场
+  // 才能保证增量，所以这步必须排在 SCHEMA_TRIGGERS 之后。
+  let needFtsRebuild = !(await db.prepare("SELECT value FROM settings WHERE key = 'ftsSeeded'").first<{ value: string }>())
+  if (!needFtsRebuild) {
+    const docsize = await db.prepare('SELECT COUNT(*) AS n FROM posts_fts_docsize').first<{ n: number }>().catch(() => ({ n: 0 }))
+    needFtsRebuild = !docsize || docsize.n === 0
+  }
+  if (needFtsRebuild) {
     try {
       await db.prepare("INSERT INTO posts_fts(posts_fts) VALUES('rebuild')").run()
       await db.prepare("INSERT INTO weibo_fts(weibo_fts) VALUES('rebuild')").run()

@@ -38,7 +38,8 @@ function decodeEntities(s: string): string {
     if (code === 'quot') return '"'
     if (code === 'apos') return "'"
     const n = code.startsWith('#x') || code.startsWith('#X') ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10)
-    return Number.isFinite(n) && n > 0 ? String.fromCodePoint(n) : whole
+    // 上界同 sanitize.ts：超出 Unicode 码点空间 fromCodePoint 抛 RangeError，远端页面可借此打 500
+    return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : whole
   })
 }
 

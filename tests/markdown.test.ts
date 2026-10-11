@@ -74,3 +74,29 @@ test('表格后面的普通段落正常衔接（表格 flush 不吞段）', () =
   assert.ok(out.includes('</table>'), out)
   assert.ok(out.includes('<p>正文段落</p>'), out)
 })
+
+// ── safeUrlMd 拒绝列表（回归覆盖面补齐：此前只测了 javascript:）──
+test('safeUrlMd：data / vbscript / file / blob 协议的链接与图片全拒', () => {
+  const cases = [
+    '[x](data:text/html;base64,PHNjcmlwdD4=)',
+    '![x](data:image/svg+xml,<svg onload=alert(1)>)',
+    '[x](vbscript:msgbox(1))',
+    '[x](file:///etc/passwd)',
+    '![x](blob:https://x.test/uuid)',
+    '[x](JaVaScRiPt:alert(1))',
+    '[x](jav\tascript:alert(1))', // 制表符混淆：解析器忽略 \t，前缀判断必须先剥
+  ]
+  for (const md of cases) {
+    const html = mdToHtml(md)
+    assert.ok(!/href|src/.test(html.replace(/&lt;/g, '<')), `${md} 不应产出链接/图片：${html}`)
+  }
+})
+
+test('safeUrlMd：相对路径 / https 放行，mailto 等其余协议不链接化，alt 含引号正常转义', () => {
+  assert.match(mdToHtml('[a](/post/x)'), /href="\/post\/x"/)
+  assert.match(mdToHtml('[a](https://example.com/p?a=1&b=2)'), /&amp;/) // & 单次转义
+  // safeUrlMd 对带协议的 URL 只认 http(s)（sanitize 的 safeUrl 才放 mailto）：其余一律不产出链接
+  assert.ok(!/href/.test(mdToHtml('[a](mailto:a@b.test)')))
+  // alt 里的双引号必须经 escQuote（&quot;），不能破属性结构
+  assert.equal(mdToHtml('!["hi"](https://e.test/a.png)'), '<p><img src="https://e.test/a.png" alt="&quot;hi&quot;"></p>')
+})

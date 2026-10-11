@@ -52,7 +52,14 @@ const FOOT_LINKS = {
   post: '<a href="/about">关于我</a><a href="/rss.xml">RSS</a><a href="/admin">管理</a>',
   archive: '<a href="/">回主页</a><a href="/weibo">微博</a><a href="/about">关于我</a><a href="/rss.xml">RSS</a><a href="/admin">管理</a>',
   weibo: '<a href="/">回主页</a><a href="/weibo">微博</a><a href="/rss.xml">RSS</a><a href="/admin">管理</a>',
-  about: '<a href="/">回主页</a><a href="/weibo">微博</a><a href="/guestbook">留言板</a><a href="/admin">管理</a>',
+}
+
+/** about 页页脚的中文链接组：排行榜/随机两个动态位与英文镜像 footLinksEn().about 同口径
+ *  （排行榜随 membersEnabled 门控，随机在纯微博模式收起），其余主题走 footLinks 静态组 */
+function footLinksAboutZh(s: SettingsMap): string {
+  const rank = s.membersEnabled === '1' ? '<a href="/rank">排行榜</a>' : ''
+  const random = siteMode(s) === 'weibo' ? '' : '<a href="/random">随机</a>'
+  return `<a href="/">回主页</a><a href="/weibo">微博</a><a href="/guestbook">留言板</a>${rank}${random}<a href="/admin">管理</a>`
 }
 
 /** 页脚链接组的英文测试版镜像（结构同 FOOT_LINKS，只换标签词） */
@@ -186,7 +193,7 @@ export function page(d: PageData): string {
     <h1 class="pp-title">${esc(d.title)}</h1>
     <div class="pp-body rich">${d.contentHtml}</div>
   </article>
-  ${foot(d.settings, en ? footLinksEn(d.settings).about : FOOT_LINKS.about)}
+  ${foot(d.settings, en ? footLinksEn(d.settings).about : footLinksAboutZh(d.settings))}
 </div>`
 }
 

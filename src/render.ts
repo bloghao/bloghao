@@ -125,8 +125,12 @@ function absUrl(siteUrl: string, path: string): string {
 }
 
 /** 一键灰度（哀悼/纪念模式）：settings.siteGrayscale 开启时全站去色。
- *  放在 <html> 上才能覆盖背景色；注：filter 会让 fixed 后代改挂 html 定位基准——
- *  五套主题目前都没有 fixed 元素（sticky 不受影响），新主题引入固定定位时记得复查 */
+ *  放在 <html> 上才能覆盖背景色。filter 会为 fixed 后代改挂定位基准——但按 CSS Filter
+ *  Effects 规范，根元素（html）上的 filter 豁免、不建立 fixed 后代的 containing block，
+ *  因此 wechat 移动端下拉（fixed）、site.js 运行时注入的灯箱/返回顶部/阅读进度条等
+ *  fixed 元素在灰度下照常定位（Chromium/WebKit/Gecko 均按根元素豁免实现）。
+ *  注意：这条安全边界只对「filter 挂在根元素」成立——若未来把灰度改挂到某个包裹层，
+ *  其内所有 fixed 后代都会改挂该层为定位基准，必须先复查（AGENTS.md 灰度防线） */
 function grayscaleStyle(settings: SettingsMap): string {
   return settings.siteGrayscale === '1' ? '<style>html{filter:grayscale(100%)}</style>' : ''
 }

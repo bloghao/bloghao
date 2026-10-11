@@ -105,3 +105,35 @@ test('未终结的标签前缀与未闭合注释被转义，正常文本里的 <
   assert.equal(sanitizeHtml('<p onclick=alert(1)>hi</p>'), '<p>hi</p>')
   assert.equal(sanitizeHtml('<b>ok</b>'), '<b>ok</b>')
 })
+
+// ── style 属性清洗（净化器里除 URL 外唯一的脚本执行面，此前零覆盖）──
+test('style 白名单：合法声明保留、未知属性丢弃', () => {
+  assert.equal(
+    sanitizeHtml('<span style="color: red; position: fixed; width: 10px">x</span>'),
+    '<span style="color: red; width: 10px">x</span>'
+  )
+})
+
+test('style 危险值拒绝：expression / behavior / javascript: 不透传', () => {
+  assert.equal(sanitizeHtml('<span style="width: expression(alert(1))">x</span>'), '<span>x</span>')
+  assert.equal(sanitizeHtml('<span style="behavior: url(#default#time2)">x</span>'), '<span>x</span>')
+  assert.equal(sanitizeHtml('<span style="background-image: javascript:alert(1)">x</span>'), '<span>x</span>')
+})
+
+test('style url() 只放行站内相对路径，外链背景图置 none（防追踪）', () => {
+  assert.equal(
+    sanitizeHtml('<span style="background: url(/images/u/a.png)">x</span>'),
+    '<span style="background: url(&quot;/images/u/a.png&quot;)">x</span>'
+  )
+  assert.equal(
+    sanitizeHtml('<span style="background: url(https://evil.example/track.png)">x</span>'),
+    '<span style="background: none">x</span>'
+  )
+})
+
+test('style !important 剥除（编辑器序列化产物不需要，防覆盖站点样式）', () => {
+  assert.equal(
+    sanitizeHtml('<span style="color: red !important">x</span>'),
+    '<span style="color: red">x</span>'
+  )
+})

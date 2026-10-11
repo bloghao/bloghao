@@ -6,6 +6,7 @@
  * 本文件保持零依赖（不 import schema.sql / auth 等 Workers 侧模块），Node 测试可直接加载。
  */
 import { DEMO_POSTS } from './demo-posts'
+import { fmtDate } from './utils'
 
 /** 演示站重置 cron：每 2 小时的第 23 分钟（避开整点高峰）；demo Worker 独有（见 wrangler.demo.jsonc） */
 export const DEMO_RESET_CRON = '23 */2 * * *'
@@ -661,7 +662,7 @@ export function buildVisitRows(now: number, rng: () => number, slugs?: { slug: s
       const title = isPost ? `${post.title} - ${siteName}` : `${siteName}`
       rows.push({
         ts,
-        day: new Date(ts + 8 * 3_600_000).toISOString().slice(0, 10),
+        day: fmtDate(ts),
         vid: hex(rng, 10),
         path,
         title,

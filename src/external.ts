@@ -16,7 +16,7 @@ import { randomToken, rateLimit, safeEqual } from './auth'
 import { getSettings, getWeiboById, saveSettings, WEIBO_MAX_CHARS, WEIBO_MAX_IMAGES } from './db'
 import { fireWeiboPublished } from './hooks'
 import { siteBase } from './render'
-import { imageExtOf, MAX_UPLOAD_BYTES, saveUpload } from './store'
+import { imageExtOf, MAX_UPLOAD_BYTES, saveUpload, sniffImageExt } from './store'
 import type { Env, SessionUser, SettingsMap, WeiboRow } from './types'
 import { excerpt, extractWeiboTopics, isDemo } from './utils'
 
@@ -51,11 +51,16 @@ async function insertWeibo(db: D1Database, content: string, images: string[], st
   return row
 }
 
-/** 图片字节进 R2 图床并登记 uploads 表，返回站内地址；类型/大小不过关返回 null */
+/** 图片字节进 R2 图床并登记 uploads 表，返回站内地址；类型/大小不过关返回 null。
+ *  魔数优先（同手动上传 sniffUploadExt / collect 转存口径）：TG 文件与 data URL 声明的
+ *  mime 不可全信，声明与内容不符按真实魔数落库；魔数认不出再退声明 mime 白名单 */
 async function storeImage(env: Env, buf: ArrayBuffer, mime: string, name: string): Promise<string | null> {
+  if (buf.byteLength === 0 || buf.byteLength > MAX_UPLOAD_BYTES) return null
+  const sniffed = sniffImageExt(buf)
+  if (sniffed) return saveUpload(env, buf, `image/${sniffed === 'jpg' ? 'jpeg' : sniffed}`, name, sniffed)
   mime = (mime || '').split(';')[0].trim().toLowerCase()
   const ext = imageExtOf(mime)
-  if (!ext || buf.byteLength === 0 || buf.byteLength > MAX_UPLOAD_BYTES) return null
+  if (!ext) return null
   return saveUpload(env, buf, mime, name, ext)
 }
 

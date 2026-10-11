@@ -55,8 +55,11 @@ export async function awardPoints(
   const delta = reason === 'adminAdjust' ? Math.trunc(opts.delta ?? 0) : rule.delta
   if (delta === 0) return { ok: false, delta: 0, balance: await memberBalance(db, memberId) }
   // refId 承担幂等键：评论 = 评论 id（awardCommentPoints 去重）；每日登录 = 北京日序号（并发双击由
-  // member_points_log 的 (member_id, reason, ref_id) 部分唯一索引兜底，见 db.ts SCHEMA_INDEXES / schema.sql）
-  const refId = reason === 'dailyLogin' ? Math.floor(cstDayStart() / 86400000) : opts.refId ?? 0
+  // member_points_log 的 (member_id, reason, ref_id) 部分唯一索引兜底，见 db.ts SCHEMA_INDEXES / schema.sql）。
+  // adminAdjust 代码层强制 refId=0（不进唯一索引）：手动调整允许任意次同值操作，防未来调用方
+  // 误传 refId>0 被索引当成幂等键静默丢账（AGENTS 积分防线「别给 adminAdjust 传非 0 refId」的硬约束版）
+  const refId =
+    reason === 'dailyLogin' ? Math.floor(cstDayStart() / 86400000) : reason === 'adminAdjust' ? 0 : opts.refId ?? 0
   if (reason !== 'adminAdjust' && rule.dailyCap > 0) {
     const row = await db
       .prepare(

@@ -10,6 +10,7 @@ import { getSettings, saveSettings } from './db'
 import { notifyAdminText } from './external'
 import { purgeExpiredSessions, purgeExpiredMemberSessions } from './auth'
 import type { Env } from './types'
+import { fmtDate, isoDate } from './utils'
 
 const BACKUP_PREFIX = 'backups/'
 const KEEP_FILES = 30
@@ -57,13 +58,12 @@ export async function runBackup(env: Env): Promise<BackupResult> {
       if ((cnt?.n ?? 0) > (results?.length ?? 0)) truncated.push(`${table}(${cnt?.n}/${results?.length})`)
       tables[table] = results ?? []
     }
-    // 文件名用北京时间日期：new Date(ts+8h).toISOString() 即东八区墙上时间
-    const cstDay = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10)
-    const key = `${BACKUP_PREFIX}xwblog-${cstDay}.json`
+    // 文件名用北京时间日期（utils.fmtDate，与全站 +8h 口径同源，别再手拼偏移）
+    const key = `${BACKUP_PREFIX}xwblog-${fmtDate(Date.now())}.json`
     const payload = JSON.stringify({
       app: 'xwblog',
       version: 1,
-      exportedAt: new Date().toISOString(),
+      exportedAt: isoDate(Date.now()),
       truncatedTables: truncated,
       tables,
     })

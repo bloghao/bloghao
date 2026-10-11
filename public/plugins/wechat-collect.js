@@ -106,6 +106,10 @@ function openCollectDialog(ctx) {
     }
 
     go.addEventListener('click', collect)
-    mask.addEventListener('keydown', (e) => e.key === 'Enter' && collect())
+    mask.addEventListener('keydown', (e) => {
+      // 中文输入法组词回车不提交（e.isComposing 判定，全站约定）
+      if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return
+      collect()
+    })
     input.focus()
 }

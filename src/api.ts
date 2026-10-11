@@ -46,6 +46,7 @@ import {
   listWeibo,
   parseTags,
   parseWeiboImages,
+  postAdminView,
   saveSettings,
   seedWelcomePost,
   setPostCategory,
@@ -65,6 +66,7 @@ import { awardCommentPoints, awardPoints, normalizeMinTier } from './points'
 import { collectRoutes } from './collect'
 import { exportRoutes } from './export'
 import { adminExternalRoutes, externalRoutes, notifyAdminComment, telegramRoutes } from './external'
+import { fetchPublicResource } from './fetchsafe'
 import { fireCommentCreated, firePostPublished, fireWeiboPublished, listBufferChannels, listServerPlugins } from './hooks'
 import { SITE_MODE_VALUES, siteBase, toHomePost, type SiteMode } from './render'
 import { sanitizeHtml } from './sanitize'
@@ -530,11 +532,6 @@ async function readPostPayload(c: { req: { json: () => Promise<unknown> } }) {
 // 服务端插件列表（后台「插件」页展示与启停，见 src/hooks.ts）
 api.get('/admin/server-plugins', (c) => c.json({ plugins: listServerPlugins() }))
 
-/** 后台文章出参：password_hash 永不出接口（明文不可逆，哈希也不该喂给前端），只给 hasPassword 布尔 */
-function postAdminView(row: PostRow & { tagList?: string[]; categoryId?: number | null }) {
-  return { ...row, password_hash: undefined, hasPassword: !!row.password_hash }
-}
-
 api.get('/admin/posts', async (c) => {
   const statusParam = c.req.query('status')
   const status = statusParam === 'published' || statusParam === 'draft' || statusParam === 'scheduled' ? statusParam : 'all'
@@ -916,14 +913,15 @@ async function readLinkPayload(c: { req: { json: () => Promise<unknown> } }) {
 /** 把抓到的 favicon 存进 R2 图床，返回站内地址；类型/大小不对或抓取失败返回空串 */
 async function storeLinkIcon(env: Env, iconUrl: string, host: string): Promise<string> {
   try {
-    const res = await fetch(iconUrl, {
-      redirect: 'follow',
-      signal: AbortSignal.timeout(6000),
+    // 出网统一走 fetchsafe（iconUrl 可能来自管理员手填或第三方页面 <link> 解析）：
+    // 私网拒绝 + 重定向逐跳复查 + 流式限长；超限/超时/非 2xx 一律按抓不到处理
+    const r = await fetchPublicResource(iconUrl, {
+      maxBytes: LINK_ICON_MAX_BYTES,
+      timeoutMs: 6000,
       headers: { 'user-agent': ICON_FETCH_UA },
     })
-    if (!res.ok) return ''
-    const buf = await res.arrayBuffer()
-    if (!buf.byteLength || buf.byteLength > LINK_ICON_MAX_BYTES) return ''
+    if (!r || !r.buf.byteLength) return ''
+    const buf = r.buf
     // 只认文件魔数、不信任源站 Content-Type（同 collect 转存口径）：favicon 常是 ICO（sniffImageExt 不认），单独判魔数
     const h = new Uint8Array(buf, 0, Math.min(4, buf.byteLength))
     const ext = h[0] === 0 && h[1] === 0 && h[2] === 1 && h[3] === 0 ? 'ico' : sniffImageExt(buf)
@@ -953,16 +951,17 @@ async function fetchLinkIcon(env: Env, siteUrl: string): Promise<string> {
   const direct = await storeLinkIcon(env, `${origin}/favicon.ico`, host)
   if (direct) return direct
   try {
-    const res = await fetch(origin + '/', {
-      redirect: 'follow',
-      signal: AbortSignal.timeout(6000),
+    // 首页 HTML 抓取同走 fetchsafe；上限给足常见站点页面（读不动的超大页按抓不到处理）
+    const r = await fetchPublicResource(origin + '/', {
+      maxBytes: 2_000_000,
+      timeoutMs: 6000,
       headers: { 'user-agent': ICON_FETCH_UA, accept: 'text/html' },
     })
-    if (res.ok) {
-      const html = (await res.text()).slice(0, 200_000)
+    if (r) {
+      const html = new TextDecoder().decode(r.buf).slice(0, 200_000)
       const tag = html.match(/<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]*>/i)?.[0]
       const href = tag?.match(/href=["']([^"']+)["']/i)?.[1]
-      if (href) return storeLinkIcon(env, new URL(href, res.url || origin).toString(), host)
+      if (href) return storeLinkIcon(env, new URL(href, r.res.url || origin).toString(), host)
     }
   } catch {
     /* 超时 / 网络不通，按拿不到处理 */
@@ -1285,7 +1284,8 @@ api.delete('/admin/trash/:type/:id', async (c) => {
     if ((res[1].meta.changes ?? 0) < 1) return jsonError('回收站里没有这条内容', 404)
   } else {
     const res = await c.env.DB.prepare('DELETE FROM pages WHERE id = ? AND deleted_at IS NOT NULL').bind(id).run()
-    if ((res.meta.changes ?? 0) !== 1) return jsonError('回收站里没有这条内容', 404)
+    // 同 posts/weibo 用 < 1 口径：pages 未来若挂 FTS/其他触发器，changes 会被多计
+    if ((res.meta.changes ?? 0) < 1) return jsonError('回收站里没有这条内容', 404)
   }
   return c.json({ ok: true })
 })
@@ -1742,6 +1742,8 @@ api.post('/admin/tools/md', async (c) => {
  *  抓不到/解析不到返回空字段，编辑器据已有字段组卡（title 缺失时用域名兜底）。
  *  用户输入的 URL 按用户输入频控；fetch 本身限长限时（src/linkmeta.ts） */
 api.post('/admin/tools/linkmeta', async (c) => {
+  // 演示站守卫：demo 体验者凭据公示，能触达的出网点一律短路（防线同「订阅与备份」外呼）
+  if (isDemo(c.env)) return jsonError('演示站不开放链接卡抓取', 404)
   const body = await c.req.json<{ url?: string }>().catch(() => null)
   const url = String(body?.url ?? '').trim().slice(0, 2048)
   if (!url) return jsonError('请填写链接地址')
@@ -1772,6 +1774,8 @@ async function buildCardWithCover(env: Env, item: MediaItem, relayBase: string |
  *  豆瓣图床防盗链（无 Referer 418、外站 403），浏览器直连必挂；白名单限常用封面 CDN，
  *  限频 + 体积上限。仅供编辑器预览——正式卡片走转存（buildCardWithCover），不烘代理地址 */
 api.get('/admin/tools/douban/img', async (c) => {
+  // 演示站守卫：demo 体验者凭据公示，能触达的出网点一律短路
+  if (isDemo(c.env)) return jsonError('演示站不开放封面代理', 404)
   const raw = c.req.query('u') || ''
   let u: URL
   try {
@@ -1807,6 +1811,9 @@ api.get('/admin/tools/douban/img', async (c) => {
  *  封面在组卡时转存进站内图床（buildCardWithCover），零配置即可用；
  *  中转可选，提升豆瓣详情（尤其电影条目页，sec 风控最紧）的成功率 */
 api.post('/admin/tools/douban', async (c) => {
+  // 演示站守卫：豆瓣搜索/详情/中转探测全是出网调用（中转地址还随请求携带），
+  // demo 体验者凭据公示，与 linkmeta 同口径短路
+  if (isDemo(c.env)) return jsonError('演示站不开放书影音抓取', 404)
   const settings = await getSettings(c.env.DB)
   const disabled = cleanDisabledPlugins(String(settings.pluginsDisabled ?? ''))
   if (disabled === null || disabled.split(',').includes('douban-media')) return jsonError('书影音插件已停用', 404)

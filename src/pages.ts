@@ -474,8 +474,10 @@ export async function renderPost(c: C): Promise<Response> {
   ])
   const categoryRow = categoryId ? await c.env.DB.prepare('SELECT name, slug FROM categories WHERE id = ?').bind(categoryId).first<{ name: string; slug: string }>() : null
 
-  // 分享按钮数据：canonical 绝对链接（后台站点链接优先，回退请求 origin）+ 链接的 QR 矩阵位串
-  const share = { url: `${siteBase(settings, url.origin)}/post/${row.slug}`, qr: '' }
+  // 分享按钮数据：canonical 绝对链接（后台站点链接优先，回退请求 origin）+ 链接的 QR 矩阵位串。
+  // slug 百分号编码与 RSS/sitemap 同口径（中文 slug 是非 ASCII IRI，两套输出必须一致）
+  const postPath = `/post/${encodeURIComponent(row.slug)}`
+  const share = { url: `${siteBase(settings, url.origin)}${postPath}`, qr: '' }
   const shareQr = qrMatrix(share.url)
   if (shareQr) share.qr = packMatrix(shareQr)
 
@@ -549,8 +551,9 @@ export async function renderPost(c: C): Promise<Response> {
     share,
   })
   c.header('Cache-Control', 'no-cache')
-  // 分享卡图优先：编辑器生成的 OG 卡图 > 封面图；密码墙时不从正文提取（正文零参与）
-  const ogImage = pwLocked ? row.cover || undefined : extractOgImage(sanitizeHtml(row.content)) || row.cover || undefined
+  // 分享卡图优先：编辑器生成的 OG 卡图 > 封面图；密码墙与会员锁文都不从正文提取——
+  // OG 标记可能位于试读段之后，锁文状态的社交卡图只出作者主动设置的封面（防泄漏清单同口径）
+  const ogImage = pwLocked || locked ? row.cover || undefined : extractOgImage(sanitizeHtml(row.content)) || row.cover || undefined
   // 密码墙的描述走 protectedDescription：作者自填摘要照常公开，绝不把 excerpt(row.content) 泄进 meta / JSON-LD
   const metaDescription = pwLocked ? protectedDescription(row.summary, en) : row.summary || excerpt(row.content, 120)
   const base = siteBase(settings, url.origin)
@@ -562,7 +565,7 @@ export async function renderPost(c: C): Promise<Response> {
         title: row.title,
         description: metaDescription,
         image: ogImage,
-        url: `${base}/post/${row.slug}`,
+        url: `${base}${postPath}`,
         base,
         publishedAt: row.published_at,
         updatedAt: row.updated_at,
@@ -576,7 +579,7 @@ export async function renderPost(c: C): Promise<Response> {
       title: row.title,
       description: metaDescription,
       ogImage,
-      path: `/post/${row.slug}`,
+      path: postPath,
       origin: url.origin,
       noindex: isPreview,
       jsonLd,

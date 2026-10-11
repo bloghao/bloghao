@@ -11,8 +11,8 @@
  */
 import { Hono } from 'hono'
 import { clientIp, rateLimit } from './auth'
-import { getPostById, uniqueSlug } from './db'
-import { readBodyLimited } from './fetchsafe'
+import { getPostById, postAdminView, uniqueSlug } from './db'
+import { fetchPublicResource } from './fetchsafe'
 import { sanitizeHtml } from './sanitize'
 import { transferImage } from './store'
 import type { Env, SessionUser } from './types'
@@ -352,21 +352,15 @@ collectRoutes.post('/wechat', async (c) => {
 
   let html: string
   try {
-    const res = await fetch(url, {
+    // 出网统一走 fetchsafe（防线见 src/fetchsafe.ts）：起点私网拒绝 + 重定向逐跳复查 +
+    // 流式限长。抓不到（非 2xx / 重定向越界 / 超限 / 超时）统一按抓取失败处理
+    const r = await fetchPublicResource(url, {
+      maxBytes: MAX_PAGE_BYTES,
+      timeoutMs: FETCH_TIMEOUT_MS,
       headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
-    if (!res.ok) return c.json({ error: `抓取失败（HTTP ${res.status}）` }, 502)
-    // 声明长度超限直接放弃；读体走流式限长（gzip 解压后可能远超 content-length，防整读进内存）
-    if (Number(res.headers.get('content-length') || 0) > MAX_PAGE_BYTES) {
-      return c.json({ error: '页面过大，抓取失败' }, 502)
-    }
-    const buf = await readBodyLimited(res, MAX_PAGE_BYTES)
-    if (!buf) {
-      return c.json({ error: '页面过大，抓取失败' }, 502)
-    }
-    html = new TextDecoder().decode(buf)
+    if (!r) return c.json({ error: '抓取失败，请确认链接可公开访问后重试' }, 502)
+    html = new TextDecoder().decode(r.buf)
   } catch {
     return c.json({ error: '网络错误，抓取失败' }, 502)
   }
@@ -435,6 +429,7 @@ collectRoutes.post('/wechat', async (c) => {
   )
     .bind(slug, title, content, excerpt(content, 80), cover, c.get('user').id, meta.publishedAt, now, now)
     .run()
+  // 草稿响应统一过 postAdminView（db.ts）：password_hash 永不出接口，与其他后台文章出参同口径
   const post = await getPostById(c.env.DB, Number(res.meta.last_row_id))
-  return c.json({ ok: true, post, account: meta.account, images: saved })
+  return c.json({ ok: true, post: post ? postAdminView(post) : null, account: meta.account, images: saved })
 })

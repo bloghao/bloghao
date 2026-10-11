@@ -63,7 +63,7 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 - FTS5 MATCH 表达式**唯一构造入口是 `fts.ts ftsMatchExpr`**：用户输入按空白切词、逐词双引号包裹（内部 `"` 翻倍），FTS5 查询语法（AND/OR/NOT/NEAR/列过滤）到不了引擎；任一分词短于 3 个码点整体返回 null → 调用方退回 `listPosts` 的 LIKE 老路（trigram 成不了窗，2 字中文词是最常见查询），两条路结果口径必须一致
 - FTS 命中必须回连原表带全业务过滤：`deleted_at IS NULL` + `status='published'` + `password_hash` 为空（加密文整体退出关键词搜索——命中本身会泄露「正文含此词」，与 listPosts q 分支同口径）；新增公开搜索面照此过防泄漏清单
 - 索引增量同步触发器**只在 db.ts 的 `SCHEMA_TRIGGERS`**（ensureSchema 挂，所有部署形态冷启动必经）——schema.sql 只放 FTS 虚表（无分号体），因为 demo.ts ensureTables 按分号朴素切分 SQL、切不开 `BEGIN...END`（tests/fts.test.ts 守着「schema.sql 不含 CREATE TRIGGER」）；UPDATE 触发器带 `OF title, summary, content` 列清单，views/likes 高频自增不得触发索引重建，**新加索引列时只准扩这个 OF 清单**，别改成全表 UPDATE 触发
-- 虚表是可重建的派生索引：**不进 BACKUP_TABLES**（备份恢复后靠 ensureSchema 的 settings 记账位 `ftsSeeded` 自动 rebuild 一次，demo 清库重灌同理自动补）；DELETE posts/weibo 后 `meta.changes` 会把触发器内的 FTS 删除命令计入（D1 实测单行删除 = 2）——**判「确有删除」用 `< 1` 口径别用 `!== 1`**（api.ts 单条彻底删除守着），恢复 / 置顶等 UPDATE 依赖 `OF` 清单不被触发、changes 仍为 1 不受影响
+- 虚表是可重建的派生索引：**不进 BACKUP_TABLES**（备份恢复后靠 ensureSchema 的 settings 记账位 `ftsSeeded` 自动 rebuild 一次；注意 ftsSeeded 本身会随 settings 被备份带回，所以 ensureSchema 在记账位在场时还会用 `posts_fts_docsize` 行数复核索引非空——`SELECT rowid FROM posts_fts` 读的是原表测不出索引空，别改成那种探测；demo 清库重灌同理自动补）；DELETE posts/weibo 后 `meta.changes` 会把触发器内的 FTS 删除命令计入（D1 实测单行删除 = 2）——**判「确有删除」用 `< 1` 口径别用 `!== 1`**（api.ts 单条彻底删除守着，pages 同口径），恢复 / 置顶等 UPDATE 依赖 `OF` 清单不被触发、changes 仍为 1 不受影响
 
 **回收站 / 软删除（tests/trash.test.ts、冒烟「回收站链路」，机制在 src/trash.ts）**
 
@@ -96,7 +96,7 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 
 **出网安全（tests/fetchsafe.test.ts，机制在 src/fetchsafe.ts）**
 
-- 服务端抓「用户/第三方提供的 URL」一律走 `fetchsafe.ts` 的 `fetchPublicResource`（fetchableUrl 起点校验 + redirect:'manual' 逐跳复查 + 流式 readBodyLimited 限长）——已接线：linkmeta 抓页面、store 转存远程图、collect 采抓正文。新增出网点禁止裸 fetch：公网 URL 302 到 169.254.169.254 是经典绕过，重定向必须逐跳复查
+- 服务端抓「用户/第三方提供的 URL」一律走 `fetchsafe.ts` 的 `fetchPublicResource`（fetchableUrl 起点校验 + redirect:'manual' 逐跳复查 + 流式 readBodyLimited 限长）——已接线：linkmeta 抓页面、store 转存远程图、collect 采抓正文、友链图标抓取（api.ts storeLinkIcon/fetchLinkIcon）。新增出网点禁止裸 fetch：公网 URL 302 到 169.254.169.254 是经典绕过，重定向必须逐跳复查；`fetchPublicResource` 失败一律返回 null（不透出 HTTP 状态码），调用方按「抓不到」统一退化。固定可信端点（api.telegram.org、q1.qlogo.cn、Buffer 官方域）不在此列，但也别把用户输入拼进它们的路径
 - `isPrivateHost` 覆盖点分 IPv4 之外的表示法：整数（http://2130706433/）、0x 十六进制、0 前缀八进制、IPv6 字面量（::1 / IPv4-mapped / NAT64 / ULA / link-local）；解析不动的可疑形态一律按私有拒绝（宁拒勿漏），但真域名不能误杀（cafe.example.com 全是 hex 字母，判定只认「每段都是数字」的形态）。已知局限：DNS rebinding 防不了——Workers 平台私网不可达不构成攻击面，自托管见 docker-poc README
 - Node（undici，docker-poc）下 manual 重定向返回 opaqueredirect（拿不到目标），`fetchPublicResource` 直接放弃该次抓取——自托管形态带重定向的转存源会失败，属预期取舍；Workers 下返回真实 3xx 正常跟跳
 - 手动上传（/admin/upload、/admin/og-image）只认文件魔数（`store.ts sniffUploadExt`，在 sniffImageExt 基础上补 ico/mp4/webm），与转存链路「魔数优先」同口径；mime 声明与魔数不符时按魔数落库真实 mime
@@ -129,21 +129,21 @@ npm run db:init:local  # 初始化本地 D1（.wrangler/state，幂等）
 
 **前台 site.js 兼容（全文件是一个 IIFE，一处解析错误全站交互瘫痪）**
 
-- 保持 ES5 风格（var/function）：**禁用 lookbehind 正则**（`(?<!…)` Safari ≤ 16.3 解析期抛 SyntaxError）——微博文本分词正则（URL 链接化 + 话题）用捕获组消费前导字符的写法，改正则先跑 tests/outlink.test.ts 对照（与服务端 weiboTextHtml 同口径，见「外链中间页」防线节）
+- 保持 ES5 风格（var/function）：**禁用 lookbehind 正则**（`(?<!…)` Safari ≤ 16.3 解析期抛 SyntaxError）——微博文本分词正则（URL 链接化 + 话题）用捕获组消费前导字符的写法，改正则先跑 tests/outlink.test.ts 对照（与服务端 weiboTextHtml 同口径，见「外链中间页」防线节）。两处已知且接受的 ES5 之上语法（动了才需要复查）：`import('/share-card.js')` 动态懒加载（Safari ≥ 11.1）与正则 `u` 标志（Safari ≥ 10），低于该版本解析期抛错、全站交互失效——是「分享卡按需加载」的既有取舍，勿在顶层代码新增同类语法
 - **禁止裸调 localStorage**：隐私加固浏览器访问该属性即抛 SecurityError，一律走 `storeGet/storeSet`（内部 try/catch）
 - **微信表情镜像**（`WXQ_CODES`/`wxqReplace`/`wbTextHtml` 内的表情分支，大 IIFE 顶层）：客户端表由 `/api/public/emoji` 下发、服务端在 `src/emoji.ts`——`wxqReplace` 与服务端 `replaceEmoji` 同口径（token 正则排除属性/实体特征字符、inTag 标签态状态机、hasOwnProperty 查表），改任一侧跑 tests/emoji.test.ts 双端镜像比对（该测试把 site.js 表情段 + wb 段切片拼接执行并注入服务端同一张表）；outlink.test.ts 的镜像工厂给 `wxqReplace` 传恒等 stub（其用例不含表情码）
 
 
 **演示站（tests/demo.test.ts，docs/DEMO.md）**
 
-- 演示站只在 `DEMO_MODE` 下活（wrangler.demo.jsonc 注入，生产 Worker 不带）：所有 demo 分支必须走 `utils.ts isDemo()`（`'0'`/缺省必须为假，勿写成 truthy 宽判）；`src/demo.ts` 由 index.ts 动态 import，生产 isolate 不执行。**禁外发的口径覆盖到插件总线之外**（fireHook 只是一层）：external.ts 的 `tgApi` / `notifyAdminText`（备份 / 评论 / 定时发布通知）、TG webhook 路由、`/api/admin/external/*`（token 生成与 webhook 设置）、`/api/admin/buffer/channels` 全部 isDemo 短路——新增出网调用点先问「demo 体验者（凭据公示）能不能触达」，能就同样短路
+- 演示站只在 `DEMO_MODE` 下活（wrangler.demo.jsonc 注入，生产 Worker 不带）：所有 demo 分支必须走 `utils.ts isDemo()`（`'0'`/缺省必须为假，勿写成 truthy 宽判）；`src/demo.ts` 由 index.ts 动态 import，生产 isolate 不执行。**禁外发的口径覆盖到插件总线之外**（fireHook 只是一层）：external.ts 的 `tgApi` / `notifyAdminText`（备份 / 评论 / 定时发布通知）、TG webhook 路由、`/api/admin/external/*`（token 生成与 webhook 设置）、`/api/admin/buffer/channels`、`/api/admin/tools/linkmeta`、`/api/admin/tools/douban`、`/api/admin/tools/douban/img` 全部 isDemo 短路——新增出网调用点先问「demo 体验者（凭据公示）能不能触达」，能就同样短路
 - 种子内容（demo-posts/demo-content/demo-images）是确定性生成：改内容后 tests/demo.test.ts 守不变量——slug 唯一干净、正文无 script/id/内联事件、评论树父子时序合法、正文图片引用必须存在于 demoImages()
 - 两个 D1 坑都在 demo 里踩过并修掉：单条 SQL 变量上限 100（多行 INSERT 每条最多 10 行×9 列）；settings 写入必须 `.run()` 收尾，裸 `await db.prepare().bind()` 是空操作不报错
 - demo 冷启动靠 `ensureTables()` 执行打进 bundle 的 schema.sql（生产建表靠部署时 d1 execute，演示站必须能从空库自己长出来）——改 schema.sql 两处（表/列定义与 db.ts 迁移清单）同步时，演示站自动跟随，无需额外动作
 
 **部署链路**
 
-- schema.sql 与 db.ts 的 SCHEMA_COLUMNS/SCHEMA_TABLES 是同一 schema 的两份表达：**加列/表必须两处同步**，且 cron（index.ts `scheduled()`）入口已强制先跑 ensureSchema——冷启动 isolate 不经过 fetch 中间件
+- schema.sql 与 db.ts 的 SCHEMA_COLUMNS/SCHEMA_TABLES 是同一 schema 的两份表达：**加列/表必须两处同步**，且 SCHEMA_TABLES 的建表语句必须**自带**本表 SCHEMA_COLUMNS 的全部列（ensureSchema 先 ALTER 后 CREATE，全新库上 ALTER 撞 no such table 被吞，CREATE 是唯一来源——pages 曾漏 deleted_at 造成冷启动全站 500，tests/member-schema.test.ts 的不变量守着），cron（index.ts `scheduled()`）入口已强制先跑 ensureSchema——冷启动 isolate 不经过 fetch 中间件
 - 「关于我」→ 页面系统的播种在 ensureSchema 末尾：以 settings 记账位 `pagesSeeded` 防重复（页面删了也不复活），改迁移逻辑别破坏这个幂等性
 - 页脚「站点足迹」统计（settings `siteFoot` JSON：累计篇数/字数/最早发文）由备份 cron 夜更（db.ts `refreshFootStats`）+ ensureSchema 冷启动键缺失时播种，页脚名片（render.ts `footCardHtml`，七主题 .fc-*）只读不查——别改成页面渲染时实时聚合
 - 导出 zip 是流式生成（zip.ts 用数据描述符，图片从 R2 边流边算 CRC）——改导出逻辑别把图片改成整包缓冲，Workers 内存扛不住；新表记得手动加进 backup.ts 的 BACKUP_TABLES
