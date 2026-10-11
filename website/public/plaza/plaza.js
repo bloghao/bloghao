@@ -2,7 +2,7 @@
 (function () {
   'use strict'
 
-  var HUB = 'https://plaza.bloghao.com'
+  var HUB = '/plaza'
   var feedEl = document.getElementById('plaza-feed')
   var sitesEl = document.getElementById('plaza-sites')
   var state = { kind: '' }

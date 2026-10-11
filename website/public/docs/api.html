@@ -232,10 +232,10 @@
 </tbody></table></div>
 <p>微博 Body 字段：</p>
 <div class="codeblock" data-lang="json"><pre><code>{
-  &quot;content&quot;: &quot;文字内容，可含 #话题#&quot;,
+  &quot;content&quot;: &quot;文字内容，可含 #话题&quot;,
   &quot;images&quot;: [&quot;/images/u/202610/xxx.jpg&quot;],
   &quot;status&quot;: &quot;published | draft&quot;
-}</code></pre></div><p>约束：<code>content</code> ≤ 5000 字；<code>images</code> ≤ 9 张、只接受站内 <code>/images/</code> 与 <code>http(s)</code> 外链；<code>content</code> 与 <code>images</code> 不能同时为空；<strong>话题不接受直传</strong>——服务端从正文 <code>#话题#</code>（兼容 <code>#话题</code> 与 <code>#层级/标签</code>）自动提取；置顶最多 3 条，草稿不能置顶。</p>
+}</code></pre></div><p>约束：<code>content</code> ≤ 5000 字；<code>images</code> ≤ 9 张、只接受站内 <code>/images/</code> 与 <code>http(s)</code> 外链；<code>content</code> 与 <code>images</code> 不能同时为空；<strong>话题不接受直传</strong>——服务端从正文 <code>#话题</code>（兼容成对 <code>#话题#</code> 与 <code>#层级/标签</code>）自动提取；置顶最多 3 条，草稿不能置顶。</p>
 <h3 id="友情链接">友情链接</h3><div class="table-wrap"><table>
 <thead>
 <tr>
@@ -582,7 +582,7 @@
 <h2 id="外部接口token-鉴权供-telegram-机器人--第三方工具调用">外部接口（Token 鉴权，供 Telegram 机器人 / 第三方工具调用）</h2><p>鉴权方式二选一（只认请求头，避免 Token 进访问日志）：<code>Authorization: Bearer &lt;token&gt;</code> 或 <code>X-Auth-Token: &lt;token&gt;</code>。Token 在后台「设置 → 外部发布」生成，空 Token = 接口关闭。</p>
 <h3 id="get-apiexternalweibo">GET /api/external/weibo</h3><p>连通性测试，返回 <code>{ok, site, usage}</code>。</p>
 <h3 id="post-apiexternalweibo">POST /api/external/weibo</h3><p>发布一条微博。<code>Content-Type: application/json</code> 与 <code>multipart/form-data</code> 均可：</p>
-<div class="codeblock" data-lang="json"><pre><code>{ &quot;content&quot;: &quot;文字，可含 #话题#&quot;, &quot;images&quot;: [&quot;https://外链 或 /images/站内 或 data:image/…;base64,…&quot;], &quot;status&quot;: &quot;published | draft&quot; }</code></pre></div><p>multipart 字段：<code>content</code>、<code>status</code>、<code>images</code>（文件，可重复；也接受图片地址字符串）。<code>status</code> 缺省为 <code>published</code>。</p>
+<div class="codeblock" data-lang="json"><pre><code>{ &quot;content&quot;: &quot;文字，可含 #话题&quot;, &quot;images&quot;: [&quot;https://外链 或 /images/站内 或 data:image/…;base64,…&quot;], &quot;status&quot;: &quot;published | draft&quot; }</code></pre></div><p>multipart 字段：<code>content</code>、<code>status</code>、<code>images</code>（文件，可重复；也接受图片地址字符串）。<code>status</code> 缺省为 <code>published</code>。</p>
 <ul>
 <li>约束与后台一致：<code>content</code> ≤ 5000 字、图片 ≤ 9 张（JPG/PNG/WebP/GIF，上传文件 ≤ 25MB，存 R2）、文字与图片不能同时为空</li>
 <li>返回 <code>{ok, id, url, status, images}</code>，<code>url</code> 形如 <code>https://站点/weibo?wb=&lt;id&gt;#wb-&lt;id&gt;</code>（<code>?wb=</code> 让 /weibo 服务端定位到该条所在页，锚点才能落到具体那条微博）</li>

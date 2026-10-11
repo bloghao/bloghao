@@ -265,8 +265,8 @@ export async function plazaSign(token: string, ts: string, rawBody: string): Pro
   return s
 }
 
-/** 官方广场 hub（唯一官方入口）：plazaEndpoint 留空时回落到这里 */
-const PLAZA_OFFICIAL_HUB = 'https://plaza.bloghao.com'
+/** 官方广场 hub（唯一官方入口）：plazaEndpoint 留空时回落到这里。页面与数据面同域，API 挂在 /plaza 路径下 */
+const PLAZA_OFFICIAL_HUB = 'https://bloghao.com/plaza'
 
 const plazaSync: ServerPlugin = {
   id: 'plaza-sync',

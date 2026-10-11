@@ -72,7 +72,7 @@
   // 广场实况：接入站点数（hub 公开名录，与广场页同源）
   var plazaStat = document.getElementById('plaza-stat')
   if (plazaStat) {
-    fetch('https://plaza.bloghao.com/api/sites', { cache: 'no-cache' })
+    fetch('/plaza/api/sites', { cache: 'no-cache' })
       .then(function (r) {
         return r.json()
       })

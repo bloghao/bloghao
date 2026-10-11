@@ -13,7 +13,7 @@
 ## 给博客号站长：三步接入
 
 1. **联系官方**（[GitHub Issues](https://github.com/bloghao/bloghao/issues) 或社区群）提供你的站点地址，审核通过后拿到一枚 **32 位站点 Token**
-2. **后台填配置**：「设置 → 服务端插件」→ 广场站点 Token 粘贴进去，保存（广场地址**留空即官方 hub** `https://plaza.bloghao.com`——唯一官方入口，稳定版 / 开发版一律由此接入；自建 hub 才改）
+2. **后台填配置**：「设置 → 服务端插件」→ 广场站点 Token 粘贴进去，保存（广场地址**留空即官方 hub** `https://bloghao.com/plaza`——唯一官方入口，稳定版 / 开发版一律由此接入；自建 hub 才改）
 3. **开启插件**：「插件」页 → 服务端插件 → **广场同步（bloghao.com）** 打开
 
 之后**每次发布**（文章 / 微博，后台、定时、开放 API、TG 机器人四条路都算）会自动推一条到广场；重复编辑已发布内容不重推。不想同步了，把插件关掉即可，hub 里的历史内容可请管理员清除。
@@ -22,7 +22,7 @@
 
 ## 广场 hub（自建 / 运维）
 
-hub 是独立 Worker，源码在仓库 `plaza/` 目录（`src/core.ts` 纯函数 + `src/index.ts` 路由，零 npm 依赖，hono 单文件）。官方部署在 `https://plaza.bloghao.com`（D1 库 `plaza-db`），**与博客主站完全独立**，不部署也不影响博客系统。
+hub 是独立服务，源码在仓库 `plaza/` 目录（`src/core.ts` 纯函数 + `src/index.ts` 路由，零 npm 依赖，hono 单文件），Workers（D1 库）与 Node 容器（`demo/hub-node/`，D1→node:sqlite）两种形态都能跑。**官方部署**跑在自有服务器上的 Node 容器，由服务器 Caddy 在 `bloghao.com` 站点块内把 `/plaza/api/*` 路径反代给 hub（去掉 `/plaza` 前缀）——**唯一官方入口 `https://bloghao.com/plaza`**，广场页（`/plaza/` 静态页）与数据面（`/plaza/api/*`）同域，没有独立子域名；**与博客主站完全独立**，不部署也不影响博客系统。
 
 ```bash
 # 部署自己的 hub（自托管场景）
