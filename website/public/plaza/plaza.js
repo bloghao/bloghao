@@ -60,12 +60,14 @@
       // 卡片容器用 <article> 而非 <a>——HTML 禁止链接嵌链接：外层 a 会在 meta 的站点链接处被
       // 解析器强行闭合，整卡 DOM 被拆成空壳+散块（线上实测的「空白框、排版散架」就是这个）。
       // 整卡可点改用拉伸链接：标题 <a> 的 ::after 铺满卡片，站点链接 z-index 浮在其上各自可点。
+      // 卡片三段式：左=站点身份位（头像>favicon 链>首字，恒定可见），中=标题/摘要/meta，
+      // 右=内容缩略图（条目带图才渲染，加载失败整块移除不留空壳）——身份与内容不再抢一个坑
       html +=
         '<article class="plaza-card' + (it.kind === 'weibo' ? ' is-weibo' : '') + '">' +
-        '<div class="plaza-card-media" aria-hidden="true">' +
+        '<span class="plaza-card-avatar" aria-hidden="true">' +
         '<span class="plaza-media-fallback">' + initialOf(it.siteName) + '</span>' +
-        avatarImg(it.siteUrl, it.siteAvatar, it.image) +
-        '</div>' +
+        avatarImg(it.siteUrl, it.siteAvatar, '') +
+        '</span>' +
         '<div class="plaza-card-main">' +
         '<a class="plaza-card-link" href="' + esc(it.url) + '" target="_blank" rel="noopener">' +
         '<h3 class="plaza-card-title">' + esc(it.title) + '</h3>' +
@@ -78,7 +80,12 @@
         (it.siteVerified ? '<span class="plaza-badge" title="站点已通过所有权验证">' + BADGE_SVG + '</span>' : '') +
         '<span class="plaza-kind-chip">' + (it.kind === 'post' ? '📝 文章' : '💭 微博') + '</span>' +
         '<span>' + fmtDate(it.publishedAt) + '</span>' +
-        '</div></div></article>'
+        '</div></div>' +
+        (it.image
+          ? '<a class="plaza-card-thumb" href="' + esc(it.url) + '" target="_blank" rel="noopener" tabindex="-1">' +
+            '<img src="' + esc(it.image) + '" alt="" loading="lazy" onerror="this.parentNode.remove()"></a>'
+          : '') +
+        '</article>'
     }
     feedEl.innerHTML = html
   }

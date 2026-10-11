@@ -51,12 +51,13 @@
 
 .plaza-card {
   display: flex;
-  gap: 14px;
+  gap: 12px;
+  align-items: center;
   position: relative;
   background: #fff;
   border: 1px solid var(--line, #e5e0d8);
   border-radius: 14px;
-  padding: 16px;
+  padding: 14px 16px;
   color: inherit;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
@@ -65,16 +66,22 @@
   border-color: rgba(178, 58, 41, 0.35);
   box-shadow: var(--shadow, 0 10px 40px rgba(32, 29, 26, 0.08));
 }
-/* media 位：有封面图看图，无图（或加载失败）露出站点首字头像——朱砂渐变白字，
-   与官网目录 showcase-avatar 同一视觉语汇，绝不开天窗 */
-.plaza-card-media {
-  flex: 0 0 96px;
-  width: 96px;
-  height: 96px;
+/* 左：站点身份位（恒定可见）——头像>favicon 链>首字，绝不开天窗 */
+.plaza-card-avatar {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   position: relative;
   overflow: hidden;
   isolation: isolate;
+}
+.plaza-card-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .plaza-media-fallback {
   position: absolute;
@@ -84,15 +91,28 @@
   justify-content: center;
   background: linear-gradient(135deg, var(--accent, #b23a29), #c25440);
   color: #fff;
-  font-size: 1.5rem;
+  font-size: 1.05rem;
   font-weight: 800;
 }
-.plaza-card-media img {
+/* 右：内容缩略图（条目带图才有）——信息流的「更多信息」位，加载失败整块移除 */
+.plaza-card-thumb {
+  flex: 0 0 84px;
+  width: 84px;
+  height: 84px;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  border: 1px solid var(--line, #e5e0d8);
+  background: var(--paper-2, #faf7f2);
+}
+.plaza-card-thumb img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 .plaza-card-main { min-width: 0; flex: 1; }
 /* 拉伸链接：标题 a 的伪元素铺满整卡 = 整卡可点；meta 里的站点链接 z-index 浮上层各自可点 */
@@ -211,10 +231,11 @@
 .plaza-sites-count { color: var(--muted, #6b6b6b); font-size: 0.75rem; flex: 0 0 auto; }
 .plaza-empty { text-align: center; padding: 48px 0; color: var(--muted, #6b6b6b); }
 
-/* 手机：单列，侧栏落到底部 */
+/* 手机：单列，侧栏落到底部；身份位与缩略图同步收小 */
 @media (max-width: 900px) {
   .plaza-wrap { grid-template-columns: 1fr; }
   .plaza-side { position: static; }
-  .plaza-card-media { flex-basis: 72px; width: 72px; height: 72px; }
-  .plaza-media-fallback { font-size: 1.2rem; }
+  .plaza-card-avatar { flex-basis: 36px; width: 36px; height: 36px; }
+  .plaza-card-avatar .plaza-media-fallback { font-size: 0.9rem; }
+  .plaza-card-thumb { flex-basis: 64px; width: 64px; height: 64px; }
 }
