@@ -203,9 +203,18 @@
         <div class="showcase-empty reveal">目录加载中…</div>
       </div>
       <p class="showcase-cta reveal">
-        开了博客号？<a href="https://github.com/bloghao/bloghao/issues/new?title=%E6%8F%90%E4%BA%A4%E6%88%91%E7%9A%84%E5%8D%9A%E5%AE%A2%E5%8F%B7" target="_blank" rel="noopener">提交你的站点 →</a>
+        开了博客号？<a href="#showcase-submit" id="showcase-submit-link">提交你的站点 →</a>
         一步入库，全球可见。
       </p>
+      <form id="showcase-submit" class="showcase-submit reveal" hidden novalidate>
+        <div class="showcase-submit-row">
+          <input type="url" id="sc-url" name="url" placeholder="你的博客号地址，如 https://your.bloghao.com" required>
+          <input type="text" id="sc-name" name="name" placeholder="站点名称（可选）" maxlength="40">
+          <button type="submit" id="sc-btn">提交上榜</button>
+        </div>
+        <p class="showcase-submit-msg" id="sc-msg" hidden></p>
+        <p class="showcase-submit-alt">提交后由站长审核上榜；也可以去 <a href="https://github.com/bloghao/bloghao/issues/new?title=%E6%8F%90%E4%BA%A4%E6%88%91%E7%9A%84%E5%8D%9A%E5%AE%A2%E5%8F%B7" target="_blank" rel="noopener">GitHub 提 issue</a>。</p>
+      </form>
     </div>
   </section>
 

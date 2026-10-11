@@ -69,6 +69,54 @@
         grid.innerHTML = '<div class="showcase-empty">目录暂时加载失败，刷新再试试。</div>'
       })
   }
+  // 站点投稿：表单直投 ops 控制面（ops.bloghao.com，站长审核后上榜）
+  var submitForm = document.getElementById('showcase-submit')
+  if (submitForm) {
+    var toggle = document.getElementById('showcase-submit-link')
+    var msgEl = document.getElementById('sc-msg')
+    var btn = document.getElementById('sc-btn')
+    function showMsg(text, ok) {
+      msgEl.hidden = false
+      msgEl.textContent = text
+      msgEl.className = 'showcase-submit-msg ' + (ok ? 'is-ok' : 'is-err')
+    }
+    if (toggle) {
+      toggle.addEventListener('click', function (e) {
+        e.preventDefault()
+        submitForm.hidden = !submitForm.hidden
+        if (!submitForm.hidden) document.getElementById('sc-url').focus()
+      })
+    }
+    submitForm.addEventListener('submit', function (e) {
+      e.preventDefault()
+      var url = document.getElementById('sc-url').value.trim()
+      var name = document.getElementById('sc-name').value.trim()
+      if (!/^https:\/\/[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+/i.test(url)) {
+        showMsg('请填写 https:// 开头的完整博客号地址。', false)
+        return
+      }
+      btn.disabled = true
+      showMsg('提交中…', true)
+      fetch('https://ops.bloghao.com/showcase-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'url=' + encodeURIComponent(url) + '&name=' + encodeURIComponent(name),
+      })
+        .then(function (r) { return r.json() })
+        .then(function (d) {
+          if (d && d.ok) {
+            showMsg('✓ 已收到，站长审核通过后就会出现在上面。', true)
+            submitForm.hidden = true
+          } else {
+            showMsg((d && d.error) || '提交没成功，稍后再试或去 GitHub 提 issue。', false)
+          }
+        })
+        .catch(function () {
+          showMsg('提交通道暂时连不上，去 GitHub 提 issue 也一样能上榜。', false)
+        })
+        .then(function () { btn.disabled = false })
+    })
+  }
   // 广场实况：接入站点数（hub 公开名录，与广场页同源）
   var plazaStat = document.getElementById('plaza-stat')
   if (plazaStat) {
