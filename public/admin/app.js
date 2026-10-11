@@ -2188,13 +2188,65 @@ async function viewAppearance() {
     .join('')
   const market = (catalog?.themes || [])
     .map((t) => {
-      const installed = list.some((x) => x.id === t.id)
+      const installed = list.some((x) => t.id === x.id)
       return `<a class="theme-card mk-card" href="${esc(safeHttpUrl(t.link))}" target="_blank" rel="noopener">
       ${swatchHtml(swatchOf(t))}
       <div class="theme-meta"><div class="theme-name"><span>${esc(t.name)}</span>${installed ? '<span class="mk-badge">已安装</span>' : ''}</div><div class="theme-desc">${esc(t.description || '查看介绍与安装说明')}</div></div>
     </a>`
     })
     .join('') || '<div class="empty-box">市场目录暂时空着，更多皮肤敬请期待</div>'
+
+  // 外观变量（B9 · 内测）：按当前皮肤的能力出表单——主题不支持的角色（如 minimal 无主色）不出现
+  const curTheme = list.find((t) => t.id === state.settings.theme) || null
+  const ap = curTheme && curTheme.appearance
+  let apPanel = ''
+  if (ap) {
+    let picks = {}
+    try {
+      picks = JSON.parse(state.settings.appearance || '{}') || {}
+    } catch {
+      picks = {}
+    }
+    if (!picks || typeof picks !== 'object' || Array.isArray(picks)) picks = {}
+    const pickColor = (key, def) => {
+      const v = picks[key]
+      return typeof v === 'string' && /^#[0-9a-fA-F]{3,6}$/.test(v) ? v : def
+    }
+    const preset = ap.fontPresets.find((p) => p.stack === picks.font) || null
+    const customFont = !preset && typeof picks.font === 'string' ? picks.font : ''
+    const fontSel = preset ? preset.id : customFont ? 'custom' : ''
+    const apRows = ap.roles
+      .map(
+        (r) => `<div class="ap-item"><label>${esc(r.label)}</label>
+        <input type="color" class="ap-color" data-role="${esc(r.key)}" value="${esc(pickColor(r.key, r.default))}" data-default="${esc(r.default)}" title="主题默认 ${esc(r.default)}"></div>`
+      )
+      .join('')
+    apPanel = `
+    <div class="panel" style="padding:20px;margin-top:16px;" id="ap-panel">
+      <div class="form-section" style="margin-bottom:0;">
+        <h3>外观变量 <span class="mk-badge">内测</span></h3>
+        <div class="sec-desc">不改代码微调当前皮肤「${esc(curTheme.name)}」的颜色、字体与正文字号，保存后全站即时生效、可随时恢复默认；圆角等更多变量在后续版本开放。只列出当前皮肤支持的项目，换皮肤后请回到这里重调</div>
+        <div class="ap-grid">${apRows}</div>
+        <div class="form-row">
+          <div class="form-item"><label>正文字体</label>
+            <select class="input" id="ap-font-select">
+              <option value="">跟随主题</option>
+              ${ap.fontPresets.map((p) => `<option value="${esc(p.id)}"${fontSel === p.id ? ' selected' : ''}>${esc(p.label)}</option>`).join('')}
+              <option value="custom"${fontSel === 'custom' ? ' selected' : ''}>自定义</option>
+            </select>
+          </div>
+          <div class="form-item"><label>自定义字体栈（逗号分隔，选「自定义」时生效）</label><input class="input" id="ap-font-custom" value="${esc(customFont)}" placeholder='"HarmonyOS Sans", sans-serif'></div>
+          <div class="form-item"><label>正文字号 px（主题默认 ${ap.richSize}，留空跟随主题）</label><input class="input" type="number" id="ap-size" min="14" max="22" step="0.5" value="${typeof picks.fontSize === 'number' && picks.fontSize ? picks.fontSize : ''}"></div>
+        </div>
+        <div class="switch-sub" style="margin-bottom:12px;">取色器初始显示主题默认值；与默认相同的项保存后不会产生任何覆盖样式</div>
+        <div class="ap-ops">
+          <button class="btn" id="btn-ap-save" type="button">保存外观</button>
+          <button class="btn btn-ghost" id="btn-ap-reset" type="button">全部恢复默认</button>
+          <a class="btn btn-ghost" href="/" target="_blank" rel="noopener">打开首页看效果 ↗</a>
+        </div>
+      </div>
+    </div>`
+  }
 
   await shellView(
     'appearance',
@@ -2204,7 +2256,7 @@ async function viewAppearance() {
       <a class="tab${tab === 'mine' ? ' is-active' : ''}" href="#/appearance">我的皮肤</a>
       <a class="tab${tab === 'market' ? ' is-active' : ''}" href="#/appearance?tab=market">皮肤市场</a>
     </div></div>
-    ${tab === 'mine' ? `<div class="panel" style="padding:20px;"><div class="settings-grid" id="theme-grid">${mine}</div></div>` : `<div class="panel" style="padding:20px;"><div class="settings-grid">${market}</div></div>`}`
+    ${tab === 'mine' ? `<div class="panel" style="padding:20px;"><div class="settings-grid" id="theme-grid">${mine}</div></div>${apPanel}` : `<div class="panel" style="padding:20px;"><div class="settings-grid">${market}</div></div>`}`
   )
 
   if (tab !== 'mine') return
@@ -2221,6 +2273,7 @@ async function viewAppearance() {
         state.settings = d.settings
         prev?.classList.remove('is-active')
         toast(`已启用皮肤「${card.dataset.name || card.dataset.theme}」`)
+        if (ap) navigate() // 换肤后面板要按新皮肤的能力重画
       } catch (e) {
         card.classList.remove('is-active')
         prev?.classList.add('is-active')
@@ -2230,6 +2283,41 @@ async function viewAppearance() {
       }
     })
   )
+
+  if (!ap) return
+  const saveAppearance = async (payload, okMsg) => {
+    const saveBtn = document.getElementById('btn-ap-save')
+    const resetBtn = document.getElementById('btn-ap-reset')
+    if (saveBtn) saveBtn.disabled = true
+    if (resetBtn) resetBtn.disabled = true
+    try {
+      const d = await api('/admin/settings', { method: 'PUT', body: { appearance: payload } })
+      state.settings = d.settings
+      toast(okMsg)
+      navigate() // 重画面板，反映已保存的口径
+    } catch (e) {
+      handleApiErr(e)
+      if (saveBtn) saveBtn.disabled = false
+      if (resetBtn) resetBtn.disabled = false
+    }
+  }
+  const btnSave = document.getElementById('btn-ap-save')
+  if (btnSave)
+    btnSave.addEventListener('click', () => {
+      // 颜色全量上报（含等于默认值的项——换皮肤后同值即无覆盖）；font/fontSize 用空值/0 表示清除
+      const obj = {}
+      document.querySelectorAll('#ap-panel .ap-color').forEach((inp) => {
+        obj[inp.getAttribute('data-role')] = (inp.value || '').toLowerCase()
+      })
+      const sel = document.getElementById('ap-font-select')
+      const custom = (document.getElementById('ap-font-custom').value || '').trim()
+      obj.font = sel.value === 'custom' ? custom : sel.value
+      const size = parseFloat(document.getElementById('ap-size').value)
+      obj.fontSize = Number.isFinite(size) ? size : 0
+      saveAppearance(JSON.stringify(obj), '外观已保存，全站即时生效')
+    })
+  const btnReset = document.getElementById('btn-ap-reset')
+  if (btnReset) btnReset.addEventListener('click', () => saveAppearance('', '已恢复主题默认外观'))
 }
 
 /* ---------------- 插件 ---------------- */

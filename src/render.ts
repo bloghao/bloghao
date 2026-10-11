@@ -4,6 +4,7 @@ import { renderFooterHtml } from './hooks'
 import { outHref } from './outlink'
 import { cstDate, esc, excerpt, extractWeiboTopics, fmtDate, fmtDateCN, fmtDateTime, isoDate, NICKNAME_CHANGE_COOLDOWN_MS, nicknameCooldown } from './utils'
 import { replaceEmoji } from './emoji'
+import { appearanceHeadStyle } from './appearance'
 import { enBetaBannerHtml, fmtDateEn, fmtDateEnShort, fmtDateTimeEn, isEn, plural, tr, weiboTimeEn } from './i18n'
 
 // 英文测试版（English 0.1）的词典与日期随共享构建器一起再导出：主题与 pages.ts 只认 render 一个进口
@@ -99,6 +100,7 @@ ${jsonLdHtml}
 ${o.settings.faviconUrl ? `<link rel="icon" href="${esc(absUrl(base, o.settings.faviconUrl))}">` : `<link rel="icon" href="/favicon.svg" type="image/svg+xml">`}
 ${base ? `<link rel="alternate" type="application/rss+xml" title="${esc(siteName)}" href="${esc(base)}/rss.xml">` : ''}
 <style>${o.css}</style>
+${appearanceHeadStyle(o.settings)}
 ${grayscaleStyle(o.settings)}
 </head>
 <body${o.preview ? ' data-preview="1"' : ''}>

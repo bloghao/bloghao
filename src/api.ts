@@ -59,6 +59,7 @@ import {
   WEIBO_MAX_CHARS,
 } from './db'
 import { mdToHtml } from './markdown'
+import { appearanceMeta, cleanAppearanceSettings } from './appearance'
 import { EMOJI_BASE, WECHAT_EMOJI } from './emoji'
 import { awardCommentPoints, awardPoints, normalizeMinTier } from './points'
 import { collectRoutes } from './collect'
@@ -1605,6 +1606,14 @@ api.put('/admin/settings', async (c) => {
       patch[key] = SITE_MODE_VALUES.includes(v as SiteMode) ? v : 'blog-weibo'
       continue
     }
+    if (key === 'appearance') {
+      // 主题外观变量（B9 · 内测）：净化成规范化 JSON 存库，非法整体拒绝；角色是否被当前
+      // 主题支持、是否等于主题默认值留给渲染端按当前主题过滤（先调外观再换皮肤顺序无关）
+      const cleaned = cleanAppearanceSettings(v)
+      if (cleaned === null) return jsonError('外观变量格式不正确')
+      patch[key] = cleaned
+      continue
+    }
     if (key === 'postsPerPage') {
       patch[key] = String(clampInt(v, 1, 50, 10))
       continue
@@ -2211,6 +2220,8 @@ api.get('/meta/themes', (c) =>
       name: t.name,
       description: t.description,
       colors: t.colors ?? null,
+      // 外观变量元信息（B9 · 内测）：当前主题支持的角色 / 默认值 / 正文字号基线 / 字体预设
+      appearance: appearanceMeta(t.id),
     })),
   })
 )

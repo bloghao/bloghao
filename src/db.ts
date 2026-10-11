@@ -29,6 +29,9 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   // blog（纯博客）/ weibo（纯微博）——前台模块显隐与首页优先级，见 src/render.ts siteMode()
   siteMode: 'blog-weibo',
   siteUrl: '',
+  // 主题外观变量（B9 · 内测）：扁平 JSON（角色键 → 色值 + font/fontSize），渲染期按当前主题
+  // 映射回主题自己的 CSS 变量输出覆盖样式，空串 = 未配置，机制见 src/appearance.ts
+  appearance: '',
   footerText: '由 博客号 驱动 · 住在 Cloudflare 上',
   allowComments: '1',
   moderateComments: '0',

@@ -210,6 +210,16 @@ input, textarea, select { font: inherit; color: inherit; }
 .theme-preview .tp-bar { position: absolute; top: 8px; left: 8px; right: 8px; height: 10px; border-radius: 5px; }
 .theme-preview .tp-card { position: absolute; top: 26px; left: 8px; right: 30%; height: 12px; border-radius: 4px; }
 .theme-preview .tp-card2 { position: absolute; top: 44px; left: 8px; right: 12%; height: 12px; border-radius: 4px; }
+
+/* 外观变量（内测）：皮肤页配色微调面板 */
+.ap-grid { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 16px; }
+.ap-item { display: flex; align-items: center; gap: 8px; }
+.ap-item label { font-size: 13px; color: var(--sub); }
+.ap-color {
+  width: 46px; height: 34px; padding: 2px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--card); cursor: pointer;
+}
+.ap-ops { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .theme-preview .tp-card3 { position: absolute; top: 62px; left: 8px; right: 44%; height: 12px; border-radius: 4px; }
 .theme-meta { padding: 10px 12px; }
 .theme-name { font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; }
