@@ -335,22 +335,31 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; ba
 .showcase-cta { text-align: center; margin-top: 24px; font-size: 14.5px; color: var(--sub); }
 .showcase-cta a { color: var(--accent); font-weight: 700; }
 .showcase-cta a:hover { text-decoration: underline; text-underline-offset: 4px; }
-/* 站点投稿表单：直投 ops 控制面，站长审核后上榜 */
-.showcase-submit { max-width: 620px; margin: 14px auto 0; text-align: left; }
-.showcase-submit-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.showcase-submit input {
-  flex: 1 1 200px; min-width: 0;
-  border: 1px solid var(--line); border-radius: 10px;
-  padding: 10px 14px; font-size: 14.5px; background: #fff; color: var(--ink);
+/* 站点投稿表单：直投 ops 控制面，站长审核后上榜——纸墨朱砂同语言（tint 面板 + 药丸输入/按钮） */
+.showcase-submit {
+  max-width: 680px; margin: 18px auto 0; text-align: center;
+  background: var(--tint); border: 1px solid var(--line);
+  border-radius: 16px; padding: 16px 18px 14px;
 }
-.showcase-submit input:focus { outline: none; border-color: var(--accent); }
+.showcase-submit-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.showcase-submit input {
+  flex: 1 1 220px; min-width: 0;
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 10px 16px; font-size: 14.5px; background: #fff; color: var(--ink);
+  transition: border-color 0.15s;
+}
+.showcase-submit input:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 .showcase-submit button {
   flex: 0 0 auto;
-  border: none; border-radius: 10px; cursor: pointer;
+  border: none; border-radius: 999px; cursor: pointer;
   background: var(--accent); color: #fff;
-  padding: 10px 20px; font-size: 14.5px; font-weight: 700;
+  padding: 10px 24px; font-size: 14.5px; font-weight: 700;
+  transition: background 0.15s;
 }
-.showcase-submit button:hover { background: var(--accent-dark, #962e1e); }
+.showcase-submit button:hover { background: var(--accent-dark); }
 .showcase-submit button:disabled { opacity: 0.6; cursor: default; }
 .showcase-submit-msg { margin: 10px 0 0; font-size: 13.5px; }
 .showcase-submit-msg.is-ok { color: #1e7a46; }
