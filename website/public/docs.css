@@ -166,6 +166,74 @@
 .docs-home-note a { color: var(--accent); font-weight: 600; }
 .docs-home-note a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
+/* ---------- 站内搜索（文档页侧栏 / 文档中心 Hero / 安全审计页顶栏共用） ---------- */
+.docs-search { margin-bottom: 22px; }
+.docs-search-label {
+  display: block; font-size: 12px; font-weight: 800; color: var(--sub);
+  letter-spacing: 0.08em; margin-bottom: 8px;
+}
+.docs-search-input {
+  width: 100%; box-sizing: border-box;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: var(--card); color: var(--ink);
+  padding: 9px 16px; font-size: 16px; line-height: 1.4;
+  -webkit-appearance: none; appearance: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.docs-search-input::placeholder { color: var(--sub); opacity: 0.75; }
+.docs-search-input:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.docs-search-list {
+  list-style: none; margin: 8px 0 0; padding: 6px;
+  max-height: 360px; overflow-y: auto;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 14px; box-shadow: var(--shadow);
+}
+.docs-search-item { margin: 0; }
+.docs-search-link {
+  display: block; padding: 8px 10px; border-radius: 10px;
+  transition: background 0.15s ease;
+}
+.docs-search-item.is-active .docs-search-link,
+.docs-search-link:hover { background: var(--accent-soft); }
+.docs-search-top {
+  display: block; font-size: 11.5px; font-weight: 700; color: var(--sub);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.docs-search-tag {
+  margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent); font-size: 10.5px;
+}
+.docs-search-sec {
+  display: block; font-size: 14px; font-weight: 700; color: var(--ink);
+  line-height: 1.45; margin: 1px 0;
+}
+.docs-search-link:hover .docs-search-sec { color: var(--accent); }
+.docs-search-snip {
+  display: block; font-size: 12.5px; color: var(--sub); line-height: 1.55;
+}
+.docs-search-more {
+  display: block; padding: 10px 12px; font-size: 13px; color: var(--sub);
+}
+.docs-search mark {
+  background: rgba(178, 58, 41, 0.16); color: inherit; font-weight: 700;
+  border-radius: 4px; padding: 0 2px;
+}
+
+/* 文档中心 Hero 里的搜索框 */
+.docs-search-hero { max-width: 520px; margin: 26px auto 0; text-align: left; }
+.docs-search-hero .docs-search-label { text-align: center; }
+.docs-search-hero .docs-search-list { text-align: left; max-height: 46vh; }
+
+/* 安全审计页顶栏（宽屏内联，窄屏收窄） */
+.nav-search { position: relative; margin-left: auto; }
+.docs-search-input-compact { width: 210px; padding: 7px 14px; font-size: 13.5px; }
+.docs-search-list-compact {
+  position: absolute; right: 0; top: calc(100% + 8px); width: 340px; max-width: 78vw; z-index: 40;
+}
+
 /* ---------- 响应式 ---------- */
 @media (max-width: 1100px) {
   .docs-shell-toc { grid-template-columns: 200px minmax(0, 1fr); }
@@ -186,10 +254,18 @@
   .docs-side-list a { white-space: nowrap; padding: 7px 14px; background: var(--card); border: 1px solid var(--line); }
   .docs-side-list a.is-active { border-color: rgba(178, 58, 41, 0.45); }
   .docs-side-extra { display: none; }
+  .docs-search { margin-bottom: 14px; }
+  .docs-search-label { display: none; }
+  .docs-search-hero { margin-top: 22px; }
+  .docs-search-hero .docs-search-label { display: block; }
   .docs-crumbs { margin-bottom: 20px; }
   .doc-md h1 { font-size: 25px; }
   .doc-md h2 { font-size: 20px; }
   .doc-md h3 { font-size: 17px; }
   .docs-pager { flex-direction: column; }
   .docs-pager-link, .docs-pager-link.is-next { max-width: 100%; text-align: left; margin-left: 0; }
+}
+@media (max-width: 620px) {
+  .nav-search { margin-left: 0; }
+  .docs-search-input-compact { width: 132px; }
 }

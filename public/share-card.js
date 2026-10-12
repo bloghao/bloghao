@@ -35,6 +35,7 @@ const PAD = 40 // 画布到卡片边距
 const CPAD = 44 // 卡片内边距
 const INNER = W - PAD * 2 - CPAD * 2 // 内容宽 472
 const MAX_H = 1920 // 成品高度上限（逻辑值），超出自动压缩正文行数
+const SINGLE_IMG_MAX_H = 420 // 单图完整展示的高度上限（与前台主题 .wb-imgs-1 的 max-height 同值）
 
 const INK = '#33302a' // 正文墨色
 const SUB = '#a29a89' // 次级（时间/描述）
@@ -112,6 +113,16 @@ function drawCover(ctx, img, x, y, w, h, r) {
   rr(ctx, x, y, w, h, r)
   ctx.clip()
   ctx.drawImage(img, (iw - w / scale) / 2, (ih - h / scale) / 2, w / scale, h / scale, x, y, w, h)
+  ctx.restore()
+  return true
+}
+
+/** 完整绘制（contain）：格子已按图片真实比例生成，整图等比铺入即无裁切 */
+function drawFit(ctx, img, x, y, w, h, r) {
+  ctx.save()
+  rr(ctx, x, y, w, h, r)
+  ctx.clip()
+  ctx.drawImage(img, x, y, w, h)
   ctx.restore()
   return true
 }
@@ -238,9 +249,20 @@ function ellipsize(ctx, line, maxWidth) {
   return out.concat([dot])
 }
 
-/* ---------------- 网格规格：1 大图 / 2·4 两列 / 其余三列（与前台微博九宫格同规则） ---------------- */
-function gridSpec(n) {
-  if (n === 1) return { cols: 1, cw: INNER, ch: Math.min(Math.round(INNER * 0.75), 430), gap: 0 }
+/* ---------------- 网格规格：1 大图 / 2·4 两列 / 其余三列（与前台微博九宫格同规则）。
+ * 单图与前台 .wb-imgs-1 同口径：按图片真实比例完整展示——不裁切、不放大，只设高度上限
+ * SINGLE_IMG_MAX_H，过长的图自然缩成完整缩略图；旧版写死 4:3 格子居中裁切，
+ * 方形图的上下各被裁掉约 12%，图内文字常被切掉。图加载失败时退回旧格子画占位。 ---------------- */
+function gridSpec(n, img) {
+  if (n === 1) {
+    const iw = img ? img.naturalWidth || img.width : 0
+    const ih = img ? img.naturalHeight || img.height : 0
+    if (iw > 0 && ih > 0) {
+      const scale = Math.min(1, INNER / iw, SINGLE_IMG_MAX_H / ih)
+      return { cols: 1, cw: Math.min(INNER, Math.round(iw * scale)), ch: Math.round(ih * scale), gap: 0, fit: true }
+    }
+    return { cols: 1, cw: INNER, ch: Math.min(Math.round(INNER * 0.75), 430), gap: 0 }
+  }
   if (n === 2 || n === 4) {
     const cw = Math.round((INNER - 10) / 2)
     return { cols: 2, cw: cw, ch: Math.round(cw * 0.8), gap: 10 }
@@ -270,7 +292,7 @@ function renderCard(d, av, imgs) {
     ctx.font = F_TEXT
     lines = wrapLines(ctx, atoms(tokenize(d.text)), INNER)
   }
-  const gs = d.images.length ? gridSpec(d.images.length) : null
+  const gs = d.images.length ? gridSpec(d.images.length, imgs[0]) : null
   const gridRows = gs ? Math.ceil(d.images.length / gs.cols) : 0
 
   function totalH(maxLines) {
@@ -372,10 +394,13 @@ function renderCard(d, av, imgs) {
     for (let i = 0; i < d.images.length; i++) {
       const col = i % gs.cols
       const row = Math.floor(i / gs.cols)
-      const gx = x0 + col * (gs.cw + gs.gap)
+      // 单图按比例变窄时水平居中（fit 只出现在 cols=1），九宫格维持左起
+      const gx = x0 + col * (gs.cw + gs.gap) + (gs.fit ? Math.round((INNER - gs.cw) / 2) : 0)
       const gy = y + row * (gs.ch + gs.gap)
-      if (imgs[i]) drawCover(ctx, imgs[i], gx, gy, gs.cw, gs.ch, 14)
-      else drawPlaceholder(ctx, gx, gy, gs.cw, gs.ch, 14)
+      if (imgs[i]) {
+        if (gs.fit) drawFit(ctx, imgs[i], gx, gy, gs.cw, gs.ch, 14)
+        else drawCover(ctx, imgs[i], gx, gy, gs.cw, gs.ch, 14)
+      } else drawPlaceholder(ctx, gx, gy, gs.cw, gs.ch, 14)
     }
     y += gridRows * gs.ch + (gridRows - 1) * gs.gap
   }

@@ -8,20 +8,21 @@
 <meta property="og:title" content="排版规范 - 博客号文档">
 <meta property="og:description" content="微信编辑器插件开发规范的落地对照表与体检规则。">
 <meta property="og:type" content="article">
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../style.css">
-<link rel="stylesheet" href="../docs.css">
+<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261012a">
+<link rel="stylesheet" href="/docs.css?v=20261012a">
+<script src="/docs/docs-search-index.js?v=20261012a"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
-    <a class="nav-logo" href="../index.html">
-      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    <a class="nav-logo" href="/index.html">
+      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
-      <a href="../index.html">返回官网</a>
+      <a href="/index.html">返回官网</a>
     </nav>
     <div class="nav-cta">
       <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
@@ -33,22 +34,29 @@
 <div class="docs-shell docs-shell-toc">
   
     <aside class="docs-sidebar">
+      <div class="docs-search">
+        <label class="docs-search-label" for="docs-search-input">🔍 搜索文档</label>
+        <input id="docs-search-input" class="docs-search-input" type="search" role="combobox" autocomplete="off"
+               aria-expanded="false" aria-controls="docs-search-list" aria-autocomplete="list"
+               placeholder="搜标题 / 关键词，回车跳转" data-docs-search-input>
+        <ul id="docs-search-list" class="docs-search-list" hidden data-docs-search-list></ul>
+      </div>
       <a class="docs-side-title" href="index.html">📚 文档中心</a>
       <ul class="docs-side-list">
-      <li><a href="deploy.html">🚀 部署教程</a></li>
-      <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
-      <li><a href="guide.html">📖 使用手册</a></li>
-      <li><a href="plaza.html">🧭 广场</a></li>
-      <li><a href="themes.html">🎨 主题开发</a></li>
-      <li><a href="plugins.html">🧩 插件开发</a></li>
-      <li><a href="api.html">🔌 API 参考</a></li>
-      <li><a class="is-active" href="typography.html">🩺 排版规范</a></li>
-      <li><a href="demo.html">🎪 演示站指南</a></li>
-      <li><a href="roadmap.html">🗺️ 路线图</a></li>
-      <li><a href="versions.html">🏷️ 版本更新说明</a></li>
-      <li><a href="changelog.html">📜 更新日志</a></li>
+        <li><a href="deploy.html">🚀 部署教程</a></li>
+        <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+        <li><a href="guide.html">📖 使用手册</a></li>
+        <li><a href="plaza.html">🧭 广场</a></li>
+        <li><a href="themes.html">🎨 主题开发</a></li>
+        <li><a href="plugins.html">🧩 插件开发</a></li>
+        <li><a href="api.html">🔌 API 参考</a></li>
+        <li><a class="is-active" href="typography.html">🩺 排版规范</a></li>
+        <li><a href="demo.html">🎪 演示站指南</a></li>
+        <li><a href="roadmap.html">🗺️ 路线图</a></li>
+        <li><a href="versions.html">🏷️ 版本更新说明</a></li>
+        <li><a href="changelog.html">📜 更新日志</a></li>
       </ul>
-      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+      <a class="docs-side-extra" href="/llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
     </aside>
   <main class="docs-main">
     <div class="docs-crumbs">
@@ -56,7 +64,7 @@
       <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/wechat-typography-spec.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
     </div>
     <article class="doc-md">
-<h1 id="微信排版规范--落地说明">微信排版规范 · 落地说明</h1><p>依据：微信公众平台官方文档《能力接入 / 微信公众平台编辑器插件开发规范》
+<h1 id="微信排版规范-落地说明">微信排版规范 · 落地说明</h1><p>依据：微信公众平台官方文档《能力接入 / 微信公众平台编辑器插件开发规范》
 （<a href="https://developers.weixin.qq.com/doc/service/guide/product/plugin_spec.html" target="_blank" rel="noopener noreferrer">https://developers.weixin.qq.com/doc/service/guide/product/plugin_spec.html</a>）</p>
 <p>博客号在三个层面落地了这份规范：</p>
 <ol>
@@ -66,36 +74,36 @@
 </ol>
 <p>以下是规范要点摘要与博客号的对应实现，供主题/插件开发者参考。</p>
 <hr>
-<h2 id="1-css-属性使用规范">1. CSS 属性使用规范</h2><h3 id="11-opacity--禁止隐藏真图叠-svg">1.1 opacity —— 禁止隐藏真图叠 SVG</h3><ul>
+<h2 id="1-css-属性使用规范">1. CSS 属性使用规范</h2><h3 id="11-opacity-禁止隐藏真图叠-svg">1.1 opacity —— 禁止隐藏真图叠 SVG</h3><ul>
 <li><strong>规范</strong>：不要把 <code>img</code> 的 <code>opacity</code> 设为 0，再用带背景图的 SVG 叠在原位。真图被隐藏后，发布后无法在编辑器里修改图片。</li>
 <li><strong>博客号</strong>：体检规则 <code>1.1 opacity</code>；粘贴内容中的此类结构会被警告。</li>
 </ul>
-<h3 id="12-caret-color--光标必须可见">1.2 caret-color —— 光标必须可见</h3><ul>
+<h3 id="12-caret-color-光标必须可见">1.2 caret-color —— 光标必须可见</h3><ul>
 <li><strong>规范</strong>：禁止把输入光标颜色设为全透明，作者会找不到输入位置。</li>
 <li><strong>博客号</strong>：编辑区强制 <code>caret-color: var(--green)</code>；体检规则 <code>1.2 caret-color</code> 检查粘贴内容。</li>
 </ul>
-<h3 id="13-line-height--不得小于字号">1.3 line-height —— 不得小于字号</h3><ul>
+<h3 id="13-line-height-不得小于字号">1.3 line-height —— 不得小于字号</h3><ul>
 <li><strong>规范</strong>：容器行高小于字号时，多行文字会重叠。<strong>排除场景</strong>：纯图片无缝拼接（元素内无文字）、实际只渲染一行的文字。</li>
 <li><strong>博客号</strong>：体检规则 <code>1.3 行高过小</code>（px 与 unitless 两种写法都检查）；默认主题正文 17px / 1.75。</li>
 </ul>
-<h3 id="14-width--禁止固定宽度破坏响应式">1.4 width —— 禁止固定宽度破坏响应式</h3><ul>
+<h3 id="14-width-禁止固定宽度破坏响应式">1.4 width —— 禁止固定宽度破坏响应式</h3><ul>
 <li><strong>规范</strong>：固定宽度会造成「居中不一致 / 水平溢出 / 不同屏幕占比差异」。建议给 <code>&lt;img&gt;</code> 加 <code>data-w</code>（图片原始像素宽度）作为加载超时后的宽度兜底。</li>
 <li><strong>豁免</strong>：横向滚动容器、视觉裁剪特效、第三方固定尺寸组件等有意为之的场景，在节点上加 <code>data-ignore-width</code>（对自身及子树生效）。</li>
 <li><strong>博客号</strong>：编辑器插入图片时自动探测并写入 <code>data-w</code>；体检规则 <code>1.4 固定宽度</code>（识别 <code>data-ignore-width</code> 豁免并提示确认）与 <code>1.4.3 data-w</code>；净化器原样保留这两个属性。</li>
 </ul>
-<h3 id="15-height--别让内容不可见">1.5 height —— 别让内容不可见</h3><ul>
+<h3 id="15-height-别让内容不可见">1.5 height —— 别让内容不可见</h3><ul>
 <li><strong>规范</strong>：<code>height:0</code> 且含文字 → 移动端整段不可见；固定小高度 + 内容溢出 → 被裁剪。<strong>排除</strong>：SVG 交互容器、无文字内容、可滚动容器。</li>
 <li><strong>博客号</strong>：体检规则 <code>1.5 高度为 0</code>。</li>
 </ul>
-<h3 id="16-text-align--禁用-start--end">1.6 text-align —— 禁用 start / end</h3><ul>
+<h3 id="16-text-align-禁用-start-end">1.6 text-align —— 禁用 start / end</h3><ul>
 <li><strong>规范</strong>：不同终端对 <code>start/end</code> 兼容不一，会造成部分设备居中、部分居左。</li>
 <li><strong>博客号</strong>：体检规则 <code>1.6 text-align</code>；「一键修复」会把 <code>start/end</code> 改为 <code>left</code>。</li>
 </ul>
-<h3 id="17-svg-animate-begin--兼容-pc">1.7 SVG animate begin —— 兼容 PC</h3><ul>
+<h3 id="17-svg-animate-begin-兼容-pc">1.7 SVG animate begin —— 兼容 PC</h3><ul>
 <li><strong>规范</strong>：SVG 动画若只在 <code>touchstart</code> 触发，PC 端无法点击，应写 <code>begin=&quot;touchstart; click&quot;</code>。</li>
 <li><strong>博客号</strong>：出于安全考虑净化器会整体移除 <code>&lt;svg&gt;</code>（内联 SVG 是常见 XSS 载体），如需 SVG 动图请使用 GIF/视频或截图。</li>
 </ul>
-<h3 id="18-pre--不要包裹普通正文">1.8 pre —— 不要包裹普通正文</h3><ul>
+<h3 id="18-pre-不要包裹普通正文">1.8 pre —— 不要包裹普通正文</h3><ul>
 <li><strong>规范</strong>：<code>&lt;pre&gt;</code> 自带 <code>white-space:pre</code> 不自动换行，窄屏会被截断。普通段落用 <code>p</code> / <code>section</code>。</li>
 <li><strong>博客号</strong>：编辑器「代码块」按钮只往 <code>pre</code> 里放 <code>&lt;code&gt;</code>；体检规则 <code>1.8 pre 标签</code> 检查无 code 的纯文本 pre。</li>
 </ul>
@@ -117,7 +125,7 @@
 <li><strong>4.5 技巧</strong>：<code>data-no-dark</code> 让单个节点跳过转换；<strong>不要使用 <code>!important</code></strong>；确认无碍的告警可用 <code>data-ignore-dm=&quot;low-contrast text-bg-gradient&quot;</code> 豁免检测。</li>
 <li><strong>博客号</strong>：<code>!important</code> 在净化时被剥除、体检提示；<code>data-no-dark</code> / <code>data-ignore-dm</code> 属性原样保留；wechat 主题默认保持明亮配色（站点不做 <code>prefers-color-scheme</code> 自动 Dark Mode）。</li>
 </ul>
-<h2 id="5-博客号体检规则一览编辑器--体检">5. 博客号体检规则一览（编辑器 → 体检）</h2><div class="table-wrap"><table>
+<h2 id="5-博客号体检规则一览编辑器-体检">5. 博客号体检规则一览（编辑器 → 体检）</h2><div class="table-wrap"><table>
 <thead>
 <tr>
 <th>规则号</th>
@@ -222,18 +230,18 @@
       <div class="docs-toc-title">本页目录</div>
       <ul class="docs-toc-list">
         <li class="toc-d2"><a href="#1-css-属性使用规范" data-toc="1-css-属性使用规范">1. CSS 属性使用规范</a></li>
-        <li class="toc-d3"><a href="#11-opacity--禁止隐藏真图叠-svg" data-toc="11-opacity--禁止隐藏真图叠-svg">1.1 opacity —— 禁止隐藏真图叠 SVG</a></li>
-        <li class="toc-d3"><a href="#12-caret-color--光标必须可见" data-toc="12-caret-color--光标必须可见">1.2 caret-color —— 光标必须可见</a></li>
-        <li class="toc-d3"><a href="#13-line-height--不得小于字号" data-toc="13-line-height--不得小于字号">1.3 line-height —— 不得小于字号</a></li>
-        <li class="toc-d3"><a href="#14-width--禁止固定宽度破坏响应式" data-toc="14-width--禁止固定宽度破坏响应式">1.4 width —— 禁止固定宽度破坏响应式</a></li>
-        <li class="toc-d3"><a href="#15-height--别让内容不可见" data-toc="15-height--别让内容不可见">1.5 height —— 别让内容不可见</a></li>
-        <li class="toc-d3"><a href="#16-text-align--禁用-start--end" data-toc="16-text-align--禁用-start--end">1.6 text-align —— 禁用 start / end</a></li>
-        <li class="toc-d3"><a href="#17-svg-animate-begin--兼容-pc" data-toc="17-svg-animate-begin--兼容-pc">1.7 SVG animate begin —— 兼容 PC</a></li>
-        <li class="toc-d3"><a href="#18-pre--不要包裹普通正文" data-toc="18-pre--不要包裹普通正文">1.8 pre —— 不要包裹普通正文</a></li>
+        <li class="toc-d3"><a href="#11-opacity-禁止隐藏真图叠-svg" data-toc="11-opacity-禁止隐藏真图叠-svg">1.1 opacity —— 禁止隐藏真图叠 SVG</a></li>
+        <li class="toc-d3"><a href="#12-caret-color-光标必须可见" data-toc="12-caret-color-光标必须可见">1.2 caret-color —— 光标必须可见</a></li>
+        <li class="toc-d3"><a href="#13-line-height-不得小于字号" data-toc="13-line-height-不得小于字号">1.3 line-height —— 不得小于字号</a></li>
+        <li class="toc-d3"><a href="#14-width-禁止固定宽度破坏响应式" data-toc="14-width-禁止固定宽度破坏响应式">1.4 width —— 禁止固定宽度破坏响应式</a></li>
+        <li class="toc-d3"><a href="#15-height-别让内容不可见" data-toc="15-height-别让内容不可见">1.5 height —— 别让内容不可见</a></li>
+        <li class="toc-d3"><a href="#16-text-align-禁用-start-end" data-toc="16-text-align-禁用-start-end">1.6 text-align —— 禁用 start / end</a></li>
+        <li class="toc-d3"><a href="#17-svg-animate-begin-兼容-pc" data-toc="17-svg-animate-begin-兼容-pc">1.7 SVG animate begin —— 兼容 PC</a></li>
+        <li class="toc-d3"><a href="#18-pre-不要包裹普通正文" data-toc="18-pre-不要包裹普通正文">1.8 pre —— 不要包裹普通正文</a></li>
         <li class="toc-d2"><a href="#2-文章结构规范" data-toc="2-文章结构规范">2. 文章结构规范</a></li>
         <li class="toc-d2"><a href="#3-字体使用规范" data-toc="3-字体使用规范">3. 字体使用规范</a></li>
         <li class="toc-d2"><a href="#4-dark-mode-规范" data-toc="4-dark-mode-规范">4. Dark Mode 规范</a></li>
-        <li class="toc-d2"><a href="#5-博客号体检规则一览编辑器--体检" data-toc="5-博客号体检规则一览编辑器--体检">5. 博客号体检规则一览（编辑器 → 体检）</a></li>
+        <li class="toc-d2"><a href="#5-博客号体检规则一览编辑器-体检" data-toc="5-博客号体检规则一览编辑器-体检">5. 博客号体检规则一览（编辑器 → 体检）</a></li>
       </ul>
     </aside>
 </div>
@@ -242,13 +250,13 @@
   <div class="wrap footer-inner">
     <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
     <span class="footer-links">
-      <a href="../index.html">官网首页</a>
+      <a href="/index.html">官网首页</a>
       <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
       <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
-      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+      <a href="/llms.txt" target="_blank" rel="noopener">AI 索引</a>
     </span>
   </div>
 </footer>
-<script src="../docs.js" defer></script>
+<script src="/docs.js?v=20261012a" defer></script>
 </body>
 </html>

@@ -8,20 +8,21 @@
 <meta property="og:title" content="Cloudflare 基础 - 博客号文档">
 <meta property="og:description" content="Workers、D1、R2、定时任务、域名与 Turnstile：看懂这套博客跑在 Cloudflare 上的每个部件，控制台巡检、常用命令与免费额度速查。">
 <meta property="og:type" content="article">
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../style.css">
-<link rel="stylesheet" href="../docs.css">
+<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261012a">
+<link rel="stylesheet" href="/docs.css?v=20261012a">
+<script src="/docs/docs-search-index.js?v=20261012a"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
-    <a class="nav-logo" href="../index.html">
-      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    <a class="nav-logo" href="/index.html">
+      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
-      <a href="../index.html">返回官网</a>
+      <a href="/index.html">返回官网</a>
     </nav>
     <div class="nav-cta">
       <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
@@ -33,22 +34,29 @@
 <div class="docs-shell docs-shell-toc">
   
     <aside class="docs-sidebar">
+      <div class="docs-search">
+        <label class="docs-search-label" for="docs-search-input">🔍 搜索文档</label>
+        <input id="docs-search-input" class="docs-search-input" type="search" role="combobox" autocomplete="off"
+               aria-expanded="false" aria-controls="docs-search-list" aria-autocomplete="list"
+               placeholder="搜标题 / 关键词，回车跳转" data-docs-search-input>
+        <ul id="docs-search-list" class="docs-search-list" hidden data-docs-search-list></ul>
+      </div>
       <a class="docs-side-title" href="index.html">📚 文档中心</a>
       <ul class="docs-side-list">
-      <li><a href="deploy.html">🚀 部署教程</a></li>
-      <li><a class="is-active" href="cloudflare.html">☁️ Cloudflare 基础</a></li>
-      <li><a href="guide.html">📖 使用手册</a></li>
-      <li><a href="plaza.html">🧭 广场</a></li>
-      <li><a href="themes.html">🎨 主题开发</a></li>
-      <li><a href="plugins.html">🧩 插件开发</a></li>
-      <li><a href="api.html">🔌 API 参考</a></li>
-      <li><a href="typography.html">🩺 排版规范</a></li>
-      <li><a href="demo.html">🎪 演示站指南</a></li>
-      <li><a href="roadmap.html">🗺️ 路线图</a></li>
-      <li><a href="versions.html">🏷️ 版本更新说明</a></li>
-      <li><a href="changelog.html">📜 更新日志</a></li>
+        <li><a href="deploy.html">🚀 部署教程</a></li>
+        <li><a class="is-active" href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+        <li><a href="guide.html">📖 使用手册</a></li>
+        <li><a href="plaza.html">🧭 广场</a></li>
+        <li><a href="themes.html">🎨 主题开发</a></li>
+        <li><a href="plugins.html">🧩 插件开发</a></li>
+        <li><a href="api.html">🔌 API 参考</a></li>
+        <li><a href="typography.html">🩺 排版规范</a></li>
+        <li><a href="demo.html">🎪 演示站指南</a></li>
+        <li><a href="roadmap.html">🗺️ 路线图</a></li>
+        <li><a href="versions.html">🏷️ 版本更新说明</a></li>
+        <li><a href="changelog.html">📜 更新日志</a></li>
       </ul>
-      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+      <a class="docs-side-extra" href="/llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
     </aside>
   <main class="docs-main">
     <div class="docs-crumbs">
@@ -197,7 +205,7 @@ npx wrangler whoami   # 确认登录成功，显示账号名</code></pre></div><
 <p>最常遇到的错误码：<strong>1101 = Worker 代码抛了未捕获的异常</strong>。看到 1101 就去 tail 里看堆栈，定位到具体文件行号。</p>
 <h2 id="4-d1数据库">4. D1——数据库</h2><h3 id="41-它是什么">4.1 它是什么</h3><p>D1 是 Cloudflare 的<strong>无服务器 SQLite 数据库</strong>：一个真正的 SQLite，但存在 Cloudflare 边缘、由 Worker 直接读写（本项目代码里就是 <code>env.DB.prepare(&quot;SELECT …&quot;)</code>）。不需要自己跑 MySQL、不用管备份服务器连接数，个人博客的量级完全够用。</p>
 <p>本项目库名 <strong><code>xwblog-db</code></strong>，代码绑定名 <strong><code>DB</code></strong>。文章、页面、微博、评论、设置、会员、访问统计，全在这一个库里。</p>
-<h3 id="42--最大的坑--local-和---remote-是两个世界">4.2 ⚠️ 最大的坑：<code>--local</code> 和 <code>--remote</code> 是两个世界</h3><div class="codeblock" data-lang="bash"><pre><code>npx wrangler d1 execute DB --remote --command &quot;SELECT …&quot;   # 操作【线上真库】
+<h3 id="42-最大的坑--local-和---remote-是两个世界">4.2 ⚠️ 最大的坑：<code>--local</code> 和 <code>--remote</code> 是两个世界</h3><div class="codeblock" data-lang="bash"><pre><code>npx wrangler d1 execute DB --remote --command &quot;SELECT …&quot;   # 操作【线上真库】
 npx wrangler d1 execute DB --local  --command &quot;SELECT …&quot;   # 操作【本地模拟库】</code></pre></div><ul>
 <li><code>--remote</code>：<strong>线上的 xwblog-db</strong>，动的是真实数据。</li>
 <li><code>--local</code>：本机 <code>.wrangler/state/</code> 目录下的模拟库，只服务 <code>npm run dev</code> 本地开发，<strong>和线上毫无关系</strong>。</li>
@@ -296,7 +304,7 @@ npx wrangler r2 object delete xwblog-images/test.txt</code></pre></div><h2 id="6
 <li>打开博客后台 → 设置 → 把两把钥匙<strong>成对</strong>填入 Turnstile 两栏 → 保存</li>
 </ol>
 <p>换钥匙 = 旧钥匙作废，注意同时更新后台设置，否则注册页的验证会一直失败。</p>
-<h2 id="9-环境变量与密钥vars--secrets">9. 环境变量与密钥（vars / secrets）</h2><p>Workers 代码可以通过两种方式拿到「代码之外的配置」：</p>
+<h2 id="9-环境变量与密钥vars-secrets">9. 环境变量与密钥（vars / secrets）</h2><p>Workers 代码可以通过两种方式拿到「代码之外的配置」：</p>
 <ul>
 <li><strong>vars（明文变量）</strong>：写在 wrangler.jsonc 的 <code>&quot;vars&quot;</code> 里，随代码部署。本项目唯一用例：演示站配置里的 <code>&quot;vars&quot;: { &quot;DEMO_MODE&quot;: &quot;1&quot; }</code>——生产配置没有任何 vars。</li>
 <li><strong>secrets（加密变量）</strong>：<code>npx wrangler secret put 名字</code> 或控制台里设置，加密存储、设置后不可查看。适合 API Token 这类敏感值。</li>
@@ -430,7 +438,7 @@ curl &quot;http://localhost:8787/__scheduled?cron=30+16+*+*+*&quot;</code></pre>
         <li class="toc-d3"><a href="#35-看日志" data-toc="35-看日志">3.5 看日志</a></li>
         <li class="toc-d2"><a href="#4-d1数据库" data-toc="4-d1数据库">4. D1——数据库</a></li>
         <li class="toc-d3"><a href="#41-它是什么" data-toc="41-它是什么">4.1 它是什么</a></li>
-        <li class="toc-d3"><a href="#42--最大的坑--local-和---remote-是两个世界" data-toc="42--最大的坑--local-和---remote-是两个世界">4.2 ⚠️ 最大的坑：--local 和 --remote 是两个世界</a></li>
+        <li class="toc-d3"><a href="#42-最大的坑--local-和---remote-是两个世界" data-toc="42-最大的坑--local-和---remote-是两个世界">4.2 ⚠️ 最大的坑：--local 和 --remote 是两个世界</a></li>
         <li class="toc-d3"><a href="#43-日常操作" data-toc="43-日常操作">4.3 日常操作</a></li>
         <li class="toc-d3"><a href="#44-备份已经自动在做" data-toc="44-备份已经自动在做">4.4 备份：已经自动在做</a></li>
         <li class="toc-d2"><a href="#5-r2图床和备份柜" data-toc="5-r2图床和备份柜">5. R2——图床和备份柜</a></li>
@@ -449,7 +457,7 @@ curl &quot;http://localhost:8787/__scheduled?cron=30+16+*+*+*&quot;</code></pre>
         <li class="toc-d3"><a href="#81-它是什么" data-toc="81-它是什么">8.1 它是什么</a></li>
         <li class="toc-d3"><a href="#82-两把钥匙" data-toc="82-两把钥匙">8.2 两把钥匙</a></li>
         <li class="toc-d3"><a href="#83-创建更换-turnstile-站点" data-toc="83-创建更换-turnstile-站点">8.3 创建/更换 Turnstile 站点</a></li>
-        <li class="toc-d2"><a href="#9-环境变量与密钥vars--secrets" data-toc="9-环境变量与密钥vars--secrets">9. 环境变量与密钥（vars / secrets）</a></li>
+        <li class="toc-d2"><a href="#9-环境变量与密钥vars-secrets" data-toc="9-环境变量与密钥vars-secrets">9. 环境变量与密钥（vars / secrets）</a></li>
         <li class="toc-d2"><a href="#10-常用命令速查" data-toc="10-常用命令速查">10. 常用命令速查</a></li>
         <li class="toc-d2"><a href="#11-免费额度与用量查看" data-toc="11-免费额度与用量查看">11. 免费额度与用量查看</a></li>
         <li class="toc-d2"><a href="#12-常见运维场景手册" data-toc="12-常见运维场景手册">12. 常见运维场景手册</a></li>
@@ -463,13 +471,13 @@ curl &quot;http://localhost:8787/__scheduled?cron=30+16+*+*+*&quot;</code></pre>
   <div class="wrap footer-inner">
     <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
     <span class="footer-links">
-      <a href="../index.html">官网首页</a>
+      <a href="/index.html">官网首页</a>
       <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
       <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
-      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+      <a href="/llms.txt" target="_blank" rel="noopener">AI 索引</a>
     </span>
   </div>
 </footer>
-<script src="../docs.js" defer></script>
+<script src="/docs.js?v=20261012a" defer></script>
 </body>
 </html>

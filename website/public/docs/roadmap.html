@@ -8,20 +8,21 @@
 <meta property="og:title" content="路线图 - 博客号文档">
 <meta property="og:description" content="已上线能力与近期计划，按 A / B / C 优先级管理的开发方向。">
 <meta property="og:type" content="article">
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../style.css">
-<link rel="stylesheet" href="../docs.css">
+<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261012a">
+<link rel="stylesheet" href="/docs.css?v=20261012a">
+<script src="/docs/docs-search-index.js?v=20261012a"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
-    <a class="nav-logo" href="../index.html">
-      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    <a class="nav-logo" href="/index.html">
+      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
-      <a href="../index.html">返回官网</a>
+      <a href="/index.html">返回官网</a>
     </nav>
     <div class="nav-cta">
       <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
@@ -33,22 +34,29 @@
 <div class="docs-shell docs-shell-toc">
   
     <aside class="docs-sidebar">
+      <div class="docs-search">
+        <label class="docs-search-label" for="docs-search-input">🔍 搜索文档</label>
+        <input id="docs-search-input" class="docs-search-input" type="search" role="combobox" autocomplete="off"
+               aria-expanded="false" aria-controls="docs-search-list" aria-autocomplete="list"
+               placeholder="搜标题 / 关键词，回车跳转" data-docs-search-input>
+        <ul id="docs-search-list" class="docs-search-list" hidden data-docs-search-list></ul>
+      </div>
       <a class="docs-side-title" href="index.html">📚 文档中心</a>
       <ul class="docs-side-list">
-      <li><a href="deploy.html">🚀 部署教程</a></li>
-      <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
-      <li><a href="guide.html">📖 使用手册</a></li>
-      <li><a href="plaza.html">🧭 广场</a></li>
-      <li><a href="themes.html">🎨 主题开发</a></li>
-      <li><a href="plugins.html">🧩 插件开发</a></li>
-      <li><a href="api.html">🔌 API 参考</a></li>
-      <li><a href="typography.html">🩺 排版规范</a></li>
-      <li><a href="demo.html">🎪 演示站指南</a></li>
-      <li><a class="is-active" href="roadmap.html">🗺️ 路线图</a></li>
-      <li><a href="versions.html">🏷️ 版本更新说明</a></li>
-      <li><a href="changelog.html">📜 更新日志</a></li>
+        <li><a href="deploy.html">🚀 部署教程</a></li>
+        <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+        <li><a href="guide.html">📖 使用手册</a></li>
+        <li><a href="plaza.html">🧭 广场</a></li>
+        <li><a href="themes.html">🎨 主题开发</a></li>
+        <li><a href="plugins.html">🧩 插件开发</a></li>
+        <li><a href="api.html">🔌 API 参考</a></li>
+        <li><a href="typography.html">🩺 排版规范</a></li>
+        <li><a href="demo.html">🎪 演示站指南</a></li>
+        <li><a class="is-active" href="roadmap.html">🗺️ 路线图</a></li>
+        <li><a href="versions.html">🏷️ 版本更新说明</a></li>
+        <li><a href="changelog.html">📜 更新日志</a></li>
       </ul>
-      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+      <a class="docs-side-extra" href="/llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
     </aside>
   <main class="docs-main">
     <div class="docs-crumbs">
@@ -59,7 +67,7 @@
 <h1 id="开发方向备忘">开发方向备忘</h1><p>记录<strong>已调研、尚未启动</strong>的功能方向。每项保留调研结论与待决策点，启动开发时不必重新摸底；一旦定案实现，具体用法移入 GUIDE / API / THEMES 等功能文档，本文件只留条目与状态；拍板「不做」的进文末不做清单，编号永久空缺不回收。</p>
 <p>2026-10 对标 WordPress / emlog 等系统做过一轮全量能力盘点，方向按三档优先级管理：<strong>A = 一定要做</strong>（下一步就做，多数成本低、确定性强）；<strong>B = 未来一定要做</strong>（重要，但有前置依赖或需先拍板）；<strong>C = 加分项</strong>（可有可无，有富余再做）。</p>
 <p><strong>建议执行顺序（2026-10-07 重整）</strong>：<del>A 区</del>（已收官，A8 随本日落进 AGENTS.md）。B 区已落地 <strong>B9 主题外观变量（内测 v1）</strong> 与 <strong>B10 MCP 服务器（2026-10-11）</strong>；下一批建议：<strong>B3 通知渠道抽象（国内触达）</strong>；再往后 B6 备份异地化 / B13 管理员安全包。B8 主题 / 插件市场 2026-10-08 立项（调研结论已入档），排期等「主题可安装形态」拍板后插入。C 区按富余随缘挑。</p>
-<h2 id="优先级总览2026-10-07-更新">优先级总览（2026-10-07 更新）</h2><h3 id="a-区--一定要做">A 区 · 一定要做</h3><div class="table-wrap"><table>
+<h2 id="优先级总览2026-10-07-更新">优先级总览（2026-10-07 更新）</h2><h3 id="a-区-一定要做">A 区 · 一定要做</h3><div class="table-wrap"><table>
 <thead>
 <tr>
 <th>#</th>
@@ -113,7 +121,7 @@
 <td>灰度 = <code>&lt;html&gt;</code> filter 去色；闭站 = 中间件全站 503 + Retry-After（保收录），逻辑在 src/closed.ts；用法见 GUIDE</td>
 </tr>
 </tbody></table></div>
-<h3 id="b-区--未来一定要做">B 区 · 未来一定要做</h3><div class="table-wrap"><table>
+<h3 id="b-区-未来一定要做">B 区 · 未来一定要做</h3><div class="table-wrap"><table>
 <thead>
 <tr>
 <th>#</th>
@@ -207,7 +215,7 @@
 <td>所有基于 bloghao.com 部署的博客作者可申请专属认证标识。<strong>前置依赖：身份锚点</strong>——B17 广场 hub 是最自然的发证方：站点所有权验证（用户站按指引在设置页填入 hub 下发的校验 token，或 hub 探测站点上的验证文件）通过后，hub 签发「站名 + 作者」认证凭据。展示两端：广场信息流作者徽标（B17 内直接渲染）+ 用户站前台可选挂认证标（如关于我 / 评论作者旁）。凭据必须走签名 token 而非人工标注（站点可自行验证），要支持吊销与换主；冒用官方名义的站点要能在 hub 侧标记未认证。启动前先拍板：认证分级（个人 / 组织？）与收费与否</td>
 </tr>
 </tbody></table></div>
-<h3 id="c-区--加分项可有可无">C 区 · 加分项（可有可无）</h3><div class="table-wrap"><table>
+<h3 id="c-区-加分项可有可无">C 区 · 加分项（可有可无）</h3><div class="table-wrap"><table>
 <thead>
 <tr>
 <th>#</th>
@@ -312,9 +320,9 @@
       <div class="docs-toc-title">本页目录</div>
       <ul class="docs-toc-list">
         <li class="toc-d2"><a href="#优先级总览2026-10-07-更新" data-toc="优先级总览2026-10-07-更新">优先级总览（2026-10-07 更新）</a></li>
-        <li class="toc-d3"><a href="#a-区--一定要做" data-toc="a-区--一定要做">A 区 · 一定要做</a></li>
-        <li class="toc-d3"><a href="#b-区--未来一定要做" data-toc="b-区--未来一定要做">B 区 · 未来一定要做</a></li>
-        <li class="toc-d3"><a href="#c-区--加分项可有可无" data-toc="c-区--加分项可有可无">C 区 · 加分项（可有可无）</a></li>
+        <li class="toc-d3"><a href="#a-区-一定要做" data-toc="a-区-一定要做">A 区 · 一定要做</a></li>
+        <li class="toc-d3"><a href="#b-区-未来一定要做" data-toc="b-区-未来一定要做">B 区 · 未来一定要做</a></li>
+        <li class="toc-d3"><a href="#c-区-加分项可有可无" data-toc="c-区-加分项可有可无">C 区 · 加分项（可有可无）</a></li>
         <li class="toc-d2"><a href="#不做清单拍板记录编号不回收" data-toc="不做清单拍板记录编号不回收">不做清单（拍板记录，编号不回收）</a></li>
       </ul>
     </aside>
@@ -324,13 +332,13 @@
   <div class="wrap footer-inner">
     <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
     <span class="footer-links">
-      <a href="../index.html">官网首页</a>
+      <a href="/index.html">官网首页</a>
       <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
       <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
-      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+      <a href="/llms.txt" target="_blank" rel="noopener">AI 索引</a>
     </span>
   </div>
 </footer>
-<script src="../docs.js" defer></script>
+<script src="/docs.js?v=20261012a" defer></script>
 </body>
 </html>

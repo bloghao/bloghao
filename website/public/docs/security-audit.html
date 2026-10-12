@@ -8,8 +8,9 @@
 <meta property="og:title" content="安全审计报告 - 博客号">
 <meta property="og:description" content="给博客号做的一次全面安全体检：0 高危、27 项发现全部复核、21 项已修复上线。普通用户也能看懂。">
 <meta property="og:type" content="article">
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../style.css?v=20261011i">
+<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261012a">
+<link rel="stylesheet" href="/docs.css?v=20261012a">
 <style>
 /* ===== 审计报告页专属样式（复用官网设计令牌，scope 前缀 audit- 防冲突） ===== */
 .audit-hero { position: relative; overflow: hidden; padding: 150px 0 70px; background:
@@ -93,22 +94,32 @@
   .audit-steps { grid-template-columns: 1fr; }
   .audit-table { display: block; overflow-x: auto; }
 }
+#nav [id], h2[id], h3[id] { scroll-margin-top: 86px; }
+#nav [id], h2[id], h3[id] { scroll-margin-top: 86px; }
+#nav [id], h2[id], h3[id] { scroll-margin-top: 86px; }
 </style>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
-    <a class="nav-logo" href="../index.html">
-      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    <a class="nav-logo" href="/index.html">
+      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
-      <a href="../index.html">返回官网</a>
+      <a href="/index.html">返回官网</a>
       <a href="index.html">文档中心</a>
     </nav>
     <div class="nav-cta">
       <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
       <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+
+    <div class="nav-search">
+      <input id="docs-search-input" class="docs-search-input docs-search-input-compact" type="search" role="combobox" autocomplete="off"
+             aria-expanded="false" aria-controls="docs-search-list" aria-autocomplete="list"
+             placeholder="🔍 搜索文档" aria-label="搜索文档" data-docs-search-input>
+      <ul id="docs-search-list" class="docs-search-list docs-search-list-compact" hidden data-docs-search-list></ul>
     </div>
   </div>
 </header>
@@ -136,23 +147,23 @@
   <!-- ================= 审计怎么做 ================= -->
   <section class="section audit-sec">
     <div class="wrap">
-      <h2 class="sec-title reveal">这次体检是怎么做的</h2>
+      <h2 class="sec-title reveal" id="chunk-1">这次体检是怎么做的</h2>
       <p class="sec-sub reveal">不是跑一个扫描器就完事，而是像分科室检查一样，一科一科过。</p>
       <div class="audit-steps">
         <div class="audit-step reveal"><i>1</i>
-          <h3>七路分头排查</h3>
+          <h3 id="chunk-2">七路分头排查</h3>
           <p>身份门禁、代码注入、服务端乱访问、信息泄露、业务规则滥用、前端脚本、部署与供应链——七个方向并行排查，互不重复。</p>
         </div>
         <div class="audit-step reveal"><i>2</i>
-          <h3>发现者不打分</h3>
+          <h3 id="chunk-3">发现者不打分</h3>
           <p>每一条发现都由另一名独立复核员验证，试图推翻自己人给的结论；说不出具体后果的问题，一律不予定级。</p>
         </div>
         <div class="audit-step reveal"><i>3</i>
-          <h3>只在本地动手术</h3>
+          <h3 id="chunk-4">只在本地动手术</h3>
           <p>全程使用本地测试环境与自动化测试验证，绝不触碰任何线上站点与用户数据——审计本身不引入新风险。</p>
         </div>
         <div class="audit-step reveal"><i>4</i>
-          <h3>方法论公开</h3>
+          <h3 id="chunk-5">方法论公开</h3>
           <p>基于 Cloudflare 官方开源的 security-audit-skill 方法论裁剪执行，覆盖全部 35 个服务端模块、七套主题、前后台脚本、广场服务与部署配置。</p>
         </div>
       </div>
@@ -162,26 +173,26 @@
   <!-- ================= 三件大事 ================= -->
   <section class="section audit-sec">
     <div class="wrap">
-      <h2 class="sec-title reveal">修好的三件大事</h2>
+      <h2 class="sec-title reveal" id="chunk-6">修好的三件大事</h2>
       <p class="sec-sub reveal">八个较严重的问题全部坐实并处理，其中这三件最值得讲给你听（都已上线）。</p>
       <div class="audit-findings">
         <div class="audit-finding reveal">
           <div class="f-ico">🏃</div>
-          <h3>「排队刷积分」被堵上了</h3>
+          <h3 id="chunk-7">「排队刷积分」被堵上了</h3>
           <div class="f-was">原来：积分日上限存在并发缝隙</div>
           <p>每位会员每天有积分上限。可当许多请求在同一瞬间涌入时，系统「先查今天发了多少、再记账」的两步之间有缝隙，可以插队刷分、把排行榜刷高。</p>
           <div class="f-fixed">✓ 现在：账本当场对账，插队的直接作废，并补了专门的竞态测试。</div>
         </div>
         <div class="audit-finding reveal">
           <div class="f-ico">📔</div>
-          <h3>「上锁的日记」不再露扉页</h3>
+          <h3 id="chunk-8">「上锁的日记」不再露扉页</h3>
           <div class="f-was">原来：设密码后开头摘要仍公开</div>
           <p>给已发布的文章补设访问密码后，系统自动生成的开头摘要还挂在外墙上——订阅源和搜索卡片里能看到前 80 字正文，违背了「上锁就只露作者写的导读」的承诺。</p>
           <div class="f-fixed">✓ 现在：上锁的瞬间自动摘掉残留摘要，已经泄漏的保存一次即自愈。</div>
         </div>
         <div class="audit-finding reveal">
           <div class="f-ico">📣</div>
-          <h3>私密文章不再被广场转播</h3>
+          <h3 id="chunk-9">私密文章不再被广场转播</h3>
           <div class="f-was">原来：锁文/删文在广场不下架</div>
           <p>广场会收录站点的公开订阅源。你事后设为「仅会员可看」或已删除的文章，会被别人缓存的旧订阅继续带到公开广场，而且永远不会下架。</p>
           <div class="f-fixed">✓ 现在：加锁、删除会立刻通知广场撤下；订阅源带上机器可读的锁文标记，拉取方自动跳过。</div>
@@ -193,16 +204,16 @@
   <!-- ================= 全部发现处置 ================= -->
   <section class="section audit-sec">
     <div class="wrap">
-      <h2 class="sec-title reveal">27 项发现，每一项都有了归宿</h2>
+      <h2 class="sec-title reveal" id="chunk-10">27 项发现，每一项都有了归宿</h2>
       <p class="sec-sub reveal">较严重的 8 项全部确认属实；轻微的 19 项逐条处置，没有一个悬空。</p>
       <div class="audit-disp">
-        <div class="card reveal"><h3>✅ 加门锁 · 15 项已修复 <span class="pill pill-fixed">已上线</span></h3>
+        <div class="card reveal"><h3 id="chunk-11">✅ 加门锁 · 15 项已修复 <span class="pill pill-fixed">已上线</span></h3>
           <p>超大提交先验 size 再处理（防内存被打爆）、演示站敏感面全部短路（备份/导出/外发抓取）、后台密钥全面打码、机器人消息防重、外链跳转页禁止被嵌入、编辑器预览加固、恢复文章不再挤占置顶名额、被封禁会员过审不再计分……</p></div>
-        <div class="card reveal"><h3>🚧 根治路上 · 2 项已缓解 <span class="pill pill-mit">持续跟进</span></h3>
+        <div class="card reveal"><h3 id="chunk-12">🚧 根治路上 · 2 项已缓解 <span class="pill pill-mit">持续跟进</span></h3>
           <p>「注册零验证、小号刷分」的根治方案 Cloudflare Turnstile 人机验证已于本周上线（后台设置即可开启）；「统计打点可被刷」已把写入限流收紧到原来的四分之一，聚合写方案列入下轮设计。</p></div>
-        <div class="card reveal"><h3>📋 登记在案 · 4 项明确归属 <span class="pill pill-track">有跟进口径</span></h3>
+        <div class="card reveal"><h3 id="chunk-13">📋 登记在案 · 4 项明确归属 <span class="pill pill-track">有跟进口径</span></h3>
           <p>包括 workers.dev 平行入口（<b>本周已核实并关闭</b>）、TG 通知的旧格式兼容通道（重绑后移除）、游客评论的聚合去重（产品权衡）等——每一条都写在报告里，不是含糊的「已知问题」。</p></div>
-        <div class="card reveal"><h3>🔍 顺手的加固 · 全部完成 <span class="pill pill-fixed">已上线</span></h3>
+        <div class="card reveal"><h3 id="chunk-14">🔍 顺手的加固 · 全部完成 <span class="pill pill-fixed">已上线</span></h3>
           <p>导出包条目名二次校验、卡片链接生成时过滤危险协议、主题配置查表防原型链穿透、关闭了 workers.dev 备用入口并重建了广场服务——审计报告里的遗留清单已在本周清账大半。</p></div>
       </div>
       <details class="reveal" style="margin-top:22px;">
@@ -227,7 +238,7 @@
   <!-- ================= 确认健康 ================= -->
   <section class="section audit-sec">
     <div class="wrap">
-      <h2 class="sec-title reveal">体检确认健康的地方</h2>
+      <h2 class="sec-title reveal" id="chunk-15">体检确认健康的地方</h2>
       <p class="sec-sub reveal">审计不只是找问题——这些面被逐点核对过，结论是干净。</p>
       <ul class="audit-ok reveal">
         <li><b>✓</b><span><b>注入零发现</b>：全部数据库查询、渲染转义、XML 输出共 93 处逐点核对，没有一处可注入。</span></li>
@@ -243,10 +254,10 @@
   <!-- ================= 对你的影响 ================= -->
   <section class="section audit-sec">
     <div class="wrap">
-      <h2 class="sec-title reveal">如果你正在用博客号</h2>
+      <h2 class="sec-title reveal" id="chunk-16">如果你正在用博客号</h2>
       <p class="sec-sub reveal">这次审计对你意味着什么，以及需要你做的（很少）。</p>
       <div class="audit-action reveal">
-        <h3>你需要做的</h3>
+        <h3 id="chunk-17">你需要做的</h3>
         <ul>
           <li><b>升级到最新版</b>：同步仓库最新代码重新部署即可，数据库结构自动迁移，<b>没有任何手动操作</b>。</li>
           <li><b>看看自己的版本号</b>：登录后台 → 概览 → 「系统」卡，会显示「系统版本：博客号 vX.Y.Z」（本周新增）。</li>
@@ -269,11 +280,11 @@
   <!-- ================= 尾部 CTA ================= -->
   <section class="audit-cta">
     <div class="wrap wrap-narrow reveal">
-      <h2>博客号，博客好。</h2>
+      <h2 id="chunk-18">博客号，博客好。</h2>
       <p>免费部署，代码全在 GitHub，MIT 开源——安全这件事，我们替你上心。</p>
       <div class="hero-cta">
         <a class="btn btn-primary btn-lg" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">⭐ 去 GitHub 点个 Star</a>
-        <a class="btn btn-lg" href="../index.html#start">现在就开号</a>
+        <a class="btn btn-lg" href="/index.html#start">现在就开号</a>
       </div>
     </div>
   </section>
@@ -284,7 +295,7 @@
   <div class="wrap footer-inner">
     <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
     <span class="footer-links">
-      <a href="../index.html">官网首页</a>
+      <a href="/index.html">官网首页</a>
       <a href="index.html">文档</a>
       <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
       <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
@@ -293,6 +304,8 @@
   </div>
 </footer>
 
-<script src="../site.js?v=20261011h" defer></script>
+<script src="/docs/docs-search-index.js?v=20261012a"></script>
+<script src="/site.js?v=20261012a" defer></script>
+<script src="/docs.js?v=20261012a" defer></script>
 </body>
 </html>

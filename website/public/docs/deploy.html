@@ -8,20 +8,21 @@
 <meta property="og:title" content="部署教程 - 博客号文档">
 <meta property="og:description" content="从注册 Cloudflare 到部署 Worker、绑定自定义域名、自动部署、备份与恢复，含 Docker 自托管。">
 <meta property="og:type" content="article">
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../style.css">
-<link rel="stylesheet" href="../docs.css">
+<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261012a">
+<link rel="stylesheet" href="/docs.css?v=20261012a">
+<script src="/docs/docs-search-index.js?v=20261012a"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
-    <a class="nav-logo" href="../index.html">
-      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    <a class="nav-logo" href="/index.html">
+      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
-      <a href="../index.html">返回官网</a>
+      <a href="/index.html">返回官网</a>
     </nav>
     <div class="nav-cta">
       <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
@@ -33,22 +34,29 @@
 <div class="docs-shell docs-shell-toc">
   
     <aside class="docs-sidebar">
+      <div class="docs-search">
+        <label class="docs-search-label" for="docs-search-input">🔍 搜索文档</label>
+        <input id="docs-search-input" class="docs-search-input" type="search" role="combobox" autocomplete="off"
+               aria-expanded="false" aria-controls="docs-search-list" aria-autocomplete="list"
+               placeholder="搜标题 / 关键词，回车跳转" data-docs-search-input>
+        <ul id="docs-search-list" class="docs-search-list" hidden data-docs-search-list></ul>
+      </div>
       <a class="docs-side-title" href="index.html">📚 文档中心</a>
       <ul class="docs-side-list">
-      <li><a class="is-active" href="deploy.html">🚀 部署教程</a></li>
-      <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
-      <li><a href="guide.html">📖 使用手册</a></li>
-      <li><a href="plaza.html">🧭 广场</a></li>
-      <li><a href="themes.html">🎨 主题开发</a></li>
-      <li><a href="plugins.html">🧩 插件开发</a></li>
-      <li><a href="api.html">🔌 API 参考</a></li>
-      <li><a href="typography.html">🩺 排版规范</a></li>
-      <li><a href="demo.html">🎪 演示站指南</a></li>
-      <li><a href="roadmap.html">🗺️ 路线图</a></li>
-      <li><a href="versions.html">🏷️ 版本更新说明</a></li>
-      <li><a href="changelog.html">📜 更新日志</a></li>
+        <li><a class="is-active" href="deploy.html">🚀 部署教程</a></li>
+        <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+        <li><a href="guide.html">📖 使用手册</a></li>
+        <li><a href="plaza.html">🧭 广场</a></li>
+        <li><a href="themes.html">🎨 主题开发</a></li>
+        <li><a href="plugins.html">🧩 插件开发</a></li>
+        <li><a href="api.html">🔌 API 参考</a></li>
+        <li><a href="typography.html">🩺 排版规范</a></li>
+        <li><a href="demo.html">🎪 演示站指南</a></li>
+        <li><a href="roadmap.html">🗺️ 路线图</a></li>
+        <li><a href="versions.html">🏷️ 版本更新说明</a></li>
+        <li><a href="changelog.html">📜 更新日志</a></li>
       </ul>
-      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+      <a class="docs-side-extra" href="/llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
     </aside>
   <main class="docs-main">
     <div class="docs-crumbs">
@@ -60,7 +68,7 @@
 <blockquote>
 <p>在线示例：<strong><a href="https://blog.xiaowuleyi.com" target="_blank" rel="noopener noreferrer">https://blog.xiaowuleyi.com</a></strong>（作者实例；Worker 名 <code>xwblog</code>，数据库 <code>xwblog-db</code>，图床桶 <code>xwblog-images</code>，与仓库内 wrangler.jsonc 一致）。给自己部署一套时，资源名可以原样沿用，也可以自行替换——与你的 wrangler.jsonc 保持一致即可。</p>
 </blockquote>
-<h2 id="方式一一键部署推荐全程不碰命令行">方式一：一键部署（推荐，全程不碰命令行）</h2><p><a href="https://deploy.workers.cloudflare.com/?url=https://github.com/bloghao/bloghao" target="_blank" rel="noopener noreferrer"><img src="../assets/deploy-button.svg" alt="Deploy to Cloudflare" loading="lazy"></a></p>
+<h2 id="方式一一键部署推荐全程不碰命令行">方式一：一键部署（推荐，全程不碰命令行）</h2><p><a href="https://deploy.workers.cloudflare.com/?url=https://github.com/bloghao/bloghao" target="_blank" rel="noopener noreferrer"><img src="/assets/deploy-button.svg" alt="Deploy to Cloudflare" loading="lazy"></a></p>
 <p>点按钮 → 用 GitHub 账号授权 → 在设置页给 Worker、D1 数据库、R2 图床起好名字 → 点 <strong>Create and deploy</strong>。Cloudflare 会自动完成：</p>
 <ol>
 <li>把仓库复制一份到你的 GitHub 账号（以后改代码、提 Issue 都在这份副本上）</li>
@@ -129,7 +137,7 @@ https://xwblog.&lt;你的子域&gt;.workers.dev</code></pre></div><h2 id="4-初�
 <p>方法一（面板操作，推荐）：Cloudflare Dashboard → Workers &amp; Pages → <code>xwblog</code> → Settings → Domains &amp; Routes → <strong>Add → Custom domain</strong>，填入 <code>blog.你的域名.com</code>，证书自动签发，几分钟内生效。</p>
 <p>方法二（命令行）：在 <code>wrangler.jsonc</code> 增加后重新 <code>npm run deploy</code>：</p>
 <div class="codeblock" data-lang="jsonc"><pre><code>&quot;routes&quot;: [{ &quot;pattern&quot;: &quot;blog.xiaowuleyi.com&quot;, &quot;custom_domain&quot;: true }]</code></pre></div><p>绑定完成后还有一步别漏：后台「设置 → 站点链接」改成新域名（如 <code>https://blog.xiaowuleyi.com</code>）——RSS、sitemap、OG 分享卡里的绝对链接都取这个值。</p>
-<h2 id="7-推上-github--push-自动部署命令行部署适用">7. 推上 GitHub + push 自动部署（命令行部署适用）</h2><blockquote>
+<h2 id="7-推上-github-push-自动部署命令行部署适用">7. 推上 GitHub + push 自动部署（命令行部署适用）</h2><blockquote>
 <p>一键部署的副本<strong>已经</strong>由 Cloudflare Workers Builds 接管 push 自动部署，这节可以跳过。</p>
 </blockquote>
 <div class="codeblock" data-lang="bash"><pre><code>git init
@@ -245,7 +253,7 @@ A：项目名改 <code>wrangler.jsonc</code> 的 <code>name</code>；本地端�
         <li class="toc-d2"><a href="#4-初始化管理员" data-toc="4-初始化管理员">4. 初始化管理员</a></li>
         <li class="toc-d2"><a href="#5-基本设置" data-toc="5-基本设置">5. 基本设置</a></li>
         <li class="toc-d2"><a href="#6-绑定自定义域名" data-toc="6-绑定自定义域名">6. 绑定自定义域名</a></li>
-        <li class="toc-d2"><a href="#7-推上-github--push-自动部署命令行部署适用" data-toc="7-推上-github--push-自动部署命令行部署适用">7. 推上 GitHub + push 自动部署（命令行部署适用）</a></li>
+        <li class="toc-d2"><a href="#7-推上-github-push-自动部署命令行部署适用" data-toc="7-推上-github-push-自动部署命令行部署适用">7. 推上 GitHub + push 自动部署（命令行部署适用）</a></li>
         <li class="toc-d2"><a href="#方式三docker-自托管自有服务器" data-toc="方式三docker-自托管自有服务器">方式三：Docker 自托管（自有服务器）</a></li>
         <li class="toc-d2"><a href="#8-日常运维备忘" data-toc="8-日常运维备忘">8. 日常运维备忘</a></li>
         <li class="toc-d2"><a href="#9-本地开发" data-toc="9-本地开发">9. 本地开发</a></li>
@@ -259,13 +267,13 @@ A：项目名改 <code>wrangler.jsonc</code> 的 <code>name</code>；本地端�
   <div class="wrap footer-inner">
     <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
     <span class="footer-links">
-      <a href="../index.html">官网首页</a>
+      <a href="/index.html">官网首页</a>
       <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
       <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
-      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+      <a href="/llms.txt" target="_blank" rel="noopener">AI 索引</a>
     </span>
   </div>
 </footer>
-<script src="../docs.js" defer></script>
+<script src="/docs.js?v=20261012a" defer></script>
 </body>
 </html>

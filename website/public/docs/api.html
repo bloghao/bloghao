@@ -8,20 +8,21 @@
 <meta property="og:title" content="API 参考 - 博客号文档">
 <meta property="og:description" content="全部公开 / 管理接口与 HTML 净化白名单摘要，写自己的客户端。">
 <meta property="og:type" content="article">
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../style.css">
-<link rel="stylesheet" href="../docs.css">
+<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261012a">
+<link rel="stylesheet" href="/docs.css?v=20261012a">
+<script src="/docs/docs-search-index.js?v=20261012a"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
-    <a class="nav-logo" href="../index.html">
-      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    <a class="nav-logo" href="/index.html">
+      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
-      <a href="../index.html">返回官网</a>
+      <a href="/index.html">返回官网</a>
     </nav>
     <div class="nav-cta">
       <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
@@ -33,22 +34,29 @@
 <div class="docs-shell docs-shell-toc">
   
     <aside class="docs-sidebar">
+      <div class="docs-search">
+        <label class="docs-search-label" for="docs-search-input">🔍 搜索文档</label>
+        <input id="docs-search-input" class="docs-search-input" type="search" role="combobox" autocomplete="off"
+               aria-expanded="false" aria-controls="docs-search-list" aria-autocomplete="list"
+               placeholder="搜标题 / 关键词，回车跳转" data-docs-search-input>
+        <ul id="docs-search-list" class="docs-search-list" hidden data-docs-search-list></ul>
+      </div>
       <a class="docs-side-title" href="index.html">📚 文档中心</a>
       <ul class="docs-side-list">
-      <li><a href="deploy.html">🚀 部署教程</a></li>
-      <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
-      <li><a href="guide.html">📖 使用手册</a></li>
-      <li><a href="plaza.html">🧭 广场</a></li>
-      <li><a href="themes.html">🎨 主题开发</a></li>
-      <li><a href="plugins.html">🧩 插件开发</a></li>
-      <li><a class="is-active" href="api.html">🔌 API 参考</a></li>
-      <li><a href="typography.html">🩺 排版规范</a></li>
-      <li><a href="demo.html">🎪 演示站指南</a></li>
-      <li><a href="roadmap.html">🗺️ 路线图</a></li>
-      <li><a href="versions.html">🏷️ 版本更新说明</a></li>
-      <li><a href="changelog.html">📜 更新日志</a></li>
+        <li><a href="deploy.html">🚀 部署教程</a></li>
+        <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+        <li><a href="guide.html">📖 使用手册</a></li>
+        <li><a href="plaza.html">🧭 广场</a></li>
+        <li><a href="themes.html">🎨 主题开发</a></li>
+        <li><a href="plugins.html">🧩 插件开发</a></li>
+        <li><a class="is-active" href="api.html">🔌 API 参考</a></li>
+        <li><a href="typography.html">🩺 排版规范</a></li>
+        <li><a href="demo.html">🎪 演示站指南</a></li>
+        <li><a href="roadmap.html">🗺️ 路线图</a></li>
+        <li><a href="versions.html">🏷️ 版本更新说明</a></li>
+        <li><a href="changelog.html">📜 更新日志</a></li>
       </ul>
-      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+      <a class="docs-side-extra" href="/llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
     </aside>
   <main class="docs-main">
     <div class="docs-crumbs">
@@ -409,7 +417,7 @@
 <td>清空回收站，Body 可选 <code>{type}</code> 定向清空一类（缺省全清）</td>
 </tr>
 </tbody></table></div>
-<h3 id="上传--媒体">上传 / 媒体</h3><div class="table-wrap"><table>
+<h3 id="上传-媒体">上传 / 媒体</h3><div class="table-wrap"><table>
 <thead>
 <tr>
 <th>方法</th>
@@ -487,7 +495,7 @@
 <td>删除（连带其下的回复）</td>
 </tr>
 </tbody></table></div>
-<h3 id="设置--账号--工具">设置 / 账号 / 工具</h3><div class="table-wrap"><table>
+<h3 id="设置-账号-工具">设置 / 账号 / 工具</h3><div class="table-wrap"><table>
 <thead>
 <tr>
 <th>方法</th>
@@ -555,7 +563,7 @@
 </tr>
 </tbody></table></div>
 <p>外部发布相关设置键（可经 <code>PUT /api/admin/settings</code> 写入）：<code>externalToken</code>（开放 API 密钥，空 = 接口关闭，建议用上面的专用端点生成）、<code>telegramBotToken</code>、<code>telegramAllowFrom</code>（逗号分隔的 Chat ID 白名单）、<code>telegramWebhookSecret</code>（Webhook 密钥，建议由专用端点自动生成）、<code>notifyNewComment</code>（<code>1</code>/<code>0</code>，新留言推送到 Telegram，目标为白名单第一个 Chat ID）。</p>
-<h3 id="备份--数据导出">备份 / 数据导出</h3><div class="table-wrap"><table>
+<h3 id="备份-数据导出">备份 / 数据导出</h3><div class="table-wrap"><table>
 <thead>
 <tr>
 <th>方法</th>
@@ -582,7 +590,7 @@
 <h3 id="get-apimetathemes">GET /api/meta/themes</h3><p>已注册主题列表 <code>{themes:[{id,name,description,colors}]}</code>，<code>colors</code> 为后台皮肤卡预览色板（<code>[背景, 强调条, 卡面, 卡面2, 卡面3]</code>，未设置时为 <code>null</code>）。</p>
 <h3 id="get-apiadminmemberspage1q">GET /api/admin/members?page=1&amp;q=</h3><p>会员列表（后台「会员」页数据源）：<code>{items:[{id, username, email, tier, points, status, created_at, last_login_at}], total, page, totalPages}</code>；<code>q</code> 模糊匹配用户名 / 邮箱，20 条/页。</p>
 <h3 id="put-apiadminmembersid">PUT /api/admin/members/:id</h3><p>改档位 / 封禁，<strong>缺键即保留</strong>（只传要改的键）：<code>{ &quot;tier&quot;: &quot;normal|coffee|top&quot; }</code> 或 <code>{ &quot;status&quot;: &quot;active|banned&quot; }</code> → <code>{ok:true}</code>；<code>status:&quot;banned&quot;</code> 同时清空该会员全部会话（即刻踢下线），历史评论保留。会员不存在 404。</p>
-<h2 id="外部接口token-鉴权供-telegram-机器人--第三方工具调用">外部接口（Token 鉴权，供 Telegram 机器人 / 第三方工具调用）</h2><p>鉴权方式二选一（只认请求头，避免 Token 进访问日志）：<code>Authorization: Bearer &lt;token&gt;</code> 或 <code>X-Auth-Token: &lt;token&gt;</code>。Token 在后台「设置 → 外部发布」生成，空 Token = 接口关闭。</p>
+<h2 id="外部接口token-鉴权供-telegram-机器人-第三方工具调用">外部接口（Token 鉴权，供 Telegram 机器人 / 第三方工具调用）</h2><p>鉴权方式二选一（只认请求头，避免 Token 进访问日志）：<code>Authorization: Bearer &lt;token&gt;</code> 或 <code>X-Auth-Token: &lt;token&gt;</code>。Token 在后台「设置 → 外部发布」生成，空 Token = 接口关闭。</p>
 <h3 id="get-apiexternalweibo">GET /api/external/weibo</h3><p>连通性测试，返回 <code>{ok, site, usage}</code>。</p>
 <h3 id="post-apiexternalweibo">POST /api/external/weibo</h3><p>发布一条微博。<code>Content-Type: application/json</code> 与 <code>multipart/form-data</code> 均可：</p>
 <div class="codeblock" data-lang="json"><pre><code>{ &quot;content&quot;: &quot;文字，可含 #话题&quot;, &quot;images&quot;: [&quot;https://外链 或 /images/站内 或 data:image/…;base64,…&quot;], &quot;status&quot;: &quot;published | draft&quot; }</code></pre></div><p>multipart 字段：<code>content</code>、<code>status</code>、<code>images</code>（文件，可重复；也接受图片地址字符串）。<code>status</code> 缺省为 <code>published</code>。</p>
@@ -665,7 +673,7 @@
         <li class="toc-d2"><a href="#公开接口" data-toc="公开接口">公开接口</a></li>
         <li class="toc-d3"><a href="#get-apihealth" data-toc="get-apihealth">GET /api/health</a></li>
         <li class="toc-d3"><a href="#get-apipublicemoji" data-toc="get-apipublicemoji">GET /api/public/emoji</a></li>
-        <li class="toc-d3"><a href="#get-apipublicpostspage1limit10tag生活" data-toc="get-apipublicpostspage1limit10tag生活">GET /api/public/posts?page=1&amp;amp;limit=10&amp;amp;tag=生活</a></li>
+        <li class="toc-d3"><a href="#get-apipublicpostspage1limit10tag生活" data-toc="get-apipublicpostspage1limit10tag生活">GET /api/public/posts?page=1&amp;limit=10&amp;tag=生活</a></li>
         <li class="toc-d3"><a href="#post-apipubliccomments" data-toc="post-apipubliccomments">POST /api/public/comments</a></li>
         <li class="toc-d3"><a href="#post-apipubliclikeslug" data-toc="post-apipubliclikeslug">POST /api/public/like/:slug</a></li>
         <li class="toc-d3"><a href="#post-apipubliclikeweiboid" data-toc="post-apipubliclikeweiboid">POST /api/public/like/weibo/:id</a></li>
@@ -696,16 +704,16 @@
         <li class="toc-d3"><a href="#独立页面" data-toc="独立页面">独立页面</a></li>
         <li class="toc-d3"><a href="#标签" data-toc="标签">标签</a></li>
         <li class="toc-d3"><a href="#回收站软删除" data-toc="回收站软删除">回收站（软删除）</a></li>
-        <li class="toc-d3"><a href="#上传--媒体" data-toc="上传--媒体">上传 / 媒体</a></li>
+        <li class="toc-d3"><a href="#上传-媒体" data-toc="上传-媒体">上传 / 媒体</a></li>
         <li class="toc-d3"><a href="#评论" data-toc="评论">评论</a></li>
-        <li class="toc-d3"><a href="#设置--账号--工具" data-toc="设置--账号--工具">设置 / 账号 / 工具</a></li>
+        <li class="toc-d3"><a href="#设置-账号-工具" data-toc="设置-账号-工具">设置 / 账号 / 工具</a></li>
         <li class="toc-d3"><a href="#采集公众号文章" data-toc="采集公众号文章">采集（公众号文章）</a></li>
         <li class="toc-d3"><a href="#外部发布管理" data-toc="外部发布管理">外部发布（管理）</a></li>
-        <li class="toc-d3"><a href="#备份--数据导出" data-toc="备份--数据导出">备份 / 数据导出</a></li>
+        <li class="toc-d3"><a href="#备份-数据导出" data-toc="备份-数据导出">备份 / 数据导出</a></li>
         <li class="toc-d3"><a href="#get-apimetathemes" data-toc="get-apimetathemes">GET /api/meta/themes</a></li>
-        <li class="toc-d3"><a href="#get-apiadminmemberspage1q" data-toc="get-apiadminmemberspage1q">GET /api/admin/members?page=1&amp;amp;q=</a></li>
+        <li class="toc-d3"><a href="#get-apiadminmemberspage1q" data-toc="get-apiadminmemberspage1q">GET /api/admin/members?page=1&amp;q=</a></li>
         <li class="toc-d3"><a href="#put-apiadminmembersid" data-toc="put-apiadminmembersid">PUT /api/admin/members/:id</a></li>
-        <li class="toc-d2"><a href="#外部接口token-鉴权供-telegram-机器人--第三方工具调用" data-toc="外部接口token-鉴权供-telegram-机器人--第三方工具调用">外部接口（Token 鉴权，供 Telegram 机器人 / 第三方工具调用）</a></li>
+        <li class="toc-d2"><a href="#外部接口token-鉴权供-telegram-机器人-第三方工具调用" data-toc="外部接口token-鉴权供-telegram-机器人-第三方工具调用">外部接口（Token 鉴权，供 Telegram 机器人 / 第三方工具调用）</a></li>
         <li class="toc-d3"><a href="#get-apiexternalweibo" data-toc="get-apiexternalweibo">GET /api/external/weibo</a></li>
         <li class="toc-d3"><a href="#post-apiexternalweibo" data-toc="post-apiexternalweibo">POST /api/external/weibo</a></li>
         <li class="toc-d3"><a href="#post-apitelegramwebhook" data-toc="post-apitelegramwebhook">POST /api/telegram/webhook</a></li>
@@ -719,13 +727,13 @@
   <div class="wrap footer-inner">
     <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
     <span class="footer-links">
-      <a href="../index.html">官网首页</a>
+      <a href="/index.html">官网首页</a>
       <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
       <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
-      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+      <a href="/llms.txt" target="_blank" rel="noopener">AI 索引</a>
     </span>
   </div>
 </footer>
-<script src="../docs.js" defer></script>
+<script src="/docs.js?v=20261012a" defer></script>
 </body>
 </html>

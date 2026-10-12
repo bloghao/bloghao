@@ -8,20 +8,21 @@
 <meta property="og:title" content="版本更新说明 - 博客号文档">
 <meta property="og:description" content="从 2026-10-03 项目诞生到今天的大版本大事记：每个版本带来了什么，博客号一路怎么长成现在这样。">
 <meta property="og:type" content="article">
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../style.css">
-<link rel="stylesheet" href="../docs.css">
+<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261012a">
+<link rel="stylesheet" href="/docs.css?v=20261012a">
+<script src="/docs/docs-search-index.js?v=20261012a"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
-    <a class="nav-logo" href="../index.html">
-      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    <a class="nav-logo" href="/index.html">
+      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
-      <a href="../index.html">返回官网</a>
+      <a href="/index.html">返回官网</a>
     </nav>
     <div class="nav-cta">
       <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
@@ -33,22 +34,29 @@
 <div class="docs-shell docs-shell-toc">
   
     <aside class="docs-sidebar">
+      <div class="docs-search">
+        <label class="docs-search-label" for="docs-search-input">🔍 搜索文档</label>
+        <input id="docs-search-input" class="docs-search-input" type="search" role="combobox" autocomplete="off"
+               aria-expanded="false" aria-controls="docs-search-list" aria-autocomplete="list"
+               placeholder="搜标题 / 关键词，回车跳转" data-docs-search-input>
+        <ul id="docs-search-list" class="docs-search-list" hidden data-docs-search-list></ul>
+      </div>
       <a class="docs-side-title" href="index.html">📚 文档中心</a>
       <ul class="docs-side-list">
-      <li><a href="deploy.html">🚀 部署教程</a></li>
-      <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
-      <li><a href="guide.html">📖 使用手册</a></li>
-      <li><a href="plaza.html">🧭 广场</a></li>
-      <li><a href="themes.html">🎨 主题开发</a></li>
-      <li><a href="plugins.html">🧩 插件开发</a></li>
-      <li><a href="api.html">🔌 API 参考</a></li>
-      <li><a href="typography.html">🩺 排版规范</a></li>
-      <li><a href="demo.html">🎪 演示站指南</a></li>
-      <li><a href="roadmap.html">🗺️ 路线图</a></li>
-      <li><a class="is-active" href="versions.html">🏷️ 版本更新说明</a></li>
-      <li><a href="changelog.html">📜 更新日志</a></li>
+        <li><a href="deploy.html">🚀 部署教程</a></li>
+        <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+        <li><a href="guide.html">📖 使用手册</a></li>
+        <li><a href="plaza.html">🧭 广场</a></li>
+        <li><a href="themes.html">🎨 主题开发</a></li>
+        <li><a href="plugins.html">🧩 插件开发</a></li>
+        <li><a href="api.html">🔌 API 参考</a></li>
+        <li><a href="typography.html">🩺 排版规范</a></li>
+        <li><a href="demo.html">🎪 演示站指南</a></li>
+        <li><a href="roadmap.html">🗺️ 路线图</a></li>
+        <li><a class="is-active" href="versions.html">🏷️ 版本更新说明</a></li>
+        <li><a href="changelog.html">📜 更新日志</a></li>
       </ul>
-      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+      <a class="docs-side-extra" href="/llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
     </aside>
   <main class="docs-main">
     <div class="docs-crumbs">
@@ -69,6 +77,11 @@
 </tr>
 </thead>
 <tbody><tr>
+<td>v2.5.1</td>
+<td>2026-10-12</td>
+<td>文档中心站内搜索、分享卡单图完整展示</td>
+</tr>
+<tr>
 <td>v2.5</td>
 <td>2026-10-12</td>
 <td>第二轮全量安全审计、MCP 服务器、注册人机验证、后台系统状态卡与版本号</td>
@@ -125,11 +138,12 @@
 </tr>
 </tbody></table></div>
 <hr>
-<h2 id="v25--2026-10-12--安全成为习惯ai-敲开大门">v2.5 · 2026-10-12 —— 安全成为习惯，AI 敲开大门</h2><p>发布次日就做了第二轮全量审计：七类攻击面并行猎捕、每条发现独立复核，27 项发现 21 项修复（积分并发竞态、超大请求预检、密码文摘要泄漏、广场锁文生命周期闭环等），回归测试 518 → 553——与 v2.4 的「发布前体检」不同，这一轮把审计立成了<strong>季度常态</strong>，报告大众版直接挂上官网给所有用户看。</p>
+<h2 id="v251-2026-10-12-文档找得到图片看得全">v2.5.1 · 2026-10-12 —— 文档找得到，图片看得全</h2><p>一个小步快跑的修订版：官网文档中心补上<strong>站内搜索</strong>——顶部搜索框按标题与正文即时过滤，结果直达具体小节锚点，几万字文档从此「一搜即达」；顺手修掉「文档页丢样式」的资源引用问题，首页也补上了文档中心入口。博客系统侧，微博<strong>分享卡片</strong>不再把单张配图写死 4:3 裁切——按真实比例完整绘制，方形图、长图的文字不再被切掉。</p>
+<h2 id="v25-2026-10-12-安全成为习惯ai-敲开大门">v2.5 · 2026-10-12 —— 安全成为习惯，AI 敲开大门</h2><p>发布次日就做了第二轮全量审计：七类攻击面并行猎捕、每条发现独立复核，27 项发现 21 项修复（积分并发竞态、超大请求预检、密码文摘要泄漏、广场锁文生命周期闭环等），回归测试 518 → 553——与 v2.4 的「发布前体检」不同，这一轮把审计立成了<strong>季度常态</strong>，报告大众版直接挂上官网给所有用户看。</p>
 <p>能力侧两件大事：<strong>MCP 服务器</strong>让 Claude / Cursor 等 AI 助手凭一枚令牌就能直接发文、查评论——写博客这件事从「打开后台」变成「对 AI 说一句话」；**注册人机验证（Turnstile）**把批量小号刷积分的路子堵死，两把钥匙填进后台即启用。后台概览也长出了「系统」状态卡与版本号展示，站点的体量、备份与版本从此一眼可见。</p>
-<h2 id="v24--2026-10-11--发布前全面审计广场长出自愈路">v2.4 · 2026-10-11 —— 发布前全面审计，广场长出自愈路</h2><p>开源第八天给代码库做了一次「体检」：五路并行审计（安全核心 / API 与会员 / 数据层 / 前端 / 渲染与基础设施）把防线最后一公里补齐——出网抓取全部收口统一 SSRF 防线（私网拒绝 + 重定向逐跳复查 + 响应体限长）、演示站出网端点全部短路、冷启动建表与备份恢复补上自愈路径（此前的坑：特定冷启动整站 500 窗口、恢复备份后关键词搜索静默失效）。回归测试 487 → 518，会话 token、净化器 style 白名单、出网重定向、上传魔数这些此前没有守卫的安全核心面，从此个个有测试盯着。</p>
+<h2 id="v24-2026-10-11-发布前全面审计广场长出自愈路">v2.4 · 2026-10-11 —— 发布前全面审计，广场长出自愈路</h2><p>开源第八天给代码库做了一次「体检」：五路并行审计（安全核心 / API 与会员 / 数据层 / 前端 / 渲染与基础设施）把防线最后一公里补齐——出网抓取全部收口统一 SSRF 防线（私网拒绝 + 重定向逐跳复查 + 响应体限长）、演示站出网端点全部短路、冷启动建表与备份恢复补上自愈路径（此前的坑：特定冷启动整站 500 窗口、恢复备份后关键词搜索静默失效）。回归测试 487 → 518，会话 token、净化器 style 白名单、出网重定向、上传魔数这些此前没有守卫的安全核心面，从此个个有测试盯着。</p>
 <p>功能侧，广场长出<strong>微博补漏自愈路</strong>：微博此前只靠发布瞬间的推送上广场，推送失败即永久缺席——现在 hub 定时拉取站点公开微博对齐（推送优先、拉取只补漏不覆盖），管理端可手动触发；广场页信息流同步升级三段式布局（左身份位 / 中内容 / 右缩略图）。</p>
-<h2 id="v23--2026-10-11--阅读体验全面升级界面走向多语言">v2.3 · 2026-10-11 —— 阅读体验全面升级，界面走向多语言</h2><p>这一代把力气花在「读」上：读者侧补全了进度条、目录高亮、热力图、上下篇与楼层号一整套阅读动线；站长侧拿到外观变量与英文测试版两件「不动代码改站」的利器。</p>
+<h2 id="v23-2026-10-11-阅读体验全面升级界面走向多语言">v2.3 · 2026-10-11 —— 阅读体验全面升级，界面走向多语言</h2><p>这一代把力气花在「读」上：读者侧补全了进度条、目录高亮、热力图、上下篇与楼层号一整套阅读动线；站长侧拿到外观变量与英文测试版两件「不动代码改站」的利器。</p>
 <ul>
 <li><strong>英文测试版（English 0.1）</strong>：后台「设置 → 语言版本」一键把前台界面整体切成英文（文章与微博正文保持原文），页面顶部公示测试版横幅、测试期搜索引擎不收录；英文渲染一旦异常<strong>自动回退中文版</strong>并在后台红色提醒。站长自填的内容原样透传，中文版输出与历史版本字节级一致。</li>
 <li><strong>主题外观变量（内测）</strong>：后台「皮肤 → 外观变量」直接调 7 个语义颜色（主色 / 正文 / 次要 / 背景 / 卡片 / 分隔线 / 链接）+ 正文字体（衬线 / 黑体 / 自定义栈）+ 正文字号（14-22px），不动代码即时生效、可一键恢复默认；颜色与字体栈全白名单校验，注入尝试整体拒绝。</li>
@@ -145,7 +159,7 @@
 <li><strong>新主题「小红书 rednote」</strong>：发现页瀑布流笔记卡 + 品牌红点缀，第七套主题。</li>
 <li><strong>安全加固</strong>：全链路安全审查——服务端抓取外部资源统一 SSRF 防线（重定向逐跳复查、限长限时）、HTML 属性双重转义、演示站禁外发、自托管形态加固。</li>
 </ul>
-<h2 id="v22--2026-10-10--会员体系与创作装备大版本">v2.2 · 2026-10-10 —— 会员体系与创作装备大版本</h2><p>迄今最大的一次功能更新：互动与创收（会员 / 积分 / 排行榜）与内容保护（访问密码）落地，搜索与编辑器两大核心体验升级，「广场」把所有博客号连成一片。</p>
+<h2 id="v22-2026-10-10-会员体系与创作装备大版本">v2.2 · 2026-10-10 —— 会员体系与创作装备大版本</h2><p>迄今最大的一次功能更新：互动与创收（会员 / 积分 / 排行榜）与内容保护（访问密码）落地，搜索与编辑器两大核心体验升级，「广场」把所有博客号连成一片。</p>
 <ul>
 <li><strong>会员体系与积分</strong>（默认关闭，后台一键开启）：访客可注册登录（独立于站长账号），评论免填昵称、带档位徽标；发表留言评论 +2 分（先审后展模式下过审才计、同一条只计一次、单日上限）、每日登录 +1 分；<code>/rank</code> 积分排行榜，自己的名次高亮。</li>
 <li><strong>会员专属文章</strong>：编辑器「谁能看」四档（公开 / 仅登录会员 / 咖啡会员 / 顶级会员）——非目标读者只拿到<strong>服务端截断</strong>的试读段与升级遮挡卡，浏览器拿不到全文；RSS 全文、公开接口、卡片摘要同步收敛为摘要口径。</li>
@@ -162,12 +176,12 @@
 <li><strong>自托管与同步增强</strong>：Docker 多租户网页控制面（开站 / 停用 / 重置密码免重启）+ 一条命令开新站的开台脚本 + 1GB 小机部署清单；服务端插件新增「微博同步 Buffer」，发微博免费自动同步到 X 等平台。</li>
 <li><strong>细节与修复</strong>：中文标题自动 slug 改为「发布日期 + 随机位」更可读；图片压缩全端统一并收紧（WebP 视觉无损）；演示站迁至正式域名 demo.bloghao.com；修复 iOS 手机「选了图发布只剩文字」的静默失败、后台会员接口越权等一批问题。</li>
 </ul>
-<h2 id="v21--2026-10-06--docker-自托管">v2.1 · 2026-10-06 —— Docker 自托管</h2><p>同一套业务代码零改动跑进普通 Node 容器：不想把博客跑在 Cloudflare 上、手头有 VPS 的用户多了一条路（Cloudflare 版部署方式不变）。</p>
+<h2 id="v21-2026-10-06-docker-自托管">v2.1 · 2026-10-06 —— Docker 自托管</h2><p>同一套业务代码零改动跑进普通 Node 容器：不想把博客跑在 Cloudflare 上、手头有 VPS 的用户多了一条路（Cloudflare 版部署方式不变）。</p>
 <ul>
 <li><strong>Docker 自托管</strong>：文章存内置 SQLite（WAL），图片存本地磁盘目录或 Cloudflare R2 桶（S3 兼容接口直连、零依赖实现 SigV4）；单进程按域名托管多个<strong>完全独立</strong>的博客站（库与上传物物理隔离），定时发布与北京时间 00:30 备份、回收站清理随容器运行；已在真实服务器全链路排练通过。</li>
 <li><strong>回收站首批加固</strong>：彻底删除的级联清理由裸删改守卫式子查询（不再误删存活文章的评论）；恢复端点补软删守卫；过期定时文恢复自动转草稿并清掉定时（防「恢复即撞发」）。</li>
 </ul>
-<h2 id="v20--2026-10-06--正式版基线">v2.0 · 2026-10-06 —— 正式版基线</h2><p>首个正式发布版本：确立「开发 / 发布双仓」流程，官网 <a href="https://bloghao.com" target="_blank" rel="noopener noreferrer">bloghao.com</a>（朱砂红新版）与官方演示站（每 2 小时自动重置的完整体验环境）同日上线。2.0 在「写文章」的基础上，整合孵化期沉淀的完整能力面：</p>
+<h2 id="v20-2026-10-06-正式版基线">v2.0 · 2026-10-06 —— 正式版基线</h2><p>首个正式发布版本：确立「开发 / 发布双仓」流程，官网 <a href="https://bloghao.com" target="_blank" rel="noopener noreferrer">bloghao.com</a>（朱砂红新版）与官方演示站（每 2 小时自动重置的完整体验环境）同日上线。2.0 在「写文章」的基础上，整合孵化期沉淀的完整能力面：</p>
 <ul>
 <li>短内容「微博 / 随手记」：图文时间线、话题归类、置顶、点赞与楼中楼评论，登录后前台可直接发布</li>
 <li>公众号风写作后台：富文本 + Markdown 双模式、行首快捷排版、定时发布、粘贴图片自动压缩上云</li>
@@ -178,7 +192,7 @@
 <li>运维省心：媒体库体检（未引用 / 重复文件扫描清理）、回收站（删除 30 天可找回）、一键灰度 / 闭站、定时备份与告警</li>
 <li>五套主题全部适配移动端；官方演示站每 2 小时自动重置体验</li>
 </ul>
-<h2 id="v10--2026-10-05--主题与市场体系成型功能全景补完">v1.0 · 2026-10-05 —— 主题与市场体系成型，功能全景补完</h2><p>从「能写」到「好用」的一天：博客该有的一整圈能力补完，主题与扩展有了自己的家。</p>
+<h2 id="v10-2026-10-05-主题与市场体系成型功能全景补完">v1.0 · 2026-10-05 —— 主题与市场体系成型，功能全景补完</h2><p>从「能写」到「好用」的一天：博客该有的一整圈能力补完，主题与扩展有了自己的家。</p>
 <ul>
 <li><strong>第五套主题「手账 journal」</strong>：奶油纸面手账风（和纸胶带、拍立得、贴纸标签、日历牌日期、便签留言墙），跟随系统自动暗色。</li>
 <li><strong>皮肤与插件市场</strong>：后台新增「皮肤」「插件」独立页——主题卡片点击即启用、插件一键启停，内置市场目录（本地已装角标、远程目录预留扩展点）。</li>
@@ -189,7 +203,7 @@
 <li><strong>一键部署与访客统计</strong>：README 与官网接入 Deploy to Cloudflare 按钮（点一下部署自己的博客号）；前台轻量打点，后台新增「统计」页。</li>
 <li><strong>站点状态开关</strong>：一键灰度（全站变灰）与一键闭站（503 + 保收录）。</li>
 </ul>
-<h2 id="v04--2026-10-04--生态与运维">v0.4 · 2026-10-04 —— 生态与运维</h2><p>博客开始连接外部世界，也让站长睡得着觉。</p>
+<h2 id="v04-2026-10-04-生态与运维">v0.4 · 2026-10-04 —— 生态与运维</h2><p>博客开始连接外部世界，也让站长睡得着觉。</p>
 <ul>
 <li><strong>公众号采集插件</strong>：编辑器一键采集公众号图文——抓正文、配图 / 封面自动转存图床、保留原发布时间生成草稿。</li>
 <li><strong>Telegram 机器人发微博</strong>：TG 里发文字 / 图片 / 相册即发微博（图片转存图床、Chat ID 白名单、相册自动合并）；同时开放 Token 鉴权的发布 API，写自己的客户端成为可能。</li>
@@ -198,21 +212,21 @@
 <li><strong>更省心的运维</strong>：RSS 全文输出（可切回摘要）、新留言 Telegram 推送、每晚北京时间 00:30 自动备份到 R2（滚动留 30 份、失败提醒、后台可立即备份）、定时发布。</li>
 <li><strong>质量防线建立</strong>：回归测试（首轮 30 个用例、CI 每次推送强制执行）与本地冒烟脚本上线——修过的 bug 从此有护栏；旧站数据迁移工具打通（Memos 285 条微博与 108 个附件成功迁入）。</li>
 </ul>
-<h2 id="v03--2026-10-04--长出社交">v0.3 · 2026-10-04 —— 长出社交</h2><p>博客不再只是「发文章」：短内容、评论与友链让站点有了人气。</p>
+<h2 id="v03-2026-10-04-长出社交">v0.3 · 2026-10-04 —— 长出社交</h2><p>博客不再只是「发文章」：短内容、评论与友链让站点有了人气。</p>
 <ul>
 <li><strong>微博 / 随手记</strong>：图文时间线 + 后台 / 前台双发布器（粘贴、拖拽传图）、置顶、<code>#话题#</code> 归类、首页微博入口卡；管理员登录后微博页顶部直接发。</li>
 <li><strong>评论互动</strong>：文章 / 微博评论楼中楼、作者回复徽标、点赞、卡片内折叠评论；先审后展与蜜罐限流照常生效。</li>
 <li><strong>友情链接</strong>：/links 页 + 访客申请收录（限频 / 蜜罐 / 去重）+ 后台审核管理；站点图标自动获取并入图床。</li>
 <li><strong>发现内容更容易</strong>：站内搜索 + 排序筛选（最新 / 最多阅读 / 最多点赞 / 最多留言 / 随机）、随机阅读、全站顶部导航（分类话题折叠菜单）。</li>
 </ul>
-<h2 id="v02--2026-10-03--定名博客号-bloghao">v0.2 · 2026-10-03 —— 定名「博客号 BlogHao」</h2><p>开源当天下午，项目有了自己的名字与性格。</p>
+<h2 id="v02-2026-10-03-定名博客号-bloghao">v0.2 · 2026-10-03 —— 定名「博客号 BlogHao」</h2><p>开源当天下午，项目有了自己的名字与性格。</p>
 <ul>
 <li><strong>品牌定名</strong>：墨博 MoBlog → <strong>博客号 BlogHao</strong>——「微信有公众号，你有博客号」。</li>
 <li><strong>视觉定调</strong>：后台与前台点缀色统一朱砂红、暖纸底色；首页改居中刊头 + 日期流编辑部式排版；文章页排版层级强化（H2 朱砂竖条、H3 圆点、暖底引用、深色代码块、斑马表格）。</li>
 <li><strong>移动端硬要求确立</strong>：前台 390px 全面适配、后台移动端写作（顶栏两行、工具栏横滑、输入框 16px 防 iOS 缩放）——「手机上能写作」自此成为每个 UI 改动的硬约束。</li>
 <li><strong>基础发现能力</strong>：站内搜索、随机阅读、文章分类体系、全站顶部导航栏、自定义站点图标与头像。</li>
 </ul>
-<h2 id="v01--2026-10-03--项目诞生">v0.1 · 2026-10-03 —— 项目诞生</h2><p>「墨博 MoBlog」首个可用版本开源：一个完全跑在 Cloudflare 免费套餐上的轻写作博客系统。</p>
+<h2 id="v01-2026-10-03-项目诞生">v0.1 · 2026-10-03 —— 项目诞生</h2><p>「墨博 MoBlog」首个可用版本开源：一个完全跑在 Cloudflare 免费套餐上的轻写作博客系统。</p>
 <ul>
 <li><strong>Cloudflare 全家桶</strong>：Workers（hono 路由）+ D1（SQLite）+ R2（图片存储）；后端约 10 个 TypeScript 文件、无前端框架、<strong>无构建链</strong>，改完即生效；SSR 直出 + 主题 CSS 内联，免费额度即可长期运行。</li>
 <li><strong>公众号风写作后台</strong>：标题 / 正文 / 封面 / 标签一屏完成，截图 <code>⌘V</code> 粘贴即上传图床；富文本与 Markdown 双模式互转、自动保存草稿、内置微信排版规范体检。</li>
@@ -235,17 +249,18 @@
       <div class="docs-toc-title">本页目录</div>
       <ul class="docs-toc-list">
         <li class="toc-d2"><a href="#版本速览" data-toc="版本速览">版本速览</a></li>
-        <li class="toc-d2"><a href="#v25--2026-10-12--安全成为习惯ai-敲开大门" data-toc="v25--2026-10-12--安全成为习惯ai-敲开大门">v2.5 · 2026-10-12 —— 安全成为习惯，AI 敲开大门</a></li>
-        <li class="toc-d2"><a href="#v24--2026-10-11--发布前全面审计广场长出自愈路" data-toc="v24--2026-10-11--发布前全面审计广场长出自愈路">v2.4 · 2026-10-11 —— 发布前全面审计，广场长出自愈路</a></li>
-        <li class="toc-d2"><a href="#v23--2026-10-11--阅读体验全面升级界面走向多语言" data-toc="v23--2026-10-11--阅读体验全面升级界面走向多语言">v2.3 · 2026-10-11 —— 阅读体验全面升级，界面走向多语言</a></li>
-        <li class="toc-d2"><a href="#v22--2026-10-10--会员体系与创作装备大版本" data-toc="v22--2026-10-10--会员体系与创作装备大版本">v2.2 · 2026-10-10 —— 会员体系与创作装备大版本</a></li>
-        <li class="toc-d2"><a href="#v21--2026-10-06--docker-自托管" data-toc="v21--2026-10-06--docker-自托管">v2.1 · 2026-10-06 —— Docker 自托管</a></li>
-        <li class="toc-d2"><a href="#v20--2026-10-06--正式版基线" data-toc="v20--2026-10-06--正式版基线">v2.0 · 2026-10-06 —— 正式版基线</a></li>
-        <li class="toc-d2"><a href="#v10--2026-10-05--主题与市场体系成型功能全景补完" data-toc="v10--2026-10-05--主题与市场体系成型功能全景补完">v1.0 · 2026-10-05 —— 主题与市场体系成型，功能全景补完</a></li>
-        <li class="toc-d2"><a href="#v04--2026-10-04--生态与运维" data-toc="v04--2026-10-04--生态与运维">v0.4 · 2026-10-04 —— 生态与运维</a></li>
-        <li class="toc-d2"><a href="#v03--2026-10-04--长出社交" data-toc="v03--2026-10-04--长出社交">v0.3 · 2026-10-04 —— 长出社交</a></li>
-        <li class="toc-d2"><a href="#v02--2026-10-03--定名博客号-bloghao" data-toc="v02--2026-10-03--定名博客号-bloghao">v0.2 · 2026-10-03 —— 定名「博客号 BlogHao」</a></li>
-        <li class="toc-d2"><a href="#v01--2026-10-03--项目诞生" data-toc="v01--2026-10-03--项目诞生">v0.1 · 2026-10-03 —— 项目诞生</a></li>
+        <li class="toc-d2"><a href="#v251-2026-10-12-文档找得到图片看得全" data-toc="v251-2026-10-12-文档找得到图片看得全">v2.5.1 · 2026-10-12 —— 文档找得到，图片看得全</a></li>
+        <li class="toc-d2"><a href="#v25-2026-10-12-安全成为习惯ai-敲开大门" data-toc="v25-2026-10-12-安全成为习惯ai-敲开大门">v2.5 · 2026-10-12 —— 安全成为习惯，AI 敲开大门</a></li>
+        <li class="toc-d2"><a href="#v24-2026-10-11-发布前全面审计广场长出自愈路" data-toc="v24-2026-10-11-发布前全面审计广场长出自愈路">v2.4 · 2026-10-11 —— 发布前全面审计，广场长出自愈路</a></li>
+        <li class="toc-d2"><a href="#v23-2026-10-11-阅读体验全面升级界面走向多语言" data-toc="v23-2026-10-11-阅读体验全面升级界面走向多语言">v2.3 · 2026-10-11 —— 阅读体验全面升级，界面走向多语言</a></li>
+        <li class="toc-d2"><a href="#v22-2026-10-10-会员体系与创作装备大版本" data-toc="v22-2026-10-10-会员体系与创作装备大版本">v2.2 · 2026-10-10 —— 会员体系与创作装备大版本</a></li>
+        <li class="toc-d2"><a href="#v21-2026-10-06-docker-自托管" data-toc="v21-2026-10-06-docker-自托管">v2.1 · 2026-10-06 —— Docker 自托管</a></li>
+        <li class="toc-d2"><a href="#v20-2026-10-06-正式版基线" data-toc="v20-2026-10-06-正式版基线">v2.0 · 2026-10-06 —— 正式版基线</a></li>
+        <li class="toc-d2"><a href="#v10-2026-10-05-主题与市场体系成型功能全景补完" data-toc="v10-2026-10-05-主题与市场体系成型功能全景补完">v1.0 · 2026-10-05 —— 主题与市场体系成型，功能全景补完</a></li>
+        <li class="toc-d2"><a href="#v04-2026-10-04-生态与运维" data-toc="v04-2026-10-04-生态与运维">v0.4 · 2026-10-04 —— 生态与运维</a></li>
+        <li class="toc-d2"><a href="#v03-2026-10-04-长出社交" data-toc="v03-2026-10-04-长出社交">v0.3 · 2026-10-04 —— 长出社交</a></li>
+        <li class="toc-d2"><a href="#v02-2026-10-03-定名博客号-bloghao" data-toc="v02-2026-10-03-定名博客号-bloghao">v0.2 · 2026-10-03 —— 定名「博客号 BlogHao」</a></li>
+        <li class="toc-d2"><a href="#v01-2026-10-03-项目诞生" data-toc="v01-2026-10-03-项目诞生">v0.1 · 2026-10-03 —— 项目诞生</a></li>
       </ul>
     </aside>
 </div>
@@ -254,13 +269,13 @@
   <div class="wrap footer-inner">
     <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
     <span class="footer-links">
-      <a href="../index.html">官网首页</a>
+      <a href="/index.html">官网首页</a>
       <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
       <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
-      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+      <a href="/llms.txt" target="_blank" rel="noopener">AI 索引</a>
     </span>
   </div>
 </footer>
-<script src="../docs.js" defer></script>
+<script src="/docs.js?v=20261012a" defer></script>
 </body>
 </html>

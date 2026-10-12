@@ -8,20 +8,21 @@
 <meta property="og:title" content="文档中心 - 博客号 BlogHao">
 <meta property="og:description" content="博客号 BlogHao 全部中文文档：部署教程、使用手册、Cloudflare 基础、主题开发、插件开发、API 参考、排版规范、演示站指南、路线图、版本大事记与逐版本更新日志。">
 <meta property="og:type" content="article">
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../style.css">
-<link rel="stylesheet" href="../docs.css">
+<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261012a">
+<link rel="stylesheet" href="/docs.css?v=20261012a">
+<script src="/docs/docs-search-index.js?v=20261012a"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
-    <a class="nav-logo" href="../index.html">
-      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    <a class="nav-logo" href="/index.html">
+      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
-      <a href="../index.html">返回官网</a>
+      <a href="/index.html">返回官网</a>
     </nav>
     <div class="nav-cta">
       <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
@@ -37,54 +38,62 @@
       <span class="hero-badge">📖 博客号文档中心 · 与仓库 docs/ 同步</span>
       <h1>文档，读了就会用。</h1>
       <p class="hero-sub">部署、写作、主题、插件、API——全部中文，直接在官网读，不用去 GitHub。<br class="pc-only">想改哪里？每篇右上角「编辑此页」欢迎 PR。</p>
+      <div class="docs-search-hero">
+        <label class="docs-search-label" for="docs-search-input">🔍 搜索文档</label>
+        <input id="docs-search-input" class="docs-search-input" type="search" role="combobox" autocomplete="off"
+               aria-expanded="false" aria-controls="docs-search-list" aria-autocomplete="list"
+               placeholder="试试：定时任务 / 会员积分 / Turnstile / 部署" data-docs-search-input>
+        <ul id="docs-search-list" class="docs-search-list" hidden data-docs-search-list></ul>
+      </div>
     </div>
   </section>
   <section class="section docs-home-grid">
     <div class="wrap">
       <div class="grid-3 grid-docs">
-        <a class="card card-link" href="deploy.html">
+        <a class="card card-link" href="deploy.html" data-search-card data-search-text="部署教程 从注册 Cloudflare 到部署 Worker、绑定自定义域名、自动部署、备份与恢复，含 Docker 自托管。">
           <h3>🚀 部署教程</h3><p>从注册 Cloudflare 到部署 Worker、绑定自定义域名、自动部署、备份与恢复，含 Docker 自托管。</p>
         </a>
-        <a class="card card-link" href="cloudflare.html">
+        <a class="card card-link" href="cloudflare.html" data-search-card data-search-text="Cloudflare 基础 Workers、D1、R2、定时任务、域名与 Turnstile：看懂这套博客跑在 Cloudflare 上的每个部件，控制台巡检、常用命令与免费额度速查。">
           <h3>☁️ Cloudflare 基础</h3><p>Workers、D1、R2、定时任务、域名与 Turnstile：看懂这套博客跑在 Cloudflare 上的每个部件，控制台巡检、常用命令与免费额度速查。</p>
         </a>
-        <a class="card card-link" href="guide.html">
+        <a class="card card-link" href="guide.html" data-search-card data-search-text="使用手册 后台导览、写文章全流程、快捷键、评论与媒体管理、设置逐项说明。">
           <h3>📖 使用手册</h3><p>后台导览、写文章全流程、快捷键、评论与媒体管理、设置逐项说明。</p>
         </a>
-        <a class="card card-link" href="plaza.html">
+        <a class="card card-link" href="plaza.html" data-search-card data-search-text="广场 内容聚合流：三步接入官方广场，让每篇文章与微博被更多博主看到；含混排口径与自建 hub。">
           <h3>🧭 广场</h3><p>内容聚合流：三步接入官方广场，让每篇文章与微博被更多博主看到；含混排口径与自建 hub。</p>
         </a>
-        <a class="card card-link" href="themes.html">
+        <a class="card card-link" href="themes.html" data-search-card data-search-text="主题开发 一套主题 = 八个必需渲染函数（+ 可选 member / rank）+ 全局 CSS，三步注册新主题。">
           <h3>🎨 主题开发</h3><p>一套主题 = 八个必需渲染函数（+ 可选 member / rank）+ 全局 CSS，三步注册新主题。</p>
         </a>
-        <a class="card card-link" href="plugins.html">
+        <a class="card card-link" href="plugins.html" data-search-card data-search-text="插件开发 一个 JS 文件扩展编辑器，window.BlogHao 插件 API 与加载机制，无需构建。">
           <h3>🧩 插件开发</h3><p>一个 JS 文件扩展编辑器，window.BlogHao 插件 API 与加载机制，无需构建。</p>
         </a>
-        <a class="card card-link" href="api.html">
+        <a class="card card-link" href="api.html" data-search-card data-search-text="API 参考 全部公开 / 管理接口与 HTML 净化白名单摘要，写自己的客户端。">
           <h3>🔌 API 参考</h3><p>全部公开 / 管理接口与 HTML 净化白名单摘要，写自己的客户端。</p>
         </a>
-        <a class="card card-link" href="typography.html">
+        <a class="card card-link" href="typography.html" data-search-card data-search-text="排版规范 微信编辑器插件开发规范的落地对照表与体检规则。">
           <h3>🩺 排版规范</h3><p>微信编辑器插件开发规范的落地对照表与体检规则。</p>
         </a>
-        <a class="card card-link" href="demo.html">
+        <a class="card card-link" href="demo.html" data-search-card data-search-text="演示站指南 官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫。">
           <h3>🎪 演示站指南</h3><p>官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫。</p>
         </a>
-        <a class="card card-link" href="roadmap.html">
+        <a class="card card-link" href="roadmap.html" data-search-card data-search-text="路线图 已上线能力与近期计划，按 A / B / C 优先级管理的开发方向。">
           <h3>🗺️ 路线图</h3><p>已上线能力与近期计划，按 A / B / C 优先级管理的开发方向。</p>
         </a>
-        <a class="card card-link" href="versions.html">
+        <a class="card card-link" href="versions.html" data-search-card data-search-text="版本更新说明 从 2026-10-03 项目诞生到今天的大版本大事记：每个版本带来了什么，博客号一路怎么长成现在这样。">
           <h3>🏷️ 版本更新说明</h3><p>从 2026-10-03 项目诞生到今天的大版本大事记：每个版本带来了什么，博客号一路怎么长成现在这样。</p>
         </a>
-        <a class="card card-link" href="changelog.html">
+        <a class="card card-link" href="changelog.html" data-search-card data-search-text="更新日志 每个版本更新了哪些细节：新增、变更与修复，官方发布时回填；升级 = 重新部署，D1 自动迁移。">
           <h3>📜 更新日志</h3><p>每个版本更新了哪些细节：新增、变更与修复，官方发布时回填；升级 = 重新部署，D1 自动迁移。</p>
         </a>
-        <a class="card card-link" href="security-audit.html">
+        <a class="card card-link" href="security-audit.html" data-search-card data-search-text="安全审计报告 2026-10 全量安全体检（大众版）：0 高危、27 项发现全部独立复核、21 项已修复上线。">
           <h3>🛡️ 安全审计报告</h3><p>2026-10 全量安全体检（大众版）：0 高危、27 项发现全部独立复核、21 项已修复上线。</p>
         </a>
-        <a class="card card-link" href="../llms.txt" target="_blank" rel="noopener">
+        <a class="card card-link" href="/llms.txt" target="_blank" rel="noopener">
           <h3>🤖 AI 索引</h3><p>llms.txt 文档索引：AI 助手与智能体从这里一步读到全部开发文档的 Markdown 源文件。</p>
         </a>
       </div>
+      <p class="docs-home-note" data-search-empty hidden>没有匹配的文档，换个词试试；也可以直接 <a href="https://github.com/bloghao/bloghao/issues" target="_blank" rel="noopener noreferrer">去仓库提 Issue</a>。</p>
       <p class="docs-home-note">没找到想看的？去 <a href="https://github.com/bloghao/bloghao/issues" target="_blank" rel="noopener noreferrer">仓库提 Issue</a>，或先去 <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a> 转一圈。</p>
     </div>
   </section>
@@ -94,13 +103,13 @@
   <div class="wrap footer-inner">
     <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
     <span class="footer-links">
-      <a href="../index.html">官网首页</a>
+      <a href="/index.html">官网首页</a>
       <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
       <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
-      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+      <a href="/llms.txt" target="_blank" rel="noopener">AI 索引</a>
     </span>
   </div>
 </footer>
-<script src="../docs.js" defer></script>
+<script src="/docs.js?v=20261012a" defer></script>
 </body>
 </html>
