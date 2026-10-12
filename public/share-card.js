@@ -56,7 +56,7 @@ function collect(card) {
   const avImg = card.querySelector('.wb-avatar img')
   const avSpan = avImg ? null : card.querySelector('.wb-avatar span')
   const descMeta = document.querySelector('meta[name="description"]')
-  const site = (nameEl && nameEl.textContent.trim()) || document.title || '微博'
+  const site = (nameEl && nameEl.textContent.trim()) || document.title || T('微博', 'Note')
   const id = (card.id || '').replace(/^wb-/, '')
   return {
     id,
@@ -337,7 +337,7 @@ function renderCard(d, av, imgs) {
     ctx.font = F_LETTER
     ctx.fillStyle = AVFG
     ctx.textAlign = 'center'
-    ctx.fillText(d.letter || '博', x0 + AV / 2, y0 + AV / 2 + 2)
+    ctx.fillText(d.letter || T('博', 'B'), x0 + AV / 2, y0 + AV / 2 + 2)
     ctx.textAlign = 'left'
   }
   const tx = x0 + AV + 22
@@ -603,7 +603,7 @@ export async function openShareCard(card) {
       return reject(err)
     }
     cv.toBlob(function (blob) {
-      if (!blob) return reject(new Error('生成失败'))
+      if (!blob) return reject(new Error(T('生成失败', 'Generation failed')))
       const name = 'weibo-card-' + (d.id || Date.now()) + '.png'
       const file = new File([blob], name, { type: 'image/png' })
       const url = URL.createObjectURL(blob)
@@ -611,7 +611,7 @@ export async function openShareCard(card) {
       m.body.innerHTML = ''
       const img = document.createElement('img')
       img.src = url
-      img.alt = '微博分享卡片'
+      img.alt = T('微博分享卡片', 'Note share card')
       m.body.appendChild(img)
       m.save.disabled = false
       // 手机端且能带文件分享 → 按钮改走系统分享面板进相册，文案如实改为「保存到相册」
@@ -783,7 +783,7 @@ function renderArticleCard(d, av, cover) {
     ctx.font = F(600, 32)
     ctx.fillStyle = AVFG
     ctx.textAlign = 'center'
-    ctx.fillText(d.letter || '博', x0 + AV / 2, y0 + AV / 2 + 2)
+    ctx.fillText(d.letter || T('博', 'B'), x0 + AV / 2, y0 + AV / 2 + 2)
     ctx.textAlign = 'left'
   }
   ctx.font = F_NAME
@@ -880,14 +880,14 @@ export async function openArticleShare(btn) {
       return reject(err)
     }
     cv.toBlob(function (blob) {
-      if (!blob) return reject(new Error('生成失败'))
+      if (!blob) return reject(new Error(T('生成失败', 'Generation failed')))
       const file = new File([blob], 'article-card-' + Date.now() + '.png', { type: 'image/png' })
       const url = URL.createObjectURL(blob)
       state = { url: url, file: file, site: d.site, title: d.title, text: (d.desc || d.title).slice(0, 100), link: d.url }
       m.body.innerHTML = ''
       const img = document.createElement('img')
       img.src = url
-      img.alt = '文章分享卡片'
+      img.alt = T('文章分享卡片', 'Post share card')
       m.body.appendChild(img)
       m.save.disabled = false
       // 与微博卡片同口径：手机端且能带文件分享 → 系统分享面板进相册

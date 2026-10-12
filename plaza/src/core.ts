@@ -240,8 +240,11 @@ export function scoreFeed(
  * （零依赖预算）。CDATA 与实体按原样返回，hub 入库前另有截断——feed 内容本身来自站长 RSS，属半可信，
  * 官网渲染时一律 textContent / esc 处理，hub 不负责净化 HTML。
  */
-export function parseRssItems(xml: string, max = 50): { link: string; title: string; pubDate: string; description: string }[] {
-  const out: { link: string; title: string; pubDate: string; description: string }[] = []
+export function parseRssItems(
+  xml: string,
+  max = 50
+): { link: string; title: string; pubDate: string; description: string; locked: boolean }[] {
+  const out: { link: string; title: string; pubDate: string; description: string; locked: boolean }[] = []
   // <item>…</item>（RSS2）为主，<entry>（Atom）兜底
   const blocks = xml.match(/<(?:item|entry)[\s>][\s\S]*?<\/(?:item|entry)>/g) ?? []
   for (const block of blocks.slice(0, max)) {
@@ -259,6 +262,9 @@ export function parseRssItems(xml: string, max = 50): { link: string; title: str
       title: pick('title').slice(0, 200),
       pubDate: pick('pubDate') || pick('updated') || pick('published'),
       description: pick('description').slice(0, 500),
+      // 主博客的机器可读锁标志（bloghao 命名空间，src/rss.ts 输出）：锁文/密码文 pull 不入库，
+      // 与 push 路「locked 不同步」同口径
+      locked: !!pick('bloghao:locked'),
     })
   }
   return out

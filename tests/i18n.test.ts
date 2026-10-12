@@ -14,7 +14,7 @@ import {
   weiboTimeEn,
 } from '../src/i18n.ts'
 import { archiveListHtml, page, siteNav, tierLabel } from '../src/render.ts'
-import { buildRss } from '../src/rss.ts'
+import { buildJsonFeed, buildRss } from '../src/rss.ts'
 import { DEFAULT_SETTINGS } from '../src/db.ts'
 
 // ── 英文测试版（English 0.1）回归：isEn 判定、词典、英文日期、双语渲染两态 ──
@@ -132,10 +132,17 @@ test('page()：英文版 lang=en、测试版横幅、noindex、data-edition；�
   assert.match(zhNoindex, /name="robots" content="noindex"/)
 })
 
-test('buildRss：中文 zh-CN 频道，英文 en 频道', () => {
+test('buildRss / buildJsonFeed：中文 zh-CN 频道，英文 en 频道 + 频道标题走词典', () => {
   const posts = [{ slug: 'a', title: 'T', summary: 'S', content: 'C', published_at: TS, updated_at: TS, tags: '[]' }]
   assert.match(buildRss(ZH, posts as never, 'https://x.com'), /<language>zh-CN<\/language>/)
   assert.match(buildRss(EN, posts as never, 'https://x.com'), /<language>en<\/language>/)
+  // 默认站名/描述是系统内置文案：英文态走词典（博客号 BlogHao → BlogHao），中文态原样
+  assert.match(buildRss(EN, posts as never, 'https://x.com'), /<title>BlogHao<\/title>/)
+  assert.match(buildRss(ZH, posts as never, 'https://x.com'), /<title>博客号 BlogHao<\/title>/)
+  const jsonFeed = JSON.parse(buildJsonFeed(EN, posts as never, 'https://x.com'))
+  assert.equal(jsonFeed.language, 'en')
+  assert.equal(jsonFeed.title, 'BlogHao')
+  assert.equal(JSON.parse(buildJsonFeed(ZH, posts as never, 'https://x.com')).language, 'zh-CN')
 })
 
 test('enBetaBannerHtml：公示测试版身份', () => {

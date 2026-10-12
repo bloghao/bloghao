@@ -16,7 +16,7 @@ import { fetchPublicResource } from './fetchsafe'
 import { sanitizeHtml } from './sanitize'
 import { transferImage } from './store'
 import type { Env, SessionUser } from './types'
-import { esc, excerpt, slugify } from './utils'
+import { esc, excerpt, isDemo, slugify } from './utils'
 
 type CollectEnv = { Bindings: Env; Variables: { user: SessionUser } }
 
@@ -341,6 +341,8 @@ function renderHtml(blocks: Block[], srcMap: Map<string, string>): string {
 /* ---------------- 路由 ---------------- */
 
 collectRoutes.post('/wechat', async (c) => {
+  // 演示站守卫：采抓公众号文章是出网点（与 linkmeta/douban 同口径短路）
+  if (isDemo(c.env)) return c.json({ error: '演示站不开放采集' }, 404)
   const body = (await c.req.json().catch(() => null)) as { url?: unknown } | null
   const url = String(body?.url ?? '').trim()
   if (!/^https:\/\/mp\.weixin\.qq\.com\/s/i.test(url)) {

@@ -36,6 +36,7 @@
       <a class="docs-side-title" href="index.html">📚 文档中心</a>
       <ul class="docs-side-list">
       <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
       <li><a href="guide.html">📖 使用手册</a></li>
       <li><a href="plaza.html">🧭 广场</a></li>
       <li><a href="themes.html">🎨 主题开发</a></li>
@@ -57,7 +58,7 @@
     <article class="doc-md">
 <h1 id="开发方向备忘">开发方向备忘</h1><p>记录<strong>已调研、尚未启动</strong>的功能方向。每项保留调研结论与待决策点，启动开发时不必重新摸底；一旦定案实现，具体用法移入 GUIDE / API / THEMES 等功能文档，本文件只留条目与状态；拍板「不做」的进文末不做清单，编号永久空缺不回收。</p>
 <p>2026-10 对标 WordPress / emlog 等系统做过一轮全量能力盘点，方向按三档优先级管理：<strong>A = 一定要做</strong>（下一步就做，多数成本低、确定性强）；<strong>B = 未来一定要做</strong>（重要，但有前置依赖或需先拍板）；<strong>C = 加分项</strong>（可有可无，有富余再做）。</p>
-<p><strong>建议执行顺序（2026-10-07 重整）</strong>：<del>A 区</del>（已收官，A8 随本日落进 AGENTS.md）。B 区建议下一批：<strong>B9 主题外观变量（主题生态破零的最短路径）→ B10 MCP 服务器（成本低、差异化明显）→ B3 通知渠道抽象（国内触达）</strong>；再往后 B6 备份异地化 / B13 管理员安全包。B8 主题 / 插件市场 2026-10-08 立项（调研结论已入档），排期等「主题可安装形态」拍板后插入。C 区按富余随缘挑。</p>
+<p><strong>建议执行顺序（2026-10-07 重整）</strong>：<del>A 区</del>（已收官，A8 随本日落进 AGENTS.md）。B 区已落地 <strong>B9 主题外观变量（内测 v1）</strong> 与 <strong>B10 MCP 服务器（2026-10-11）</strong>；下一批建议：<strong>B3 通知渠道抽象（国内触达）</strong>；再往后 B6 备份异地化 / B13 管理员安全包。B8 主题 / 插件市场 2026-10-08 立项（调研结论已入档），排期等「主题可安装形态」拍板后插入。C 区按富余随缘挑。</p>
 <h2 id="优先级总览2026-10-07-更新">优先级总览（2026-10-07 更新）</h2><h3 id="a-区--一定要做">A 区 · 一定要做</h3><div class="table-wrap"><table>
 <thead>
 <tr>
@@ -162,8 +163,8 @@
 </tr>
 <tr>
 <td>B10</td>
-<td>MCP 服务器</td>
-<td>包装现有开放 API（Token 鉴权已备，见 GUIDE 8.1–8.2），AI 助手直接发文 / 查评论；成本低、差异化明显</td>
+<td>✅ MCP 服务器（2026-10 完成）</td>
+<td><code>POST /mcp</code> Streamable HTTP 无状态模式（JSON-RPC 2.0 手写零依赖，不开 SSE），复用 externalToken 鉴权；五工具：publish_post（Markdown 净化入库）/ list_posts / get_post / list_comments / publish_weibo，机制在 src/mcp.ts，防线见 AGENTS.md，用法见 GUIDE §8.3</td>
 </tr>
 <tr>
 <td>B11</td>
@@ -172,8 +173,8 @@
 </tr>
 <tr>
 <td>B12</td>
-<td>后台系统状态卡</td>
-<td>D1 行数 / R2 用量（自记账累计即可）/ 最近备份状态一目了然——「成本可见」呼应零成本卖点</td>
+<td>✅ 后台系统状态卡（2026-10 完成）</td>
+<td>概览页「系统」面板：微博/评论/会员行数 + 最近备份时间与体积（backup.ts 每晚回写的 settings 记账位，只读不查）；/admin/stats 扩 db/backup 字段。「成本可见」呼应零成本卖点</td>
 </tr>
 <tr>
 <td>B13</td>
@@ -271,8 +272,8 @@
 </tr>
 <tr>
 <td>C12</td>
-<td>JSON Feed</td>
-<td>RSS 之外的机器友好格式</td>
+<td>✅ JSON Feed（2026-10 完成）</td>
+<td><code>/feed.json</code>（JSON Feed 1.1，机器可读格式），buildJsonFeed 与 RSS 同一份防泄漏口径（密码文不出正文、锁文只出试读段、rssFullText 开关同效），机制在 src/rss.ts</td>
 </tr>
 <tr>
 <td>C13</td>

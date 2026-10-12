@@ -83,6 +83,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   membersEnabled: '0',
   // 排行榜展示条数上限（/rank 页与首页挂件共用，1-50）
   rankTopN: '10',
+  // 注册人机验证（Cloudflare Turnstile，A2 根治）：两键成对填写才启用（PUT 校验成对），都留空 = 关闭；
+  // Secret 属敏感键（api.ts SECRET_SETTINGS 打码），sitekey 是公开值、随 /member 页下发给 site.js
+  turnstileSiteKey: '',
+  turnstileSecret: '',
   // 英文测试版（内部代号 English 0.1，见 src/i18n.ts）：edition 是后台可切的语言版本；
   // editionEnStatus 是运行状态（active 正常 / fallback 渲染异常已自动回退中文，重新开启时重置）
   edition: 'zh',
@@ -124,6 +128,9 @@ export function parseTags(row: Pick<PostRow, 'tags'>): string[] {
     return []
   }
 }
+
+/** 文章正文长度上限（UTF-8 字节，非字符数）：api.ts readPostPayload 与 mcp.ts publish_post 同口径 */
+export const MAX_CONTENT_BYTES = 1_000_000
 
 export type PostSort = 'latest' | 'views' | 'likes' | 'comments' | 'random'
 

@@ -330,6 +330,12 @@ async function viewHome() {
   }
   state.pendingComments = s.pendingComments
   state.pendingLinks = s.pendingLinks
+  // 系统状态卡（B12）：备份状态由 backup.ts 每晚回写 settings，这里只读展示
+  const backupText = !s.backup || !s.backup.enabled
+    ? '自动备份未开启（设置 → 订阅与备份）'
+    : !s.backup.at
+      ? '尚未备份（开启后每晚 00:30 自动运行）'
+      : `${fmtDateTime(s.backup.at)} · ${fmtSize(s.backup.bytes || 0)}`
   const recent = s.recent
     .map(
       (r) => `<div class="recent-item">
@@ -359,6 +365,16 @@ async function viewHome() {
       <div class="panel-body" style="display:flex;gap:24px;align-items:center;">
         <div><div class="stat-value" style="font-size:20px;">${s.uploads.count}<small>个文件</small></div></div>
         <div style="color:var(--sub);font-size:13px;">占用 ${fmtSize(s.uploads.bytes)} · 存于 R2 图床，全球加速</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span>系统</span><a class="btn btn-ghost btn-sm" href="#/settings">设置 →</a></div>
+      <div class="panel-body" style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+        <div><div class="stat-value" style="font-size:20px;">${s.db.weibo}<small>条微博</small></div></div>
+        <div><div class="stat-value" style="font-size:20px;">${s.db.comments}<small>条评论</small></div></div>
+        <div><div class="stat-value" style="font-size:20px;">${s.db.members}<small>位会员</small></div></div>
+        <div style="color:var(--sub);font-size:13px;">最近备份：${esc(backupText)}</div>
+        <div style="color:var(--sub);font-size:13px;">系统版本：博客号 v${esc(s.version || '?')}</div>
       </div>
     </div>`
   )
@@ -2606,6 +2622,10 @@ async function viewSettings() {
           <label class="switch"><input type="checkbox" id="st-membersEnabled" ${s.membersEnabled === '1' ? 'checked' : ''}><span class="track"></span></label>
         </div>
         <div class="form-item" style="max-width:180px;"><label>排行榜展示条数</label><input class="input" id="st-rankTopN" type="number" min="1" max="50" value="${esc(s.rankTopN || '10')}"></div>
+        <div class="form-item"><label>注册人机验证（Turnstile，选填）</label><div class="sec-desc" style="margin:4px 0 8px;">Cloudflare Dashboard → Turnstile 建个站点，两把钥匙成对填到这里（都留空 = 关闭）。启用后前台注册需先过人机验证，拦批量小号刷分；Secret 保存后只显示打码</div>
+          <input class="input" id="st-turnstileSiteKey" placeholder="0x4AAAA…（Site Key，公开）" autocomplete="off" value="${esc(s.turnstileSiteKey || '')}" style="margin-bottom:8px;">
+          <input class="input" id="st-turnstileSecret" placeholder="0x4AAAA…（Secret Key，保密）" autocomplete="off" value="${esc(s.turnstileSecret || '')}">
+        </div>
       </div>
     </div>
 
@@ -2635,7 +2655,7 @@ async function viewSettings() {
     </div>
 
     <div class="panel" style="padding:20px;">
-      <div class="form-section"><h3>外部发布</h3><div class="sec-desc">用 Telegram 机器人或开放 API 远程发微博（文字 / 图片 / 相册都可以）</div>
+      <div class="form-section"><h3>外部发布</h3><div class="sec-desc">用 Telegram 机器人或开放 API 远程发微博（文字 / 图片 / 相册都可以），或让 AI 助手经 MCP 发文、查评论</div>
         <div class="form-item">
           <label>API Token（开放接口密钥，重新生成后旧 Token 立即失效）</label>
           <div class="fav-row">
@@ -2643,7 +2663,7 @@ async function viewSettings() {
             <button class="btn btn-sm" id="btn-token-gen" type="button">${s.externalToken ? '重新生成' : '生成 Token'}</button>
             <button class="btn btn-sm btn-ghost" id="btn-token-copy" type="button" ${s.externalToken ? '' : 'disabled'}>复制</button>
           </div>
-          <div class="sec-desc" style="margin-top:6px;">接口：<code>POST ${esc(location.origin)}/api/external/weibo</code>，用法见 docs/GUIDE.md 第 8 节</div>
+          <div class="sec-desc" style="margin-top:6px;">接口：<code>POST ${esc(location.origin)}/api/external/weibo</code>；MCP（AI 助手）：<code>${esc(location.origin)}/mcp</code>，用法见 docs/GUIDE.md 第 8 节</div>
         </div>
         <div class="form-item">
           <label>Telegram Bot Token（找 @BotFather 发 /newbot 创建机器人后获得）</label>
@@ -2871,6 +2891,8 @@ async function viewSettings() {
       postsPerPage: g('st-postsPerPage').value || '10',
       membersEnabled: g('st-membersEnabled').checked ? '1' : '0',
       rankTopN: g('st-rankTopN').value || '10',
+      turnstileSiteKey: g('st-turnstileSiteKey').value.trim(),
+      turnstileSecret: g('st-turnstileSecret').value.trim(),
       siteGrayscale: g('st-siteGrayscale').checked ? '1' : '0',
       siteClosed: g('st-siteClosed').checked ? '1' : '0',
       siteClosedMessage: g('st-siteClosedMessage').value.trim(),

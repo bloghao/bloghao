@@ -21,6 +21,8 @@ import {
   sessionCookie,
   memberSessionCookie,
 } from './auth'
+import { verifyTurnstile } from './turnstile'
+import { APP_VERSION } from './version'
 import {
   countUsers,
   createCategory,
@@ -44,6 +46,7 @@ import {
   uniquePageSlug,
   listPosts,
   listWeibo,
+  MAX_CONTENT_BYTES,
   parseTags,
   parseWeiboImages,
   postAdminView,
@@ -67,7 +70,7 @@ import { collectRoutes } from './collect'
 import { exportRoutes } from './export'
 import { adminExternalRoutes, externalRoutes, notifyAdminComment, telegramRoutes } from './external'
 import { fetchPublicResource } from './fetchsafe'
-import { fireCommentCreated, firePostPublished, fireWeiboPublished, listBufferChannels, listServerPlugins } from './hooks'
+import { fireCommentCreated, firePlazaRetract, firePostPublished, fireWeiboPublished, listBufferChannels, listServerPlugins } from './hooks'
 import { SITE_MODE_VALUES, siteBase, toHomePost, type SiteMode } from './render'
 import { sanitizeHtml } from './sanitize'
 import { cleanupUnreferenced, backfillHashes, mergeDuplicate, runAudit } from './audit'
@@ -75,7 +78,7 @@ import { imageExtOf, MAX_REMOTE_IMAGES, MAX_UPLOAD_BYTES, saveUpload, sniffImage
 import { hashPostPassword } from './protect'
 import { listTrash, restorePostStatus, trashTable, type TrashTable } from './trash'
 import { classifyBrowser, classifyDevice, cleanPath, cleanRef, cleanTitle, cleanVid, getVisitStats, recordVisit } from './stats'
-import { fetchLinkMeta } from './linkmeta'
+import { fetchLinkMeta, fetchableUrl } from './linkmeta'
 import { BROWSER_UA, buildCardHtml, coverProxyHostOk, coverReferer, fetchDoubanDetail, probeRelay, resolveCardCover, sanitizeMediaItem, searchMedia, subjectIdFromUrl, validateRelay, type MediaItem } from './douban'
 import { THEMES } from './themes/registry'
 import type { CommentRow, Env, MemberRow, MemberTier, PostRow, SessionUser } from './types'
@@ -83,7 +86,6 @@ import { clampInt, cleanDisabledPlugins, cleanNickname, cleanSlug, excerpt, extr
 
 type AppEnv = { Bindings: Env; Variables: { user: SessionUser } }
 
-const MAX_CONTENT_BYTES = 1_000_000 // 正文 ~1MB
 const VIDEO_MIMES: Record<string, string> = {
   'video/mp4': 'mp4',
   'video/webm': 'webm',
@@ -94,6 +96,24 @@ function jsonError(message: string, status = 400) {
 }
 
 export const api = new Hono<AppEnv>()
+
+/* ---------------- 全局：入站体积预检（防超大 body 打爆 isolate） ----------------
+ * Workers 平台请求体上限（100MB）远大于 isolate 128MB 内存，json()/parseBody() 整读前先看
+ * Content-Length 早拒；正文自有 MAX_CONTENT_BYTES(1MB) 后置校验，这里 2MB 给 JSON 结构留余量。
+ * 上传/外部微博是 multipart 带二进制（单文件上限 25MB），给 30MB；chunked 无 CL 放行属残余
+ * 风险（正常客户端与 curl 都带 CL），公开写端点另有限流与蜜罐在前 */
+const BODY_LIMIT_BYTES = 2 * 1024 * 1024
+const BODY_LIMIT_UPLOAD_BYTES = 30 * 1024 * 1024
+api.use('*', async (c, next) => {
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)) {
+    const p = c.req.path
+    const isUpload =
+      p.startsWith('/admin/upload') || p.startsWith('/admin/og-image') || p.startsWith('/external/weibo')
+    const cl = Number(c.req.header('Content-Length') || '0')
+    if (cl > (isUpload ? BODY_LIMIT_UPLOAD_BYTES : BODY_LIMIT_BYTES)) return c.text('请求体过大', 413)
+  }
+  await next()
+})
 
 /* ---------------- 全局：同源校验（防 CSRF） ---------------- */
 api.use('*', async (c, next) => {
@@ -211,9 +231,16 @@ api.post('/member/register', async (c) => {
   if (settings.membersEnabled !== '1') return jsonError('会员功能未开放', 404)
   const ip = clientIp(c.req.raw)
   if (!rateLimit(`mreg:${ip}`, 5, 10 * 60_000)) return jsonError('注册太频繁，请稍后再试', 429)
-  const body = await c.req.json<{ username?: string; password?: string; email?: string; nickname?: string; link?: string }>().catch(() => null)
+  const body = await c.req.json<{ username?: string; password?: string; email?: string; nickname?: string; link?: string; turnstileToken?: string }>().catch(() => null)
   // 蜜罐字段 link：正常用户看不到、机器人会填 —— 静默丢弃（同 publicComment 口径）
   if (body?.link) return c.json({ ok: true })
+  // 注册人机验证（Turnstile，A2 根治）：配置了 Secret 才启用，放在字段校验之前让无令牌机器人
+  // 最早出局；演示站跳过（凭据公示的体验站不外发 siteverify，也不给体验者加验证负担）。
+  // verifyTurnstile 拿不到结论一律 false —— 端点抖动时宁可挡注册，不留无验证窗口
+  if (settings.turnstileSecret && !isDemo(c.env)) {
+    const ok = await verifyTurnstile(settings.turnstileSecret, String(body?.turnstileToken || ''), ip)
+    if (!ok) return jsonError('人机验证未通过，请刷新页面后重试')
+  }
   const username = String(body?.username || '').trim()
   const password = String(body?.password || '')
   const email = String(body?.email || '').trim().slice(0, 100)
@@ -423,7 +450,7 @@ api.route('/telegram', telegramRoutes)
 
 api.get('/admin/stats', async (c) => {
   const db = c.env.DB
-  const [pub, drafts, pending, uploads, recent, pendingLinks] = await Promise.all([
+  const [pub, drafts, pending, uploads, recent, pendingLinks, weibo, pages, comments, members, settings] = await Promise.all([
     db
       .prepare("SELECT COUNT(*) AS n, COALESCE(SUM(views),0) AS v, COALESCE(SUM(likes),0) AS l FROM posts WHERE status = 'published' AND deleted_at IS NULL")
       .first<{ n: number; v: number; l: number }>(),
@@ -432,8 +459,16 @@ api.get('/admin/stats', async (c) => {
     db.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(size),0) AS s FROM uploads').first<{ n: number; s: number }>(),
     db.prepare("SELECT * FROM posts WHERE status = 'published' AND deleted_at IS NULL ORDER BY published_at DESC LIMIT 5").all<PostRow>(),
     db.prepare("SELECT COUNT(*) AS n FROM friend_links WHERE status = 'pending'").first<{ n: number }>(),
+    // 系统状态卡（B12）：三张软删表按口径过滤 deleted_at（回收站行不计入体量）
+    db.prepare('SELECT COUNT(*) AS n FROM weibo WHERE deleted_at IS NULL').first<{ n: number }>(),
+    db.prepare('SELECT COUNT(*) AS n FROM pages WHERE deleted_at IS NULL').first<{ n: number }>(),
+    db.prepare('SELECT COUNT(*) AS n FROM comments').first<{ n: number }>(),
+    db.prepare('SELECT COUNT(*) AS n FROM members').first<{ n: number }>(),
+    getSettings(db),
   ])
   return c.json({
+    // 系统版本（src/version.ts 镜像 package.json）：仅管理面出口，供概览「系统」卡展示
+    version: APP_VERSION,
     posts: pub?.n ?? 0,
     views: pub?.v ?? 0,
     likes: pub?.l ?? 0,
@@ -441,6 +476,13 @@ api.get('/admin/stats', async (c) => {
     pendingComments: pending?.n ?? 0,
     pendingLinks: pendingLinks?.n ?? 0,
     uploads: { count: uploads?.n ?? 0, bytes: uploads?.s ?? 0 },
+    db: { weibo: weibo?.n ?? 0, pages: pages?.n ?? 0, comments: comments?.n ?? 0, members: members?.n ?? 0 },
+    // 备份状态由 backup.ts 每晚回写（lastBackupAt/lastBackupBytes），这里只读不查
+    backup: {
+      enabled: settings.backupEnabled !== '0',
+      at: Number(settings.lastBackupAt) || 0,
+      bytes: Number(settings.lastBackupBytes) || 0,
+    },
     recent: (recent.results ?? []).map((r) => ({
       id: r.id,
       title: r.title,
@@ -664,7 +706,12 @@ api.put('/admin/posts/:id', async (c) => {
   // 密码文的自动摘要同样留空（同 POST 创建口径）：summary 是公开导读面，加密正文不出前 80 字
   const status = p.has.status ? p.status : existing.status
   const willLock = p.has.password ? !!p.password : !!existing.password_hash
-  const summary = p.has.summary ? p.summary || (willLock ? '' : status === 'published' ? excerpt(content, 80) : '') : existing.summary
+  let summary = p.has.summary ? p.summary || (willLock ? '' : status === 'published' ? excerpt(content, 80) : '') : existing.summary
+  // 密码文只出作者自填摘要（防泄漏清单）：编辑器恒回传 summary（预填旧自动摘要）会短路上面的
+  // 清空逻辑——发布后补设密码时，残留的自动摘要（=正文前 80 字）会继续从 RSS/meta/列表泄漏。
+  // 与旧正文 excerpt 比对（覆盖「改正文+加密码同请求」），命中即清；手填恰好撞上自动摘要也会
+  // 被（无法区分、误伤方向更安全）；不限定「本次新设」，存量泄漏行在下次保存时自愈
+  if (willLock && summary && summary === excerpt(existing.content, 80)) summary = ''
   const cover = p.has.cover ? p.cover : existing.cover
   const tags = p.has.tags ? JSON.stringify(p.tags) : existing.tags
   const pinned = p.has.pinned ? p.pinned : existing.pinned
@@ -721,6 +768,18 @@ api.put('/admin/posts/:id', async (c) => {
       })
     )
   }
+  // 广场下架广播（条目生命周期闭环）：已发布文章转出发布态、或补设密码/升档锁文时，
+  // 把条目从 hub 摘除（ref 用 existing.slug——hub 收录的是改 slug 前的旧引用）；
+  // 解锁/恢复发布后 pull 会自愈补回
+  if (
+    existing.status === 'published' &&
+    row &&
+    (status !== 'published' ||
+      (!!passwordHash && !existing.password_hash) ||
+      (minTier !== 'all' && normalizeMinTier(existing.min_tier) === 'all'))
+  ) {
+    c.executionCtx.waitUntil(firePlazaRetract(c.env, [{ kind: 'post', ref: existing.slug }]))
+  }
   return c.json({ ok: true, post: row ? { ...postAdminView(row), tagList: parseTags(row), categoryId } : null })
 })
 
@@ -743,7 +802,10 @@ api.delete('/admin/posts/:id', async (c) => {
   const id = parseId(c.req.param('id'))
   if (!id) return jsonError('文章不存在', 404)
   // 软删进回收站（src/trash.ts）：评论与分类关联保留，恢复时一并跟回；彻底删除才级联清掉
+  const row = await c.env.DB.prepare('SELECT slug FROM posts WHERE id = ? AND deleted_at IS NULL').bind(id).first<{ slug: string }>()
   await c.env.DB.prepare('UPDATE posts SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL').bind(Date.now(), id).run()
+  // 广场下架广播：软删后 RSS 里不再有这条，hub 若曾收录会永久滞留——deleted 同步摘除
+  if (row?.slug) c.executionCtx.waitUntil(firePlazaRetract(c.env, [{ kind: 'post', ref: row.slug }]))
   return c.json({ ok: true })
 })
 
@@ -868,6 +930,8 @@ api.delete('/admin/weibo/:id', async (c) => {
   if (!id) return jsonError('这条微博不存在', 404)
   // 软删进回收站（src/trash.ts）：评论保留，恢复时一并跟回；彻底删除才级联清掉
   await c.env.DB.prepare('UPDATE weibo SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL').bind(Date.now(), id).run()
+  // 广场下架广播：微博若曾同步 hub（ref = 微博 id），软删后摘除（未收录时 hub 空删幂等）
+  c.executionCtx.waitUntil(firePlazaRetract(c.env, [{ kind: 'weibo', ref: String(id) }]))
   return c.json({ ok: true })
 })
 
@@ -1006,6 +1070,8 @@ api.post('/admin/links', async (c) => {
 })
 
 api.post('/admin/links/fetch-icon', async (c) => {
+  // 演示站守卫：图标抓取是出网点（与 linkmeta 同口径短路）
+  if (isDemo(c.env)) return jsonError('演示站不开放图标抓取', 404)
   const body = await c.req.json<{ url?: string }>().catch(() => null)
   const url = normalizeLinkUrl(String(body?.url ?? ''))
   if (!url) return jsonError('网址格式不对，填一下要抓图标的站点地址')
@@ -1023,7 +1089,8 @@ api.post('/admin/links/:id/approve', async (c) => {
   await c.env.DB.prepare("UPDATE friend_links SET status = 'approved', updated_at = ? WHERE id = ?")
     .bind(Date.now(), id)
     .run()
-  if (!existing.icon) {
+  // 演示站照常可走收录流程，只是不出网抓图标（demo 体验者凭据公示，出网点一律短路）
+  if (!existing.icon && !isDemo(c.env)) {
     c.executionCtx.waitUntil(
       fetchLinkIcon(c.env, existing.url).then((icon) =>
         icon
@@ -1036,6 +1103,8 @@ api.post('/admin/links/:id/approve', async (c) => {
 })
 
 api.post('/admin/links/:id/refresh-icon', async (c) => {
+  // 演示站守卫：图标抓取是出网点（与 linkmeta 同口径短路）
+  if (isDemo(c.env)) return jsonError('演示站不开放图标抓取', 404)
   const id = parseId(c.req.param('id'))
   if (!id) return jsonError('友链不存在', 404)
   const existing = await getFriendLinkById(c.env.DB, id)
@@ -1243,6 +1312,18 @@ api.post('/admin/trash/:type/:id/restore', async (c) => {
           : 'UPDATE posts SET deleted_at = NULL, status = ? WHERE id = ? AND deleted_at IS NOT NULL'
       )
       .bind(status, id)
+      .run()
+    if ((res.meta.changes ?? 0) !== 1) return jsonError('回收站里没有这条内容', 404)
+  } else if (table === 'weibo') {
+    // 恢复微博沿用置顶同一名额口径：置顶端点有「存活置顶 < 3」原子守卫，恢复路径曾绕过它
+    // （满员时软删一条再补置顶、然后恢复，前台会同时出现 4 条置顶）。子查询在更新前取数，
+    // 本行仍是软删态不计入；超额时落回 pinned=0，恢复本身照常成功
+    const res = await c.env.DB.prepare(
+      `UPDATE weibo SET deleted_at = NULL, pinned = CASE WHEN pinned = 1 AND
+        (SELECT COUNT(*) FROM weibo WHERE pinned = 1 AND deleted_at IS NULL) >= ${WEIBO_MAX_PINNED}
+        THEN 0 ELSE pinned END WHERE id = ? AND deleted_at IS NOT NULL`
+    )
+      .bind(id)
       .run()
     if ((res.meta.changes ?? 0) !== 1) return jsonError('回收站里没有这条内容', 404)
   } else {
@@ -1551,7 +1632,13 @@ api.put('/admin/comments/:id', async (c) => {
   // 会员评论过审才计积分（awardCommentPoints 按 ref_id 去重，反复 通过↔待审 不重复记）
   await c.env.DB.prepare('UPDATE comments SET status = ? WHERE id = ?').bind(status, id).run()
   if (status === 'approved' && target.member_id) {
-    c.executionCtx.waitUntil(awardCommentPoints(c.env.DB, target.member_id, id))
+    // 封禁会员不记分：批量清理待审时会「通过」违规会员的评论，拉黑后再计分等于违规所得
+    // 入账（解封后完整回到排行榜）；计分前核会员仍是 active
+    const active = await c.env.DB
+      .prepare("SELECT 1 AS x FROM members WHERE id = ? AND status = 'active'")
+      .bind(target.member_id)
+      .first()
+    if (active) c.executionCtx.waitUntil(awardCommentPoints(c.env.DB, target.member_id, id))
   }
   return c.json({ ok: true })
 })
@@ -1567,7 +1654,7 @@ api.delete('/admin/comments/:id', async (c) => {
 /* ---------------- 设置 ---------------- */
 // 敏感项只写不读：GET 一律打码返回（明文只在生成 Token / 保存后不再回显）；
 // PUT 收到打码占位符视为「保持原值」，这样前端整表提交不会把占位符写进库
-const SECRET_SETTINGS = ['externalToken', 'telegramBotToken', 'telegramWebhookSecret', 'bufferAccessToken', 'plazaToken']
+const SECRET_SETTINGS = ['externalToken', 'telegramBotToken', 'telegramWebhookSecret', 'bufferAccessToken', 'plazaToken', 'commentWebhookUrl', 'turnstileSecret']
 const SECRET_MASK = '••••••••'
 // 布尔开关统一收口：'1'/'true' → '1'，其余一律 '0'（新增布尔键加进表即可，别再抄判断分支）
 const BOOL_SETTINGS = [
@@ -1645,9 +1732,20 @@ api.put('/admin/settings', async (c) => {
       continue
     }
     if (key === 'commentWebhookUrl') {
-      // 只接受 http(s) 完整地址（webhook 目标），其余清空
+      // 只接受 http(s) 完整地址（webhook 目标），其余清空；再过公网校验拒私网/非常规端口——
+      // 评论钩子的 body 带访客可控内容，不能在 docker-poc 多租户下沦为内网盲探跳板
       const u = v.trim().slice(0, 500)
-      patch[key] = /^https?:\/\//i.test(u) ? u : ''
+      if (!u) patch[key] = ''
+      else if (/^https?:\/\//i.test(u) && fetchableUrl(u)) patch[key] = u
+      else return jsonError('评论 Webhook 地址无效（需公网 http(s) 地址）')
+      continue
+    }
+    if (key === 'plazaEndpoint') {
+      // 广场上报端点：落配置时收敛为公网 https 地址（与发送侧 hooks.ts 的 https 前缀同口径）
+      const u = v.trim().slice(0, 500)
+      if (!u) patch[key] = ''
+      else if (u.startsWith('https://') && fetchableUrl(u)) patch[key] = u
+      else return jsonError('广场同步端点无效（需公网 https 地址）')
       continue
     }
     if (key === 'footerHtmlCode') {
@@ -1680,6 +1778,14 @@ api.put('/admin/settings', async (c) => {
     }
     patch[key] = v.slice(0, 500)
   }
+  // Turnstile 两键成对（注册人机验证）：只填一个会造出「有锁无窗」（注册被拦且无验证组件可过）
+  // 或「有窗无锁」（组件白渲染）——整体拒绝。Secret 以打码占位符提交时不在 patch 里，回读现值兜底
+  if (patch.turnstileSiteKey !== undefined || patch.turnstileSecret !== undefined) {
+    const cur = await getSettings(c.env.DB)
+    const site = patch.turnstileSiteKey !== undefined ? patch.turnstileSiteKey : cur.turnstileSiteKey
+    const secret = patch.turnstileSecret !== undefined ? patch.turnstileSecret : cur.turnstileSecret
+    if (!!site !== !!secret) return jsonError('Turnstile 需同时填写 Site Key 与 Secret Key（或都留空关闭）')
+  }
   // 演示站不允许闭站：有人开了开关，整个重置周期内所有体验者都会看到 503
   if (isDemo(c.env)) patch.siteClosed = '0'
   await saveSettings(c.env.DB, patch)
@@ -1695,6 +1801,8 @@ api.put('/admin/settings', async (c) => {
 
 /** 手动触发一次全量备份（与每晚 Cron 同一逻辑），返回文件 Key 与体积 */
 api.post('/admin/backup', async (c) => {
+  // 演示站守卫：备份含全库行与密钥，demo 体验者凭据公示，敏感面一律短路
+  if (isDemo(c.env)) return jsonError('演示站不开放备份', 404)
   // 全表导出整包进内存，连点可在同一 isolate 堆叠多个全量导出（128MB 上限）——全局窗口内只放一次
   if (!rateLimit('backup:global', 1, 10 * 60_000)) return jsonError('备份刚刚执行过，请 10 分钟后再试', 429)
   const r = await runBackup(c.env)
@@ -1786,19 +1894,22 @@ api.get('/admin/tools/douban/img', async (c) => {
   if (u.protocol !== 'https:' || !coverProxyHostOk(u.hostname)) return jsonError('域名不在白名单', 403)
   if (!rateLimit(`doubanimg:${clientIp(c.req.raw)}`, 60, 60_000)) return jsonError('请求过于频繁，请稍后再试', 429)
   try {
-    const res = await fetch(u, {
+    // 出网统一走 fetchsafe：redirect:'manual' 逐跳复查——五域白名单 + fetchableUrl 在每一跳
+    // 都成立（曾用 redirect:'follow'，白名单域一旦出现可滥用的 302 就能引 Worker 抓任意
+    // URL）；响应体流式限长 1MB（曾整读 arrayBuffer 后才查体积，chunked 大响应可撑爆内存）。
+    // Node(undici) 下 manual 重定向放弃抓取 → 502，属 AGENTS 既有取舍（豆瓣封面直链不跳转）
+    const r = await fetchPublicResource(u.href, {
+      maxBytes: 1_000_000,
+      timeoutMs: 8_000,
       headers: { 'User-Agent': BROWSER_UA, Referer: coverReferer(raw) || `${u.origin}/` },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(8_000),
+      hostOk: coverProxyHostOk,
     })
-    if (!res.ok) return jsonError('封面拉取失败', 502)
-    const ct = String(res.headers.get('content-type') || '').split(';')[0]
+    if (!r) return jsonError('封面拉取失败', 502)
+    const ct = String(r.res.headers.get('content-type') || '').split(';')[0]
     if (!/^image\/(jpeg|png|webp|gif)$/.test(ct)) return jsonError('非图片响应', 502)
-    const buf = await res.arrayBuffer()
-    if (buf.byteLength === 0 || buf.byteLength > 1_000_000) return jsonError('图片过大', 502)
     c.header('Cache-Control', 'private, max-age=86400')
     c.header('X-Content-Type-Options', 'nosniff')
-    return c.body(buf, 200, { 'Content-Type': ct })
+    return c.body(r.buf, 200, { 'Content-Type': ct })
   } catch {
     return jsonError('封面拉取失败', 502)
   }
@@ -1890,8 +2001,12 @@ async function rehostPasteImages(env: Env, html: string): Promise<{ html: string
 }
 
 api.post('/admin/tools/sanitize', async (c) => {
+  // 演示站守卫：rehostPasteImages 会以本站身份抓请求里任意 http(s) 图片（出网点，
+  // 与 linkmeta/douban 同口径短路）
+  if (isDemo(c.env)) return jsonError('演示站不开放粘贴转存', 404)
   const body = await c.req.json<{ html?: string }>().catch(() => null)
   const html = String(body?.html ?? '')
+  if (!rateLimit(`sanitize:${clientIp(c.req.raw)}`, 30, 60_000)) return jsonError('操作太频繁，请稍后再试', 429)
   if (new TextEncoder().encode(html).length > MAX_CONTENT_BYTES) return jsonError('内容过长')
   const clean = sanitizeHtml(html)
   const r = await rehostPasteImages(c.env, clean)
@@ -1986,6 +2101,9 @@ async function publicComment(
   // 管理员发言不受留言频率限制；会员是登录身份，放宽到 10 条/10 分钟（仍防滥用），游客维持 5 条
   if (!user && !member && !rateLimit(`cmt:${ip}`, 5, 10 * 60_000)) return jsonError(o.freqMessage, 429)
   if (member && !rateLimit(`mcmt:${member.id}`, 10, 10 * 60_000)) return jsonError(o.freqMessage, 429)
+  // 会员限流补 IP 桶：只按账号限不住「批量注册小号各发 10 条」的 Sybil 打法（注册零验证成本）；
+  // NAT 共享 IP 放宽到 20 条/10 分钟，正常家庭/办公网够用
+  if (member && !rateLimit(`mcmt-ip:${ip}`, 20, 10 * 60_000)) return jsonError(o.freqMessage, 429)
   const body = await c.req.json<CommentBody>().catch(() => null)
   // 蜜罐字段：正常用户不会填写，机器人会 —— 静默丢弃
   if (body?.link) return c.json({ ok: true })
@@ -2197,7 +2315,9 @@ api.post('/public/like/:slug', async (c) => {
 
 /* ---------------- 访客统计打点（公开，site.js 上报，见 src/stats.ts） ---------------- */
 api.post('/public/track', async (c) => {
-  if (!rateLimit(`track:${clientIp(c.req.raw)}`, 120, 10 * 60_000)) return jsonError('请求过于频繁，请稍后再试', 429)
+  // 30 次/10 分钟/IP：正常访客到不了（浏览自增另有 1h/IP/post 去重）；这是无鉴权的 D1 写入面
+  // （每请求一行 INSERT），限流宽度直接决定被代理池烧穿 D1 日写配额的量级
+  if (!rateLimit(`track:${clientIp(c.req.raw)}`, 30, 10 * 60_000)) return jsonError('请求过于频繁，请稍后再试', 429)
   const settings = await getSettings(c.env.DB)
   if (settings.statsEnabled === '0') return c.json({ ok: true })
   const body = await c.req.json<{ p?: string; r?: string; v?: string; t?: string }>().catch(() => null)

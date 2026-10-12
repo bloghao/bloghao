@@ -36,6 +36,7 @@
       <a class="docs-side-title" href="index.html">📚 文档中心</a>
       <ul class="docs-side-list">
       <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
       <li><a href="guide.html">📖 使用手册</a></li>
       <li><a href="plaza.html">🧭 广场</a></li>
       <li><a href="themes.html">🎨 主题开发</a></li>
@@ -599,6 +600,48 @@
 <li><code>/draft 文字</code> 存草稿；其余指令回复可用指令说明</li>
 <li>限频 20 次/分钟/Chat</li>
 </ul>
+<h3 id="post-mcpmcp-服务器ai-助手接入">POST /mcp（MCP 服务器，AI 助手接入）</h3><p>Model Context Protocol 端点（<strong>Streamable HTTP 无状态模式</strong>）：JSON-RPC 2.0 进、<code>application/json</code> 出，不开 SSE 流（<code>GET</code>/<code>DELETE</code> → 405）。鉴权与开放 API 同一枚 Token（Bearer / X-Auth-Token；空 Token = 接口关闭），限频 30 次/分钟/Token，鉴权失败 10 次/10 分钟/IP。演示站 404；一键闭站时随全站 503。</p>
+<p>方法：<code>initialize</code>（协议版本协商，支持 <code>2025-06-18</code> / <code>2025-03-26</code>，客户端未知版本回最新）、<code>ping</code>、<code>tools/list</code>、<code>tools/call</code>；<code>notifications/*</code> 回 202 空 body；兼容数组批处理（逐条派发，全通知回 202）。</p>
+<p>工具清单（<code>tools/call</code> 入参 <code>arguments</code> 即下表入参）：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>工具</th>
+<th>入参（粗体必填）</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>publish_post</code></td>
+<td><strong>title</strong>、<strong>content</strong>、format（<code>markdown</code> 默认 / <code>html</code>）、status（<code>draft</code> 默认 / <code>published</code>）、slug、summary、tags[]、cover</td>
+<td>Markdown 先 <code>mdToHtml</code> 再 <code>sanitizeHtml</code> 入库（与后台编辑器 MD 模式同链路）；slug 自动查重加序号；出参 <code>{id, slug, status, url}</code>。发布即广播 <code>PostPublishedPayload</code>（<code>via:&#39;mcp&#39;</code>，<code>locked</code> 恒 false——工具面不收密码/档位）。定时发布 / 访问密码 / 会员档位不支持</td>
+</tr>
+<tr>
+<td><code>list_posts</code></td>
+<td>status（<code>all</code> 默认 / <code>published</code> / <code>draft</code> / <code>scheduled</code>）、q、page、limit（≤50）</td>
+<td>复用 <code>listPosts</code>（过滤回收站行）；出参不含正文，带 <code>hasPassword</code>；q 关键词搜索不命中加密文（同 listPosts q 分支）</td>
+</tr>
+<tr>
+<td><code>get_post</code></td>
+<td>id 或 slug 二选一</td>
+<td>出参过 <code>postAdminView</code>（<code>password_hash</code> 永不出参，只给 <code>hasPassword</code>），含正文存库 HTML</td>
+</tr>
+<tr>
+<td><code>list_comments</code></td>
+<td>status（<code>pending</code> 默认 / <code>approved</code> / <code>all</code>）、type（<code>all</code> / <code>post</code> / <code>weibo</code> / <code>guestbook</code>）、limit（≤50）</td>
+<td>带 post_title / weibo_content / parent_nickname 上下文；出参只给审核需要的列，email / qq / ip / avatar 不出</td>
+</tr>
+<tr>
+<td><code>publish_weibo</code></td>
+<td><strong>content</strong> 或 images[]（站内 <code>/images/…</code> 或 http(s)，≤9 张）、status（<code>published</code> 默认 / <code>draft</code>）</td>
+<td>与 <code>POST /api/external/weibo</code> 同口径（不含 base64 传图）；话题自动提取；发布即广播 <code>WeiboPublishedPayload</code>（<code>via:&#39;external&#39;</code>）</td>
+</tr>
+</tbody></table></div>
+<ul>
+<li>错误：401 无效 Token / 未生成；429 限频；400 parse error（-32700）/ 空 batch（-32600）；-32601 未知方法；-32602 未知工具 / 缺工具名</li>
+<li>业务校验失败（空标题、图片地址无效等）回 <code>result.isError: true</code> 的工具错误，不是 JSON-RPC error</li>
+<li>用法与客户端配置见 <a href="guide.html">GUIDE §8.3</a></li>
+</ul>
 <h2 id="html-白名单净化器摘要">HTML 白名单（净化器摘要）</h2><ul>
 <li>保留：<code>p br hr h1-h6 blockquote pre code ul ol li a img video source strong b em i u s del ins mark sup sub small span section div figure figcaption table thead tbody tfoot tr th td caption details summary abbr cite q kbd samp wbr</code></li>
 <li>丢弃（连同内容）：<code>script style iframe svg math form input button select textarea template link meta base object embed …</code>；<code>id</code> 属性一律剥除（防 DOM clobbering）</li>
@@ -666,6 +709,7 @@
         <li class="toc-d3"><a href="#get-apiexternalweibo" data-toc="get-apiexternalweibo">GET /api/external/weibo</a></li>
         <li class="toc-d3"><a href="#post-apiexternalweibo" data-toc="post-apiexternalweibo">POST /api/external/weibo</a></li>
         <li class="toc-d3"><a href="#post-apitelegramwebhook" data-toc="post-apitelegramwebhook">POST /api/telegram/webhook</a></li>
+        <li class="toc-d3"><a href="#post-mcpmcp-服务器ai-助手接入" data-toc="post-mcpmcp-服务器ai-助手接入">POST /mcp（MCP 服务器，AI 助手接入）</a></li>
         <li class="toc-d2"><a href="#html-白名单净化器摘要" data-toc="html-白名单净化器摘要">HTML 白名单（净化器摘要）</a></li>
       </ul>
     </aside>

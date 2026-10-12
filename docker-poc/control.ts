@@ -44,6 +44,9 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ''
 const PLAZA_HUB_URL = (process.env.PLAZA_HUB_URL || '').trim().replace(/\/+$/, '')
 const PLAZA_ADMIN_TOKEN = process.env.PLAZA_ADMIN_TOKEN || ''
 
+// 与 server.ts 的 HOST_RE 同口径（bundle 后共享同一份；源码各自声明防循环导入）
+const HOST_RE = /^[a-z0-9][a-z0-9.-]*$/
+
 interface PlazaStats {
   sites?: { total?: number; active?: number; verified?: number }
   items?: { total?: number; posts?: number; weibo?: number; last24h?: number }
@@ -582,6 +585,27 @@ function loginPage(msg = ''): string {
   )
 }
 
+/** 站点投稿卡：官网目录页「他们也在写博客号」表单的落盘展示（写入端点见 controlApp 的
+ *  /showcase-submit，落 TENANTS_DIR/showcase-submissions.json）；上榜 = 人工往主仓库
+ *  website/public/data/showcase.json 加一条（随 website-sync 生效），删除仅用于清理无效投稿 */
+function showcaseCardHtml(): string {
+  const file = path.join(process.env.TENANTS_DIR || 'data/tenants', 'showcase-submissions.json')
+  try {
+    const list = JSON.parse(fs.readFileSync(file, 'utf8')) as { ts: number; url: string; name?: string }[]
+    if (!Array.isArray(list) || !list.length)
+      return '<div class="card fade fade-2"><h2>站点投稿</h2><p class="tenant-meta">还没有收到投稿——官网目录页「他们也在写博客号」的表单会落在这里。</p></div>'
+    const rows = list
+      .map(
+        (s, i) =>
+          `<tr><td class="mono hide-sm">${esc(new Date(s.ts).toISOString().slice(0, 16).replace('T', ' '))}</td><td class="mono"><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a></td><td>${esc(s.name || '')}</td><td class="actions"><form method="post" action="/showcase-submit/del"><input type="hidden" name="idx" value="${i}"><button class="btn" type="submit">删除</button></form></td></tr>`,
+      )
+      .join('')
+    return `<div class="card fade fade-2"><h2>站点投稿 <span class="muted">· ${list.length} 条待处理</span></h2><p class="tenant-meta" style="margin-bottom:10px">官网目录页表单的投稿落在这里；上榜 = 往主仓库 website/public/data/showcase.json 加一条（随 website-sync 生效），删除仅用于清理无效投稿。</p><div class="table-wrap"><table><thead><tr><th class="hide-sm">时间(UTC)</th><th>站点</th><th>名称</th><th style="text-align:right">操作</th></tr></thead><tbody>${rows}</tbody></table></div></div>`
+  } catch {
+    return '<div class="card fade fade-2"><h2>站点投稿</h2><p class="tenant-meta">投稿数据暂时读不到。</p></div>'
+  }
+}
+
 async function dashboard(deps: ControlDeps, flash = ''): Promise<string> {
   // 广场统计按需拉取（4s 超时）：hub 不可达时卡片降级，不影响其余面板
   const plazaStats = PLAZA_HUB_URL && PLAZA_ADMIN_TOKEN ? await fetchPlazaStats() : null
@@ -678,6 +702,8 @@ ${
 </div>`
     : ''
 }
+
+${showcaseCardHtml()}
 
 <div class="card fade fade-2">
   <h2>开通新网站</h2>
@@ -809,6 +835,54 @@ export async function controlApp(deps: ControlDeps): Promise<void> {
     return res.end()
   }
 
+  // 站点投稿（公开端点，官网目录页表单跨站提交）：Origin 白名单（仅 bloghao.com）+ https
+  // 域名校验 + 同 IP 每小时 5 条限流 + 同 URL 去重；落盘 showcase-submissions.json 待人工上架。
+  // 必须在会话门之前——投稿人不是面板用户
+  if (method === 'POST' && path === '/showcase-submit') {
+    res.setHeader('Access-Control-Allow-Origin', 'https://bloghao.com')
+    if (req.headers.origin !== 'https://bloghao.com') {
+      res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' })
+      return res.end(JSON.stringify({ error: 'bad origin' }))
+    }
+    const body = await readBody(req)
+    const rawUrl = (body.get('url') || '').trim()
+    const rawName = (body.get('name') || '').trim().slice(0, 40)
+    let submitHost = ''
+    try {
+      const u = new URL(rawUrl)
+      // HOST_RE 与 server.ts 同口径：只收形态合法的主机名，内容真伪由人工上架把关
+      if (u.protocol !== 'https:' || !HOST_RE.test(u.hostname)) throw new Error('bad url')
+      submitHost = u.hostname
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' })
+      return res.end(JSON.stringify({ error: '请提交 https:// 开头的博客号地址' }))
+    }
+    const file = path.join(process.env.TENANTS_DIR || 'data/tenants', 'showcase-submissions.json')
+    let list: { ts: number; ip: string; url: string; name?: string }[] = []
+    try {
+      list = JSON.parse(fs.readFileSync(file, 'utf8'))
+    } catch {
+      /* 首次投稿尚无文件 */
+    }
+    if (!Array.isArray(list)) list = []
+    const ip = String(req.headers['cf-connecting-ip'] || req.socket?.remoteAddress || '')
+    const now = Date.now()
+    if (list.filter((s) => s.ip === ip && now - s.ts < 3600_000).length >= 5) {
+      res.writeHead(429, { 'Content-Type': 'application/json; charset=utf-8' })
+      return res.end(JSON.stringify({ error: '提交太频繁，一小时后再试' }))
+    }
+    if (list.some((s) => s.url === rawUrl)) {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
+      return res.end(JSON.stringify({ ok: true, dup: true }))
+    }
+    list.push({ ts: now, ip, url: rawUrl, name: rawName || submitHost })
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, JSON.stringify(list, null, 2))
+    opsLog('站点投稿', rawUrl)
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
+    return res.end(JSON.stringify({ ok: true }))
+  }
+
   // 其余一切路径都要会话；未登录一律 303 到 /（根路径渲染登录页）
   const isRoot = method === 'GET' && path === '/'
   if (!isRoot && !sessionOk(req)) {
@@ -833,6 +907,23 @@ export async function controlApp(deps: ControlDeps): Promise<void> {
     if (m) sessions.delete(m[1])
     res.writeHead(303, { 'Set-Cookie': `${SESSION_COOKIE}=; Path=/; HttpOnly; Max-Age=0`, Location: '/' })
     return res.end()
+  }
+
+  if (method === 'POST' && path === '/showcase-submit/del') {
+    const idx = parseInt(form?.get('idx') || '', 10)
+    const file = path.join(process.env.TENANTS_DIR || 'data/tenants', 'showcase-submissions.json')
+    let list: { url: string }[] = []
+    try {
+      list = JSON.parse(fs.readFileSync(file, 'utf8'))
+    } catch {
+      /* 无文件视为空列表 */
+    }
+    if (Array.isArray(list) && idx >= 0 && idx < list.length) {
+      const gone = list.splice(idx, 1)[0]
+      fs.writeFileSync(file, JSON.stringify(list, null, 2))
+      opsLog('投稿删除', gone.url)
+    }
+    return sendHtml(res, await dashboard(deps, '✓ 已处理'))
   }
 
   if (method === 'POST' && path === '/create') {

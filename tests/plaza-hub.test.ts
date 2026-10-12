@@ -219,6 +219,16 @@ test('parseRssItems：RSS2 CDATA / Atom href 兜底 / 非 http link 丢弃', () 
   assert.equal(a.length, 1)
   assert.equal(a[0].link, 'https://b.com/post/atom')
   assert.equal(a[0].pubDate, '2026-10-09T10:00:00Z')
+  // 锁标志解析（src/rss.ts 的 bloghao:locked）：pull 路据此跳过锁文/密码文
+  const lockedXml = `<?xml version="1.0"?>
+<rss version="2.0" xmlns:bloghao="https://bloghao.com/plaza-ns"><channel>
+  <item><title>锁文</title><link>https://a.com/post/locked</link><bloghao:locked>1</bloghao:locked><description>x</description></item>
+  <item><title>公开文</title><link>https://a.com/post/open</link><description>y</description></item>
+</channel></rss>`
+  const li = parseRssItems(lockedXml)
+  assert.equal(li.length, 2)
+  assert.equal(li[0].locked, true)
+  assert.equal(li[1].locked, false)
   assert.equal(parseRssItems('not xml at all').length, 0)
 })
 

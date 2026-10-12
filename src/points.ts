@@ -60,19 +60,44 @@ export async function awardPoints(
   // 误传 refId>0 被索引当成幂等键静默丢账（AGENTS 积分防线「别给 adminAdjust 传非 0 refId」的硬约束版）
   const refId =
     reason === 'dailyLogin' ? Math.floor(cstDayStart() / 86400000) : reason === 'adminAdjust' ? 0 : opts.refId ?? 0
-  if (reason !== 'adminAdjust' && rule.dailyCap > 0) {
+  const capped = reason !== 'adminAdjust' && rule.dailyCap > 0
+  const cap = rule.dailyCap * Math.abs(rule.delta)
+  const dayStart = cstDayStart()
+  if (capped) {
     const row = await db
       .prepare(
         'SELECT COALESCE(SUM(delta), 0) AS s FROM member_points_log WHERE member_id = ? AND reason = ? AND created_at >= ?'
       )
-      .bind(memberId, reason, cstDayStart())
+      .bind(memberId, reason, dayStart)
       .first<{ s: number }>()
-    if ((row?.s ?? 0) + delta > rule.dailyCap * Math.abs(rule.delta)) {
+    if ((row?.s ?? 0) + delta > cap) {
       return { ok: false, delta: 0, balance: await memberBalance(db, memberId) }
     }
   }
   const now = Date.now()
   try {
+    if (capped) {
+      // 日上限的最终守卫下沉进批内:上面的 SUM 预查与写入之间存在并发窗口(不同评论 id
+      // 不受部分唯一索引约束,一窗并发可全部通过同一快照把当日额度刷穿)。批内三语句原子:
+      // ②条件 UPDATE(SUM 含本批 INSERT,D1 batch 事务内可见)与③条件 DELETE 谓词互斥
+      // (SUM<=cap 入账保留 / SUM>cap 本行摘除),以②的 changes 判定是否入账;refId>0 时
+      // (member_id, reason, ref_id) 唯一定位本行,adminAdjust(ref_id=0)不走此分支
+      const sumSql =
+        '(SELECT COALESCE(SUM(delta), 0) FROM member_points_log WHERE member_id = ? AND reason = ? AND created_at >= ?)'
+      const res = await db.batch([
+        db
+          .prepare('INSERT INTO member_points_log (member_id, delta, reason, ref_id, note, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+          .bind(memberId, delta, reason, refId, opts.note ?? '', now),
+        db
+          .prepare(`UPDATE members SET points = points + ?, updated_at = ? WHERE id = ? AND ${sumSql} <= ?`)
+          .bind(delta, now, memberId, memberId, reason, dayStart, cap),
+        db
+          .prepare(`DELETE FROM member_points_log WHERE member_id = ? AND reason = ? AND ref_id = ? AND ${sumSql} > ?`)
+          .bind(memberId, reason, refId, memberId, reason, dayStart, cap),
+      ])
+      const granted = (res[1].meta.changes ?? 0) === 1
+      return { ok: granted, delta: granted ? delta : 0, balance: await memberBalance(db, memberId) }
+    }
     await db.batch([
       db
         .prepare('INSERT INTO member_points_log (member_id, delta, reason, ref_id, note, created_at) VALUES (?, ?, ?, ?, ?, ?)')

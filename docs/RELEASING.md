@@ -20,6 +20,8 @@
 - **次版本**（2.**X**.0）：常规功能批次
 - **主版本**（**X**.0.0）：破坏性变更（schema 不兼容、配置项废弃等）
 
+> 改 `package.json` 的 `version` 时**同步改 `src/version.ts` 的 `APP_VERSION`**（运行时镜像，后台概览「系统」卡展示）——tests/version.test.ts 守着，漏改测试即红。
+
 对部署用户来说，升级 = 同步本仓库最新代码后重新部署，D1 结构由 ensureSchema 自动增量迁移——若某次发布含**需要手动动作**的条目，必须在 CHANGELOG 对应条目用「⚠️ 升级注意」标出。
 
 ## 发布前检查（在 origin main 上）
@@ -102,3 +104,6 @@ git fetch upstream --tags         # 新 tag 带回本地坐标
 | --- | --- | --- | --- |
 | 2026-10-07 | 批次核对（会员体系 P1 / 积分 / 排行榜 / 文章访问密码，main 0cb8c0d 集成） | —（**本批无个人定制**：四项均为写得出用法文档的官方功能候选，GUIDE §15 / API 会员节 / CHANGELOG Unreleased 已备；会员「跳队先行」是否随下版发布由发布日定，见 ROADMAP B2。收费配置、站点人设内容等运营属性尚未落地，落地当天在此登记） | — |
 | 2026-10-07 | 外链中间页白名单含站长自有域名（批次：外链提醒页 /go + 微博链接超链化 + 会员评论表单贯通 + 首页排行挂件下线） | **部分**：外链提醒页本身是官方功能（GUIDE §5 / API `/go` 已备），但 `src/outlink.ts` `TRUSTED_OUT_DOMAINS`（及 site.js `TRUSTED_OUT` 镜像）前四项是站长自有域名（bloghao.com / xiaowuleyi.com / habfut.com / btchao.com）——发布挑洗时把这两处清单里的自有域名剔除（保留主流大站），其余照发 | src/outlink.ts、public/site.js |
+| 2026-10-12 | wrangler.jsonc 显式 `workers_dev: false`（审计 C2：关闭本站 workers.dev 平行入口，commit 906cb3e） | 个人部署配置：官方 DEPLOY 文档的首步部署就依赖 workers.dev 域，写入官方配置会破坏新用户首装体验；本站生产由重部署生效 | wrangler.jsonc |
+| 2026-10-12 | 控制面「演示体验站」卡与顶栏「博客列表」按钮（commit e8748ce，随 showcase 收编一起进的 main） | 个人部署细节：卡片硬编码 demo.bloghao.com 与本机路径、按钮指向 cib 容器的 /blog-admin/ 分流——showcase 端点与投稿卡本身是官网目录投稿闭环，照发 | docker-poc/control.ts |
+| 2026-10-12 | 上条外链白名单的发布日修订：**bloghao.com 随项目组织化已是官方项目域名**（官网 / 广场 hub / 市场目录都在此域），官方版保留该条；剔除 xiaowuleyi.com / habfut.com / btchao.com 三个 | 官方用户视角 bloghao.com 是项目自有域，信任直连合理；其余三个仍是站长个人站点 | src/outlink.ts、public/site.js、tests/outlink.test.ts |

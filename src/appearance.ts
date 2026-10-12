@@ -250,7 +250,11 @@ export function cleanAppearanceSettings(raw: string): string | null {
 
 /** 渲染期：按当前主题把外观配置转成覆盖 <style>。无配置 / 主题未知 / 净化后为空 → ''（输出字节级不变） */
 export function appearanceHeadStyle(settings: SettingsMap): string {
-  const theme = THEME_APPEARANCE[settings.theme || '']
+  // 查表必须过 hasOwnProperty:theme='constructor' 等原型链键会取到 truthy 的继承属性,
+  // 随后 theme.roles 取 undefined 的属性直接 TypeError(设置页 PUT 已拦,这里防旁路写库)
+  const themeKey = settings.theme || ''
+  if (!Object.prototype.hasOwnProperty.call(THEME_APPEARANCE, themeKey)) return ''
+  const theme = THEME_APPEARANCE[themeKey]
   if (!theme) return ''
   const cleaned = cleanAppearanceSettings(settings.appearance || '')
   if (!cleaned) return ''
@@ -294,6 +298,7 @@ export function appearanceHeadStyle(settings: SettingsMap): string {
 
 /** /meta/themes 出参：当前主题支持的角色、默认值、正文字号基线与字体预设（后台外观面板用） */
 export function appearanceMeta(themeId: string) {
+  if (!Object.prototype.hasOwnProperty.call(THEME_APPEARANCE, themeId)) return null
   const t = THEME_APPEARANCE[themeId]
   if (!t) return null
   return {

@@ -179,13 +179,22 @@ export interface FetchPublicResult {
 }
 
 /** 抓公网资源：fetchableUrl 起点校验 + 逐跳重定向复查 + 流式大小上限。
- *  任何失败（非法地址、重定向越界、超限、超时、非 2xx）返回 null，调用方按抓不到处理 */
+ *  opts.hostOk 可选：域名白名单钩子（白名单代理用），每一跳（含起点）在 fetchableUrl
+ *  之外追加校验——白名单域名 302 出白名单同样算越界。任何失败（非法地址、重定向越界、
+ *  超限、超时、非 2xx）返回 null，调用方按抓不到处理 */
 export async function fetchPublicResource(
   rawUrl: string,
-  opts: { maxBytes: number; timeoutMs: number; headers?: Record<string, string>; maxRedirects?: number }
+  opts: {
+    maxBytes: number
+    timeoutMs: number
+    headers?: Record<string, string>
+    maxRedirects?: number
+    hostOk?: (host: string) => boolean
+  }
 ): Promise<FetchPublicResult | null> {
   let u = fetchableUrl(rawUrl)
   if (!u) return null
+  if (opts.hostOk && !opts.hostOk(u.hostname)) return null
   const maxRedirects = opts.maxRedirects ?? 5
   for (let hop = 0; ; hop++) {
     let res: Response
@@ -215,6 +224,7 @@ export async function fetchPublicResource(
       }
       const nu = fetchableUrl(next.href)
       if (!nu) return null
+      if (opts.hostOk && !opts.hostOk(nu.hostname)) return null
       u = nu
       continue
     }

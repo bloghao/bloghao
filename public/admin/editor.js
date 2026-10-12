@@ -2212,7 +2212,7 @@ export async function mountEditor(root, postId, opts = {}) {
     const p = await ensureSaved()
     if (!p) return toast('保存失败，无法预览最新内容', true)
     if (!p.slug) return toast('先写点内容再预览', true)
-    window.open(`/post/${p.slug}?preview=1`, '_blank')
+    window.open(`/post/${p.slug}?preview=1`, '_blank', 'noopener')
   })
   /* ---------- 查找替换（富文本高亮 <mark data-find>，保存前剥除；Markdown 模式操作纯文本） ---------- */
   let findBar = null

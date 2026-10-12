@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cloudflare 基础 - 博客号文档</title>
+<meta name="description" content="Workers、D1、R2、定时任务、域名与 Turnstile：看懂这套博客跑在 Cloudflare 上的每个部件，控制台巡检、常用命令与免费额度速查。">
+<meta property="og:title" content="Cloudflare 基础 - 博客号文档">
+<meta property="og:description" content="Workers、D1、R2、定时任务、域名与 Turnstile：看懂这套博客跑在 Cloudflare 上的每个部件，控制台巡检、常用命令与免费额度速查。">
+<meta property="og:type" content="article">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">
+      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">文档中心</a>
+      <a href="../index.html">返回官网</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="docs-shell docs-shell-toc">
+  
+    <aside class="docs-sidebar">
+      <a class="docs-side-title" href="index.html">📚 文档中心</a>
+      <ul class="docs-side-list">
+      <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a class="is-active" href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+      <li><a href="guide.html">📖 使用手册</a></li>
+      <li><a href="plaza.html">🧭 广场</a></li>
+      <li><a href="themes.html">🎨 主题开发</a></li>
+      <li><a href="plugins.html">🧩 插件开发</a></li>
+      <li><a href="api.html">🔌 API 参考</a></li>
+      <li><a href="typography.html">🩺 排版规范</a></li>
+      <li><a href="demo.html">🎪 演示站指南</a></li>
+      <li><a href="roadmap.html">🗺️ 路线图</a></li>
+      <li><a href="versions.html">🏷️ 版本更新说明</a></li>
+      <li><a href="changelog.html">📜 更新日志</a></li>
+      </ul>
+      <a class="docs-side-extra" href="../llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+    </aside>
+  <main class="docs-main">
+    <div class="docs-crumbs">
+      <a href="index.html">文档中心</a><span>/</span><b>☁️ Cloudflare 基础</b>
+      <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/CLOUDFLARE-BASICS.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
+    </div>
+    <article class="doc-md">
+<h1 id="cloudflare-基础使用教程">Cloudflare 基础使用教程</h1><blockquote>
+<p>围绕这套博客实际用到的 Cloudflare 功能，讲清楚「是什么、在控制台哪里看、日常怎么操作」。
+与其它文档的分工：部署的完整步骤看 <a href="deploy.html">部署教程</a>，日常使用看 <a href="guide.html">使用手册</a>，演示站看 <a href="demo.html">演示站指南</a>——本文只讲 Cloudflare 平台本身，不重复部署教学。
+文中资源名以在线示例（blog.xiaowuleyi.com：Worker <code>xwblog</code>、数据库 <code>xwblog-db</code>、图床桶 <code>xwblog-images</code>，与仓库内 wrangler.jsonc 一致）为参照；部署自己的实例时换成你自己的资源名即可。</p>
+</blockquote>
+<h2 id="目录">目录</h2><ol>
+<li><a href="#1-全景这个博客用了-cloudflare-的哪些东西">全景：这个博客用了 Cloudflare 的哪些东西</a></li>
+<li><a href="#2-两扇门控制台与-wrangler-命令行">两扇门：控制台与 wrangler 命令行</a></li>
+<li><a href="#3-workers博客的发动机">Workers——博客的发动机</a></li>
+<li><a href="#4-d1数据库">D1——数据库</a></li>
+<li><a href="#5-r2图床和备份柜">R2——图床和备份柜</a></li>
+<li><a href="#6-cron-triggers定时闹钟">Cron Triggers——定时闹钟</a></li>
+<li><a href="#7-域名与-dns门口的牌匾">域名与 DNS——门口的牌匾</a></li>
+<li><a href="#8-turnstile注册人机验证">Turnstile——注册人机验证</a></li>
+<li><a href="#9-环境变量与密钥vars--secrets">环境变量与密钥（vars / secrets）</a></li>
+<li><a href="#10-常用命令速查">常用命令速查</a></li>
+<li><a href="#11-免费额度与用量查看">免费额度与用量查看</a></li>
+<li><a href="#12-常见运维场景手册">常见运维场景手册</a></li>
+<li><a href="#13-安全注意事项">安全注意事项</a></li>
+</ol>
+<hr>
+<h2 id="1-全景这个博客用了-cloudflare-的哪些东西">1. 全景：这个博客用了 Cloudflare 的哪些东西</h2><p>这个博客<strong>没有自己的服务器</strong>：代码、数据库、图片、定时任务全部跑在 Cloudflare 上。用到的产品一共 6 样：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>产品</th>
+<th>一句话解释</th>
+<th>本项目的资源</th>
+<th>控制台位置（大致）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Workers</strong></td>
+<td>跑后端代码的运行时，整个博客的程序本体</td>
+<td>Worker <code>xwblog</code>（演示站另有 <code>xwblog-demo</code>）</td>
+<td>Workers &amp; Pages → xwblog</td>
+</tr>
+<tr>
+<td><strong>D1</strong></td>
+<td>云端 SQLite 数据库，存文章/评论/设置/会员</td>
+<td>库 <code>xwblog-db</code></td>
+<td>Storage &amp; Databases → D1</td>
+</tr>
+<tr>
+<td><strong>R2</strong></td>
+<td>对象存储（文件柜），图床 + 数据库备份</td>
+<td>桶 <code>xwblog-images</code></td>
+<td>Storage &amp; Databases → R2</td>
+</tr>
+<tr>
+<td><strong>Cron Triggers</strong></td>
+<td>定时任务（闹钟），挂在 Worker 上</td>
+<td>2 条 cron（见第 6 节）</td>
+<td>Worker 的 Settings → Trigger Events</td>
+</tr>
+<tr>
+<td><strong>自定义域名 / DNS</strong></td>
+<td>访客入口 <code>blog.xiaowuleyi.com</code>，自动 HTTPS</td>
+<td>域名 <code>xiaowuleyi.com</code></td>
+<td>DNS / Worker 的 Domains &amp; Routes</td>
+</tr>
+<tr>
+<td><strong>Turnstile</strong></td>
+<td>人机验证（验证码），拦注册机器人</td>
+<td>一对密钥（配置在后台「设置」）</td>
+<td>Turnstile 菜单</td>
+</tr>
+</tbody></table></div>
+<p>一次访问的完整链路：</p>
+<div class="codeblock"><pre><code>浏览器
+ │  https://blog.xiaowuleyi.com
+ ▼
+Cloudflare 边缘节点（全球就近接入，自动 HTTPS 证书）
+ │
+ ▼
+Worker「xwblog」—— src/index.ts 编译后的程序
+ ├─ /admin/ 的 JS/CSS 等静态文件 → ASSETS（public/ 目录直出）
+ ├─ 文章页 / 接口 / 评论 / RSS / 搜索… → Worker 代码自己处理（hono 路由）
+ ├─ 查文章、存评论、读设置…        → D1「xwblog-db」
+ └─ 图片上传 / 输出（/images/…）   → R2「xwblog-images」
+      └─ 每晚北京时间 00:30 备份：D1 全库导出成 JSON 存进 R2 的 backups/ 目录</code></pre></div><p>记住这张图，后面每一节就是把它拆开讲。</p>
+<h2 id="2-两扇门控制台与-wrangler-命令行">2. 两扇门：控制台与 wrangler 命令行</h2><p>操作 Cloudflare 有两个入口，干不同的事用不同的门：</p>
+<p><strong>① 网页控制台</strong> <a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer">dash.cloudflare.com</a>
+看数据、看日志、看用量、改 DNS、配 Turnstile——凡是「看」和「点」的操作都在这里。浏览器书签常备。</p>
+<p><strong>② wrangler 命令行</strong>（Cloudflare 官方 CLI，本项目 devDependencies 里已带，用 <code>npx wrangler</code> 调用）
+部署代码、执行 SQL、实时看日志——凡是「执行」的操作走命令行。首次使用先登录（会弹浏览器授权）：</p>
+<div class="codeblock" data-lang="bash"><pre><code>npx wrangler login    # 授权本机操作你的 Cloudflare 账号
+npx wrangler whoami   # 确认登录成功，显示账号名</code></pre></div><p>登录凭证保存在本机（<code>~/.wrangler/</code>），不进代码库；换电脑要重新 login。</p>
+<p><strong>经验法则</strong>：日常巡检用控制台；一切会改动线上的批量操作（部署、改数据、导出备份）用命令行，因为命令行动作都有明确记录、可重复、可回退。</p>
+<h2 id="3-workers博客的发动机">3. Workers——博客的发动机</h2><h3 id="31-它是什么">3.1 它是什么</h3><p>Workers 是 Cloudflare 的<strong>边缘计算运行时</strong>：你把一段 TS/JS 代码交给它，它把代码分发到全球几百个数据中心，每个请求都由离访客最近的那台机器处理，没有传统意义上的「服务器」要维护——不用装系统、配 nginx、续证书。</p>
+<p>本项目整个后端（30 余个 TS 文件 + hono 路由）就是一个 Worker。所谓「部署博客」= 把 <code>src/</code> 打包部署到 Workers。</p>
+<h3 id="32-本项目的配置wranglerjsonc-逐段解读">3.2 本项目的配置：wrangler.jsonc 逐段解读</h3><p><code>wrangler.jsonc</code> 是 Worker 的「档案表」，部署时 wrangler 按它办事：</p>
+<div class="codeblock" data-lang="jsonc"><pre><code>&quot;name&quot;: &quot;xwblog&quot;                        // Worker 的名字，也是控制台里的资源名
+&quot;main&quot;: &quot;src/index.ts&quot;                  // 代码入口，整个后端从这里开始
+&quot;compatibility_date&quot;: &quot;2025-09-01&quot;      // 运行时行为基准日期（平台 API 变更按这个日期的语义执行，一般不轻易动）
+&quot;assets&quot;: { &quot;directory&quot;: &quot;./public&quot;, &quot;binding&quot;: &quot;ASSETS&quot; }
+                                        // 静态资源目录：public/ 里的文件直接对外，不进 Worker 代码
+                                        // 后台 SPA（public/admin/）、表情图、favicon 都靠它
+&quot;rules&quot;: [{ &quot;type&quot;: &quot;Text&quot;, &quot;globs&quot;: [&quot;**/*.css&quot;, &quot;**/*.sql&quot;] }]
+                                        // 主题 CSS 和 schema.sql 以文本形式打进包里（页面内联输出/冷启动建表用）
+&quot;d1_databases&quot;: [{ &quot;binding&quot;: &quot;DB&quot;, &quot;database_name&quot;: &quot;xwblog-db&quot;, &quot;database_id&quot;: &quot;…&quot; }]
+                                        // 绑定 D1：代码里用 env.DB 访问；database_id 是库的唯一标识
+&quot;r2_buckets&quot;: [{ &quot;binding&quot;: &quot;IMAGES&quot;, &quot;bucket_name&quot;: &quot;xwblog-images&quot; }]
+                                        // 绑定 R2：代码里用 env.IMAGES 访问
+&quot;triggers&quot;: { &quot;crons&quot;: [&quot;* * * * *&quot;, &quot;30 16 * * *&quot;] }
+                                        // 两条定时任务（见第 6 节）
+&quot;workers_dev&quot;: false                    // 关闭 xxx.workers.dev 平行入口，唯一入口是自定义域名（安全口径）
+&quot;observability&quot;: { &quot;enabled&quot;: true }    // 打开日志采集，控制台能看历史日志</code></pre></div><p><strong>重要</strong>：绑定（DB/IMAGES/ASSETS）、cron、域名这些配置<strong>都以 wrangler.jsonc 为准</strong>。在控制台里手动改的绑定，下次 <code>wrangler deploy</code> 会被仓库里的配置覆盖回去。想改配置，改文件再部署。</p>
+<h3 id="33-部署的三条路">3.3 部署的三条路</h3><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>路径</th>
+<th>命令/触发</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GitHub 自动部署</td>
+<td>向已接入 <strong>Workers Builds</strong> 的仓库 push → Cloudflare 自动拉取、构建、部署</td>
+<td>日常发布主路：一键部署的副本仓库默认就是这条</td>
+</tr>
+<tr>
+<td>本地手动部署</td>
+<td><code>npm run deploy</code>（即 <code>wrangler deploy</code>）</td>
+<td>想立刻把本地某个状态发上线时用</td>
+</tr>
+<tr>
+<td>演示站部署</td>
+<td><code>npm run deploy:demo</code>（<code>wrangler deploy -c wrangler.demo.jsonc</code>）</td>
+<td>部署 <code>xwblog-demo</code>，与生产资源完全隔离（当前演示站实际自托管在甲骨文，此路保留）</td>
+</tr>
+</tbody></table></div>
+<p>仓库自带的 GitHub Actions 部署工作流在<strong>没有配置部署密钥</strong>时，push 只会跑测试并跳过部署——黄字警告属正常现象，部署已由 Cloudflare 侧接管；想改用 Actions 部署见 <a href="deploy.html">部署教程</a> 第 7 节。</p>
+<h3 id="34-版本与回滚">3.4 版本与回滚</h3><p>每次部署都会在 Worker 的 <strong>Deployments</strong> 标签留下一个版本。发现新版本有问题：控制台 → Deployments → 找上一个正常版本 → <strong>Rollback</strong>，一秒切回去。这是线上救急的第一手段。</p>
+<h3 id="35-看日志">3.5 看日志</h3><ul>
+<li><strong>实时日志</strong>：<code>npx wrangler tail</code>——像看服务器终端一样，实时滚动每个请求的状态码和 <code>console.log</code>。排查线上报错的第一工具（Ctrl+C 退出）。</li>
+<li><strong>历史日志</strong>：控制台 → Worker → <strong>Logs</strong> 标签（<code>observability</code> 已开启），能查过去一段时间内的请求与报错，适合复盘。</li>
+</ul>
+<p>最常遇到的错误码：<strong>1101 = Worker 代码抛了未捕获的异常</strong>。看到 1101 就去 tail 里看堆栈，定位到具体文件行号。</p>
+<h2 id="4-d1数据库">4. D1——数据库</h2><h3 id="41-它是什么">4.1 它是什么</h3><p>D1 是 Cloudflare 的<strong>无服务器 SQLite 数据库</strong>：一个真正的 SQLite，但存在 Cloudflare 边缘、由 Worker 直接读写（本项目代码里就是 <code>env.DB.prepare(&quot;SELECT …&quot;)</code>）。不需要自己跑 MySQL、不用管备份服务器连接数，个人博客的量级完全够用。</p>
+<p>本项目库名 <strong><code>xwblog-db</code></strong>，代码绑定名 <strong><code>DB</code></strong>。文章、页面、微博、评论、设置、会员、访问统计，全在这一个库里。</p>
+<h3 id="42--最大的坑--local-和---remote-是两个世界">4.2 ⚠️ 最大的坑：<code>--local</code> 和 <code>--remote</code> 是两个世界</h3><div class="codeblock" data-lang="bash"><pre><code>npx wrangler d1 execute DB --remote --command &quot;SELECT …&quot;   # 操作【线上真库】
+npx wrangler d1 execute DB --local  --command &quot;SELECT …&quot;   # 操作【本地模拟库】</code></pre></div><ul>
+<li><code>--remote</code>：<strong>线上的 xwblog-db</strong>，动的是真实数据。</li>
+<li><code>--local</code>：本机 <code>.wrangler/state/</code> 目录下的模拟库，只服务 <code>npm run dev</code> 本地开发，<strong>和线上毫无关系</strong>。</li>
+</ul>
+<p>执行任何 D1 命令前先看清有没有 <code>--remote</code>。反过来这也是安全垫：本地怎么折腾都不会伤到线上。</p>
+<h3 id="43-日常操作">4.3 日常操作</h3><div class="codeblock" data-lang="bash"><pre><code># 查询（线上）：比如看有多少篇已发布文章
+npx wrangler d1 execute xwblog-db --remote --command &quot;SELECT count(*) FROM posts WHERE deleted_at IS NULL AND status='published'&quot;
+
+# 初始化/更新表结构（幂等，可重复执行；就是 package.json 里的 db:init:remote）
+npx wrangler d1 execute DB --remote --file schema.sql
+
+# 全库导出成 SQL 文件（手动备份的一种）
+npx wrangler d1 export xwblog-db --remote --output=d1-backup.sql</code></pre></div><p>库名 <code>xwblog-db</code> 和绑定名 <code>DB</code> 都能当命令参数，效果一样。另外，<strong>控制台的 D1 页面也能直接浏览表、跑查询</strong>，适合随手看看数据（只读心态使用）。</p>
+<blockquote>
+<p>写 UPDATE/DELETE 前的纪律：先跑一次对应的 SELECT 确认影响范围，再导出一份备份，然后才动手。</p>
+</blockquote>
+<h3 id="44-备份已经自动在做">4.4 备份：已经自动在做</h3><p>不需要手动操心日常备份——每晚<strong>北京时间 00:30</strong> 的 cron 会把整个 D1 导出成 JSON，存进 R2 桶的 <code>backups/</code> 目录，命名 <code>xwblog-2026-10-12.json</code> 这样，<strong>滚动保留最近 30 份</strong>，备份完成/异常会发 Telegram 通知（实现在 <code>src/backup.ts</code>）。</p>
+<p>恢复方法见 <a href="guide.html#19-升级备份与数据导出">使用手册</a>「升级、备份与数据导出」；核心就是把 R2 里的 JSON 逐表灌回 D1。</p>
+<h2 id="5-r2图床和备份柜">5. R2——图床和备份柜</h2><h3 id="51-它是什么">5.1 它是什么</h3><p>R2 是 Cloudflare 的<strong>对象存储</strong>（同类产品是 AWS S3）：一个存文件的桶，按「对象 = key + 内容」组织。最大的卖点：<strong>出口流量免费</strong>，图片再多也不收流量费。</p>
+<p>本项目桶名 <strong><code>xwblog-images</code></strong>，代码绑定名 <strong><code>IMAGES</code></strong>。里面有两类东西：</p>
+<ol>
+<li><strong>图片</strong>：后台上传、文章里转存的图，key 形如 <code>images/xxxxx.png</code></li>
+<li><strong>数据库备份</strong>：<code>backups/</code> 前缀下的每日 JSON（见上节）</li>
+</ol>
+<h3 id="52-桶是私有的这是设计不是遗漏">5.2 桶是私有的——这是设计，不是遗漏</h3><p>桶<strong>没有开公开访问</strong>。图片不是 <code>https://xxx.r2.dev/图名</code> 这种直链，而是统一走 Worker 的 <code>/images/</code> 路由输出（带缓存头）。好处：</p>
+<ul>
+<li>桶的任何内容都不可能被外人直接列举/下载，更安全</li>
+<li>删除图片立即生效，不存在「桶里删了缓存还在」的错位</li>
+<li>key 规则由代码统一把守（魔数校验、mime 纠正都在上传链路里）</li>
+</ul>
+<p>所以<strong>日常不要在控制台里手动上传/删除桶里的文件</strong>：图片在 D1 里有登记，手动删除会留下死链；真要清理媒体，用后台「媒体 → 体检」的未引用扫描。</p>
+<h3 id="53-操作方式">5.3 操作方式</h3><ul>
+<li><strong>看</strong>：控制台 R2 页 → xwblog-images，可浏览对象、下载。查备份、抢救文件时用。</li>
+<li><strong>命令行</strong>（偶尔用）：</li>
+</ul>
+<div class="codeblock" data-lang="bash"><pre><code># 取一份备份到本地
+npx wrangler r2 object get xwblog-images/backups/xwblog-2026-10-12.json --file=backup.json
+
+# 上传/删除单个对象（日常用不到，知道有这命令即可）
+npx wrangler r2 object put xwblog-images/test.txt --file=./test.txt
+npx wrangler r2 object delete xwblog-images/test.txt</code></pre></div><h2 id="6-cron-triggers定时闹钟">6. Cron Triggers——定时闹钟</h2><h3 id="61-cron-表达式速成">6.1 cron 表达式速成</h3><p>Cron Trigger 就是「到点叫醒 Worker」。表达式 5 段，含义：<code>分 时 日 月 周</code>，通配符 <code>*</code> = 每，<code>*/2</code> = 每隔 2。<strong>注意：cron 按 UTC 时间执行</strong>，北京时间 = UTC + 8。</p>
+<p>本项目 <code>wrangler.jsonc</code> 里两条：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>表达式</th>
+<th>UTC 含义</th>
+<th>北京时间</th>
+<th>干什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>* * * * *</code></td>
+<td>每分钟</td>
+<td>每分钟</td>
+<td>扫描「定时发布」的文章，到点就转成已发布（<code>scheduler.ts</code>）</td>
+</tr>
+<tr>
+<td><code>30 16 * * *</code></td>
+<td>每天 16:30</td>
+<td>每天 <strong>00:30</strong></td>
+<td>夜间备份：D1 全库 → R2 <code>backups/</code>，滚动 30 份</td>
+</tr>
+</tbody></table></div>
+<p>（演示站配置里还有一条 <code>23 */2 * * *</code> = 每 2 小时清库重灌种子数据，那是 demo 站自己的。）</p>
+<h3 id="62-查看修改调试">6.2 查看、修改、调试</h3><ul>
+<li><strong>看</strong>：控制台 → Worker → Settings → Trigger Events；或直接看 <code>wrangler.jsonc</code> 的 <code>triggers</code>（代码为准）。</li>
+<li><strong>改</strong>：改 <code>wrangler.jsonc</code> 再部署即可，免费版每账号可挂 5 条 cron（现用 2 条）。</li>
+<li><strong>本地调试</strong>：<code>wrangler dev --test-scheduled</code> 启动后，手动触发一次：</li>
+</ul>
+<div class="codeblock" data-lang="bash"><pre><code>curl &quot;http://localhost:8787/__scheduled?cron=30+16+*+*+*&quot;</code></pre></div><blockquote>
+<p>时区换算易错点：想「北京时间每天 08:00」跑任务，cron 要写 <code>0 0 * * *</code>（UTC 0 点）。算完 UTC 再写进配置。</p>
+</blockquote>
+<h2 id="7-域名与-dns门口的牌匾">7. 域名与 DNS——门口的牌匾</h2><h3 id="71-域名托管与-dns-记录">7.1 域名托管与 DNS 记录</h3><p><code>xiaowuleyi.com</code> 的 NS（域名服务器）托管在 Cloudflare——不管域名当初在哪买的，解析都由 CF 管理。控制台 → 该域名 → <strong>DNS</strong> 页可以看/增/改记录。常见记录两种：</p>
+<ul>
+<li><strong>A 记录</strong>：域名 → IPv4 地址（传统「指向一台服务器」的用法）</li>
+<li><strong>CNAME</strong>：域名 → 另一个域名（「跟着它走」）</li>
+</ul>
+<h3 id="72-橙云与灰云">7.2 橙云与灰云</h3><p>DNS 记录前有个云朵图标：<strong>点亮的橙云 = 流量经过 Cloudflare 代理</strong>（隐藏真实源站 IP、享受 CDN 缓存和自动 HTTPS）；灰云 = 仅做 DNS 解析、直连源站。本博客的域名指向 Cloudflare 自己的服务，天然全程橙色。</p>
+<h3 id="73-自定义域名绑定博客入口的由来">7.3 自定义域名绑定（博客入口的由来）</h3><p>博客入口 <code>blog.xiaowuleyi.com</code> 是通过 <strong>Custom Domain</strong> 绑到 Worker 上的：控制台 → Workers &amp; Pages → xwblog → Settings → <strong>Domains &amp; Routes</strong> → Add Custom Domain。添加后 Cloudflare 自动完成三件事：建好 DNS 记录、签发 HTTPS 证书、把该域名的流量路由到 Worker。代码层面等价的写法是 wrangler.jsonc 里的 <code>routes</code>（<code>wrangler.demo.jsonc</code> 里有一条被注释的例子可参考），两种方式都行。</p>
+<p>配合 <code>workers_dev: false</code>，现在<strong>唯一入口</strong>就是 <code>blog.xiaowuleyi.com</code>，<code>xwblog.&lt;子域&gt;.workers.dev</code> 的平行入口已关闭（2026-10-12 审计口径）。</p>
+<h3 id="74-别混的两个域名">7.4 别混的两个域名</h3><ul>
+<li><code>blog.xiaowuleyi.com</code> —— 本博客，跑在 Cloudflare Worker 上</li>
+<li><code>demo.bloghao.com</code> / <code>bloghao.com</code> —— 演示站与官网，<strong>自托管在甲骨文服务器</strong>（Caddy 直出），只是 DNS 记录仍由 CF 管理；它们不经过本 Worker，排查问题别往 Worker 身上找</li>
+</ul>
+<h2 id="8-turnstile注册人机验证">8. Turnstile——注册人机验证</h2><h3 id="81-它是什么">8.1 它是什么</h3><p>Turnstile 是 Cloudflare 免费的人机验证组件（验证码的现代替代品，无使用量上限）：大多数真人<strong>无感通过</strong>，机器人则过不去。本博客用它拦会员注册的机器批量注册（2026-10 审计 A2 项）；登录和评论<strong>不</strong>校验，只守注册口。</p>
+<h3 id="82-两把钥匙">8.2 两把钥匙</h3><ul>
+<li><strong>Site Key（站点密钥）</strong>：公开的，嵌在前端页面里，谁都能看到，不是秘密</li>
+<li><strong>Secret Key（私钥）</strong>：保密的，服务端拿它去 Cloudflare 验证用户提交的令牌</li>
+</ul>
+<p>本项目这两把钥匙<strong>存放在后台「设置」</strong>（D1 的 settings 表，私钥在后台响应里打码显示），两个键<strong>成对启用</strong>：只填一把保存会被拒绝；<strong>都留空 = 关闭验证</strong>。校验在服务端 <code>/api/member/register</code>，fail closed——验证服务异常时宁可挡下注册，不留无验证窗口。</p>
+<h3 id="83-创建更换-turnstile-站点">8.3 创建/更换 Turnstile 站点</h3><ol>
+<li>控制台左侧 → <strong>Turnstile</strong> → Add site</li>
+<li>Hostname 填 <code>blog.xiaowuleyi.com</code>；Widget Mode 选 <strong>Managed</strong>（托管，无感体验最好）</li>
+<li>提交后得到 Site Key 和 Secret Key</li>
+<li>打开博客后台 → 设置 → 把两把钥匙<strong>成对</strong>填入 Turnstile 两栏 → 保存</li>
+</ol>
+<p>换钥匙 = 旧钥匙作废，注意同时更新后台设置，否则注册页的验证会一直失败。</p>
+<h2 id="9-环境变量与密钥vars--secrets">9. 环境变量与密钥（vars / secrets）</h2><p>Workers 代码可以通过两种方式拿到「代码之外的配置」：</p>
+<ul>
+<li><strong>vars（明文变量）</strong>：写在 wrangler.jsonc 的 <code>&quot;vars&quot;</code> 里，随代码部署。本项目唯一用例：演示站配置里的 <code>&quot;vars&quot;: { &quot;DEMO_MODE&quot;: &quot;1&quot; }</code>——生产配置没有任何 vars。</li>
+<li><strong>secrets（加密变量）</strong>：<code>npx wrangler secret put 名字</code> 或控制台里设置，加密存储、设置后不可查看。适合 API Token 这类敏感值。</li>
+</ul>
+<p><strong>本项目实际口径</strong>：业务密钥（开放 API 令牌、Telegram Bot Token、Turnstile 私钥、Buffer 令牌等）<strong>不走 wrangler secrets，而是存后台「设置」</strong>（D1 settings 表）——好处是随时在后台改、不用重新部署，且后台显示时全部打码。wrangler secrets 目前只在 GitHub Actions 部署链路里用到（部署工作流持有一枚有 Workers 部署权限的 API Token；没配密钥的仓库 push 只跑测试）。</p>
+<p>若将来要手动创建部署用 API Token：控制台 → 我的个人资料 → <strong>API Tokens</strong> → 用「Edit Cloudflare Workers」模板，<strong>权限给到刚够用为止</strong>；泄露立刻 Roll（作废）重建。</p>
+<h2 id="10-常用命令速查">10. 常用命令速查</h2><div class="codeblock" data-lang="bash"><pre><code># —— 账号 ——
+npx wrangler login                 # 登录（浏览器授权）
+npx wrangler whoami                # 确认当前账号
+
+# —— 本地开发 ——
+npm run dev                        # 本地起服务（wrangler dev），D1/R2 走本地模拟库，改代码即生效
+npm run dev:demo                   # 演示站本地预览（自动建表+播种）
+
+# —— 部署与回滚 ——
+npm run deploy                     # 部署生产 Worker（wrangler deploy）
+npm run deploy:demo                # 部署演示站配置
+# 回滚走控制台 Deployments → Rollback，或 npx wrangler rollback
+
+# —— 日志 ——
+npx wrangler tail                  # 实时滚动线上日志（排查 1101 报错必备）
+
+# —— D1 ——
+npx wrangler d1 execute xwblog-db --remote --command &quot;SELECT …&quot;   # 线上查询
+npx wrangler d1 execute DB --remote --file schema.sql             # 初始化表结构（幂等）
+npx wrangler d1 export xwblog-db --remote --output=backup.sql     # 全库导出
+# ⚠️ --local 是本地模拟库，与线上无关；改线上必须 --remote
+
+# —— R2 ——
+npx wrangler r2 object get xwblog-images/backups/xwblog-2026-10-12.json --file=out.json
+npx wrangler r2 object put xwblog-images/&lt;key&gt; --file=&lt;本地文件&gt;
+npx wrangler r2 object delete xwblog-images/&lt;key&gt;
+
+# —— 定时任务调试 ——
+npx wrangler dev --test-scheduled  # 本地可手动触发 cron：
+curl &quot;http://localhost:8787/__scheduled?cron=30+16+*+*+*&quot;</code></pre></div><h2 id="11-免费额度与用量查看">11. 免费额度与用量查看</h2><p>本项目在免费套餐内运行，各产品免费额度（个人博客绰绰有余，具体以官方 Limits 页为准）：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>产品</th>
+<th>免费额度</th>
+<th>超额后果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Workers</td>
+<td><strong>10 万次请求/天</strong>（UTC 零点重置），每次调用 10ms CPU 时间；静态资源（assets 直出的部分）不计入</td>
+<td>当天后续请求被拒，次日恢复</td>
+</tr>
+<tr>
+<td>D1</td>
+<td>5 GB 存储 / 500 万行读/天 / 10 万行写/天</td>
+<td>读到达上限后查询被限流</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>10 GB 存储/月；写（Class A）100 万次/月；读（Class B）1000 万次/月；出口流量免费</td>
+<td>需绑卡后按量计费</td>
+</tr>
+<tr>
+<td>Turnstile</td>
+<td>无上限，完全免费</td>
+<td>——</td>
+</tr>
+<tr>
+<td>Cron</td>
+<td>每账号 5 条（现用 2 条）</td>
+<td>——</td>
+</tr>
+</tbody></table></div>
+<p><strong>哪里看用量</strong>：</p>
+<ul>
+<li>Worker 的 <strong>Metrics</strong> 标签：请求数、错误率、CPU 用时</li>
+<li>D1 / R2 各自的控制台页：存储量与读写操作量</li>
+<li>账号首页概览也有汇总</li>
+</ul>
+<p>两点提醒：Workers 免费版超限是「当天拒绝服务」不会扣钱；R2 超出免费额度会<strong>真实计费</strong>（要求绑过卡），建议在账号的 Notification 里配一条用量告警。当前量级（个位数 GB、日均几千请求）离限额很远，无需焦虑。</p>
+<h2 id="12-常见运维场景手册">12. 常见运维场景手册</h2><p><strong>Q：网站打不开/报错 500，先看什么？</strong>
+控制台 → Worker → Metrics 看错误率是否飙高 → <code>npx wrangler tail</code> 盯实时日志复现一次 → 多半是 1101（代码异常），按堆栈定位。若刚部署过新版本，Deployments → Rollback 回上一版，先恢复服务再慢慢查。</p>
+<p><strong>Q：改了代码怎么上线？</strong>
+向已接入 Workers Builds 的仓库 push 即自动部署（几分钟内生效）；急修也可以本地 <code>npm run deploy</code> 直发。</p>
+<p><strong>Q：想手动查一条数据 / 改一条数据？</strong>
+<code>wrangler d1 execute xwblog-db --remote --command &quot;…&quot;</code>。改数据前先导出备份，UPDATE/DELETE 一定带 WHERE。</p>
+<p><strong>Q：想下载一份昨天的备份？</strong>
+控制台 R2 → xwblog-images → <code>backups/</code> 目录下载，或命令行 <code>r2 object get</code>（见第 10 节）。恢复步骤见 <code>docs/GUIDE.md</code>。</p>
+<p><strong>Q：新电脑上怎么把开发环境跑起来？</strong>
+装 Node ≥ 18 → <code>npm install</code> → <code>npx wrangler login</code> → <code>npm run dev</code>。本地库是空的模拟库，跑 <code>npm run db:init:local</code> 建表即可开始开发，全程碰不到线上数据。</p>
+<p><strong>Q：注册页的人机验证好像没生效？</strong>
+后台「设置」检查 Turnstile 两把钥匙是否都填了（只填一把会被拒绝保存）；再确认 Turnstile 站点的 Hostname 包含当前域名。</p>
+<p><strong>Q：cron 到点没执行？</strong>
+确认改动是否部署过（cron 改动在 wrangler.jsonc，要重新部署才生效）；控制台 Worker 的 Trigger Events 里能看到计划的 cron；本地复现用 <code>--test-scheduled</code>（见第 6 节）。</p>
+<h2 id="13-安全注意事项">13. 安全注意事项</h2><p>现状盘点（大部分已默认做到，列出来防止将来改坏）：</p>
+<ul>
+<li><strong>控制台账号开 2FA</strong>——它管着博客的全部数据，是最值得保护的入口</li>
+<li><strong>API Token 最小权限</strong>：部署用的 token 只给 Workers 相关权限；泄露立即作废重建</li>
+<li><strong>workers.dev 平行入口已关</strong>（<code>workers_dev: false</code>），站点唯一入口是自定义域</li>
+<li><strong>R2 桶保持私有</strong>，图片只经 Worker 的 <code>/images/</code> 路由输出；不要为了「方便」开公开桶</li>
+<li><strong>密钥不进代码库</strong>：业务密钥存后台设置（打码），仓库里永远不会出现明文 token；往 wrangler.jsonc 加 vars 时只放非敏感值</li>
+<li><strong><code>--remote</code> 命令当生产操作对待</strong>：执行前看清目标库、先备份再改数</li>
+</ul>
+<hr>
+<h2 id="官方文档入口">官方文档入口</h2><ul>
+<li>Workers 教程与概念：<a href="https://developers.cloudflare.com/workers/" target="_blank" rel="noopener noreferrer">https://developers.cloudflare.com/workers/</a></li>
+<li>wrangler 全部命令：<a href="https://developers.cloudflare.com/workers/wrangler/commands/" target="_blank" rel="noopener noreferrer">https://developers.cloudflare.com/workers/wrangler/commands/</a></li>
+<li>D1：<a href="https://developers.cloudflare.com/d1/" target="_blank" rel="noopener noreferrer">https://developers.cloudflare.com/d1/</a>（限额：<a href="https://developers.cloudflare.com/d1/platform/limits/" target="_blank" rel="noopener noreferrer">https://developers.cloudflare.com/d1/platform/limits/</a>）</li>
+<li>R2：<a href="https://developers.cloudflare.com/r2/" target="_blank" rel="noopener noreferrer">https://developers.cloudflare.com/r2/</a></li>
+<li>Cron Triggers：<a href="https://developers.cloudflare.com/workers/configuration/cron-triggers/" target="_blank" rel="noopener noreferrer">https://developers.cloudflare.com/workers/configuration/cron-triggers/</a></li>
+<li>Turnstile：<a href="https://developers.cloudflare.com/turnstile/" target="_blank" rel="noopener noreferrer">https://developers.cloudflare.com/turnstile/</a></li>
+<li>Workers 平台限额：<a href="https://developers.cloudflare.com/workers/platform/limits/" target="_blank" rel="noopener noreferrer">https://developers.cloudflare.com/workers/platform/limits/</a></li>
+</ul>
+
+    </article>
+  
+  <nav class="docs-pager">
+    <a class="docs-pager-link is-prev" href="deploy.html"><span>← 上一篇</span><b>🚀 部署教程</b></a>
+    <a class="docs-pager-link is-next" href="guide.html"><span>下一篇 →</span><b>📖 使用手册</b></a>
+  </nav>
+  </main>
+  
+    <aside class="docs-toc">
+      <div class="docs-toc-title">本页目录</div>
+      <ul class="docs-toc-list">
+        <li class="toc-d2"><a href="#目录" data-toc="目录">目录</a></li>
+        <li class="toc-d2"><a href="#1-全景这个博客用了-cloudflare-的哪些东西" data-toc="1-全景这个博客用了-cloudflare-的哪些东西">1. 全景：这个博客用了 Cloudflare 的哪些东西</a></li>
+        <li class="toc-d2"><a href="#2-两扇门控制台与-wrangler-命令行" data-toc="2-两扇门控制台与-wrangler-命令行">2. 两扇门：控制台与 wrangler 命令行</a></li>
+        <li class="toc-d2"><a href="#3-workers博客的发动机" data-toc="3-workers博客的发动机">3. Workers——博客的发动机</a></li>
+        <li class="toc-d3"><a href="#31-它是什么" data-toc="31-它是什么">3.1 它是什么</a></li>
+        <li class="toc-d3"><a href="#32-本项目的配置wranglerjsonc-逐段解读" data-toc="32-本项目的配置wranglerjsonc-逐段解读">3.2 本项目的配置：wrangler.jsonc 逐段解读</a></li>
+        <li class="toc-d3"><a href="#33-部署的三条路" data-toc="33-部署的三条路">3.3 部署的三条路</a></li>
+        <li class="toc-d3"><a href="#34-版本与回滚" data-toc="34-版本与回滚">3.4 版本与回滚</a></li>
+        <li class="toc-d3"><a href="#35-看日志" data-toc="35-看日志">3.5 看日志</a></li>
+        <li class="toc-d2"><a href="#4-d1数据库" data-toc="4-d1数据库">4. D1——数据库</a></li>
+        <li class="toc-d3"><a href="#41-它是什么" data-toc="41-它是什么">4.1 它是什么</a></li>
+        <li class="toc-d3"><a href="#42--最大的坑--local-和---remote-是两个世界" data-toc="42--最大的坑--local-和---remote-是两个世界">4.2 ⚠️ 最大的坑：--local 和 --remote 是两个世界</a></li>
+        <li class="toc-d3"><a href="#43-日常操作" data-toc="43-日常操作">4.3 日常操作</a></li>
+        <li class="toc-d3"><a href="#44-备份已经自动在做" data-toc="44-备份已经自动在做">4.4 备份：已经自动在做</a></li>
+        <li class="toc-d2"><a href="#5-r2图床和备份柜" data-toc="5-r2图床和备份柜">5. R2——图床和备份柜</a></li>
+        <li class="toc-d3"><a href="#51-它是什么" data-toc="51-它是什么">5.1 它是什么</a></li>
+        <li class="toc-d3"><a href="#52-桶是私有的这是设计不是遗漏" data-toc="52-桶是私有的这是设计不是遗漏">5.2 桶是私有的——这是设计，不是遗漏</a></li>
+        <li class="toc-d3"><a href="#53-操作方式" data-toc="53-操作方式">5.3 操作方式</a></li>
+        <li class="toc-d2"><a href="#6-cron-triggers定时闹钟" data-toc="6-cron-triggers定时闹钟">6. Cron Triggers——定时闹钟</a></li>
+        <li class="toc-d3"><a href="#61-cron-表达式速成" data-toc="61-cron-表达式速成">6.1 cron 表达式速成</a></li>
+        <li class="toc-d3"><a href="#62-查看修改调试" data-toc="62-查看修改调试">6.2 查看、修改、调试</a></li>
+        <li class="toc-d2"><a href="#7-域名与-dns门口的牌匾" data-toc="7-域名与-dns门口的牌匾">7. 域名与 DNS——门口的牌匾</a></li>
+        <li class="toc-d3"><a href="#71-域名托管与-dns-记录" data-toc="71-域名托管与-dns-记录">7.1 域名托管与 DNS 记录</a></li>
+        <li class="toc-d3"><a href="#72-橙云与灰云" data-toc="72-橙云与灰云">7.2 橙云与灰云</a></li>
+        <li class="toc-d3"><a href="#73-自定义域名绑定博客入口的由来" data-toc="73-自定义域名绑定博客入口的由来">7.3 自定义域名绑定（博客入口的由来）</a></li>
+        <li class="toc-d3"><a href="#74-别混的两个域名" data-toc="74-别混的两个域名">7.4 别混的两个域名</a></li>
+        <li class="toc-d2"><a href="#8-turnstile注册人机验证" data-toc="8-turnstile注册人机验证">8. Turnstile——注册人机验证</a></li>
+        <li class="toc-d3"><a href="#81-它是什么" data-toc="81-它是什么">8.1 它是什么</a></li>
+        <li class="toc-d3"><a href="#82-两把钥匙" data-toc="82-两把钥匙">8.2 两把钥匙</a></li>
+        <li class="toc-d3"><a href="#83-创建更换-turnstile-站点" data-toc="83-创建更换-turnstile-站点">8.3 创建/更换 Turnstile 站点</a></li>
+        <li class="toc-d2"><a href="#9-环境变量与密钥vars--secrets" data-toc="9-环境变量与密钥vars--secrets">9. 环境变量与密钥（vars / secrets）</a></li>
+        <li class="toc-d2"><a href="#10-常用命令速查" data-toc="10-常用命令速查">10. 常用命令速查</a></li>
+        <li class="toc-d2"><a href="#11-免费额度与用量查看" data-toc="11-免费额度与用量查看">11. 免费额度与用量查看</a></li>
+        <li class="toc-d2"><a href="#12-常见运维场景手册" data-toc="12-常见运维场景手册">12. 常见运维场景手册</a></li>
+        <li class="toc-d2"><a href="#13-安全注意事项" data-toc="13-安全注意事项">13. 安全注意事项</a></li>
+        <li class="toc-d2"><a href="#官方文档入口" data-toc="官方文档入口">官方文档入口</a></li>
+      </ul>
+    </aside>
+</div>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="../index.html">官网首页</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="../llms.txt" target="_blank" rel="noopener">AI 索引</a>
+    </span>
+  </div>
+</footer>
+<script src="../docs.js" defer></script>
+</body>
+</html>

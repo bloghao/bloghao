@@ -131,7 +131,10 @@ export function linkCardHtml(input: CardInput): string {
   const host = input.siteName ? clampText(input.siteName, 30) : hostOf(input.url)
   const title = clampText(input.title, 40) || host || '打开链接'
   const desc = clampText(input.description || '', 64)
-  const img = (input.image || '').trim()
+  // scheme 防线在生成时前移(存库侧 safeUrl 净化是兜底):href/src 只放行 http(s) 与
+  // 站内相对地址,javascript: 等一律退化(图省略、链接变 #)
+  const img = /^(https?:\/\/|\/)/i.test((input.image || '').trim()) ? (input.image || '').trim() : ''
+  const href = /^(https?:\/\/|\/)/i.test(input.url.trim()) ? input.url : '#'
   // 站内相对地址（/post/…）解析不出 host，host 位可能为空——空则不出该行
   const hostPart = host ? `<span class="lc-host">${escCard(host)}</span>` : ''
   const inner = img
@@ -141,5 +144,5 @@ export function linkCardHtml(input: CardInput): string {
     : `<span class="lc-body"><span class="lc-text"><span class="lc-title">${escCard(title)}</span>${
         desc ? `<span class="lc-desc">${escCard(desc)}</span>` : ''
       }${hostPart}</span></span>`
-  return `<a class="link-card" data-link-card="link-card" href="${escCard(input.url)}" target="_blank" rel="noopener noreferrer">${inner}</a><p><br></p>`
+  return `<a class="link-card" data-link-card="link-card" href="${escCard(href)}" target="_blank" rel="noopener noreferrer">${inner}</a><p><br></p>`
 }

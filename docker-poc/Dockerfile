@@ -18,7 +18,8 @@ COPY src/ ./src/
 COPY public/ ./public/
 COPY schema.sql ./
 # COPY 对目录是「拷内容、不拷目录本身」，shims 必须显式落到 ./docker-poc/shims/
-COPY docker-poc/server.ts docker-poc/control.ts ./docker-poc/
+# server/control/scheme 三个入口文件逐个列全——server.ts 新增兄弟模块时记得同步这里
+COPY docker-poc/server.ts docker-poc/control.ts docker-poc/scheme.ts ./docker-poc/
 COPY docker-poc/shims/ ./docker-poc/shims/
 RUN cd docker-poc && npm run build
 

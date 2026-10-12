@@ -295,7 +295,9 @@ a.wx-account:hover { opacity: 0.75; }
 .cmt-list { list-style: none; }
 .cmt-item { padding: 12px 14px; background: #f7f7f7; border-radius: 10px; margin-bottom: 10px; }
 .cmt-list > .cmt-item:last-child { margin-bottom: 0; }
-.cmt-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+/* flex-wrap：真 390px 下（头行可用 ~282px）昵称徽标与回复按钮会被挤到框内拆字（作/者、回/复 各占两行），
+ * 放开换行让放不下的整块落到第二行（与 .wb-cmt-head 同口径）；徽标/按钮整字不拆 */
+.cmt-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .cmt-name { font-size: 14px; color: var(--wx-link); font-weight: 500; }
 
 .cmt-avatar { width: 22px; height: 22px; flex: none; align-self: center; border-radius: 50%; background: var(--wx-accent); color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; }
@@ -304,7 +306,7 @@ a.wx-account:hover { opacity: 0.75; }
 .cmt-body { font-size: 15px; line-height: 1.7; margin-top: 5px; white-space: pre-wrap; word-break: break-word; }
 .cmt-children { list-style: none; margin: 10px 0 0 14px; padding-left: 12px; border-left: 2px solid var(--wx-line); }
 .cmt-children .cmt-item { background: transparent; padding: 10px 0 0; margin-bottom: 0; }
-.cmt-badge { font-size: 11px; color: var(--wx-accent); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; margin-left: 6px; font-weight: 400; }
+.cmt-badge { font-size: 11px; color: var(--wx-accent); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; margin-left: 6px; font-weight: 400; white-space: nowrap; }
 .cmt-empty { color: #bbb; font-size: 14px; padding: 10px 0 12px; text-align: center; }
 .cmt-form { margin-top: 16px; }
 .cmt-form-row { display: flex; gap: 10px; margin-bottom: 10px; }
@@ -425,13 +427,13 @@ a.wx-account:hover { opacity: 0.75; }
 
 .wb-cmt-avatar { width: 20px; height: 20px; flex: none; border-radius: 50%; background: var(--wx-accent); color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; }
 .wb-cmt-avatar-img { object-fit: cover; }
-.wb-cmt-badge { font-size: 11px; color: var(--wx-accent); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; font-weight: 400; }
+.wb-cmt-badge { font-size: 11px; color: var(--wx-accent); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; font-weight: 400; white-space: nowrap; }
 .wb-cmt-time { font-size: 11.5px; color: #b5aea1; }
 .wb-cmt-body { font-size: 14px; line-height: 1.7; margin-top: 3px; white-space: pre-wrap; word-break: break-word; color: var(--wx-text); }
 .wb-cmt-empty, .wb-cmt-loading { color: #b5aea1; font-size: 13px; padding: 8px 0; }
 .wb-cmt-reply-btn, .cmt-reply-btn {
   font-size: 12px; color: #8f887d; background: none; border: none; cursor: pointer;
-  padding: 0; margin-left: auto;
+  padding: 0; margin-left: auto; white-space: nowrap;
 }
 .wb-cmt-reply-btn:hover, .cmt-reply-btn:hover { color: var(--wx-accent); }
 .wb-cmt-reply-cancel, .cmt-reply-cancel {
@@ -587,7 +589,7 @@ a.wx-account:hover { opacity: 0.75; }
   .wb-imgs-1 img { max-height: 360px; }
 }
 
-/* ---------- 顶部站点导航（compact：首页/微博/归档/分类话题/关于我 + 会员药丸，余项降级页脚） ---------- */
+/* ---------- 顶部站点导航（compact：首页/归档/分类话题/关于我/留言板/友情链接 + 会员药丸，排行榜/随机降级页脚；微博不重复进顶栏） ---------- */
 .wx-snav {
   display: flex; flex-wrap: wrap; align-items: center; gap: 22px;
   padding: 14px 2px 12px; border-bottom: 1px solid var(--wx-line);
@@ -608,8 +610,9 @@ a.wx-account:hover { opacity: 0.75; }
 }
 .wx-snav-member:hover { color: #fff; opacity: 0.88; }
 .wx-snav-member.is-active { color: #fff; }
-@media (max-width: 480px) {
-  /* 单行横滑（2026-10-11 修：会员开启时 RSS 图标成为最后一根稻草，会员药丸被 wrap 挤成孤儿行）——
+@media (max-width: 560px) {
+  /* 单行横滑（2026-10-11 修：会员开启时 RSS 图标成为最后一根稻草，会员药丸被 wrap 挤成孤儿行；
+   * 同日导航补入留言板/友情链接后 480px 档已装不下，断点随前台 560px 档抬齐）——
    * 一行装不下就横向轻扫，滚动条隐藏；「分类话题」下拉菜单转 fixed 逃出滚动容器的裁剪
    * （overflow-x:auto 会把 overflow-y 连带算成 auto，absolute 子菜单会被剪掉） */
   .wx-snav {
@@ -623,13 +626,19 @@ a.wx-account:hover { opacity: 0.75; }
   .wx-snav > * { flex: 0 0 auto; }
   .wx-snav-link { font-size: 13.5px; }
   .wx-snav-member { font-size: 12.5px; padding: 4.5px 12px; }
-  .wx-snav-dd[open] .wx-snav-menu {
-    position: fixed;
-    top: 56px;
-    left: 14px;
-    right: 14px;
-    min-width: 0;
-    max-width: none;
+  /* 菜单打开时放开横滑裁剪（site.js 切 snav-open；:has 兜底无 JS）——WebKit 把滚动容器内
+   * fixed 子元素按容器定位（iOS 实测 fixed 菜单被剪掉看不见）。敞开后 dd 转静态、菜单以吸顶
+   * 导航为定位基准（left/right 14px 锚两端），落在导航正下方且随吸顶一起走，窄屏不戳出右缘。
+   * :has 与 class 写成独立规则——老浏览器不认 :has 会把整条选择器列表作废，别合并 */
+  .wx-snav.snav-open { overflow: visible; }
+  .wx-snav:has(.wx-snav-dd[open]) { overflow: visible; }
+  .wx-snav.snav-open .wx-snav-dd[open] { position: static; }
+  .wx-snav:has(.wx-snav-dd[open]) .wx-snav-dd[open] { position: static; }
+  .wx-snav.snav-open .wx-snav-dd[open] .wx-snav-menu {
+    position: absolute; top: calc(100% + 12px); left: 14px; right: 14px; min-width: 0; max-width: none;
+  }
+  .wx-snav:has(.wx-snav-dd[open]) .wx-snav-dd[open] .wx-snav-menu {
+    position: absolute; top: calc(100% + 12px); left: 14px; right: 14px; min-width: 0; max-width: none;
   }
 }
 

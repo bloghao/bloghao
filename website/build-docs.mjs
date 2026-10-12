@@ -19,6 +19,7 @@ const GITHUB_BLOB = 'https://github.com/bloghao/bloghao/blob/main/'
 // 文档清单：slug 决定输出文件名与站内路径，顺序即侧栏与上下篇顺序
 const DOCS = [
   { slug: 'deploy', file: 'DEPLOY.md', icon: '🚀', title: '部署教程', desc: '从注册 Cloudflare 到部署 Worker、绑定自定义域名、自动部署、备份与恢复，含 Docker 自托管。' },
+  { slug: 'cloudflare', file: 'CLOUDFLARE-BASICS.md', icon: '☁️', title: 'Cloudflare 基础', desc: 'Workers、D1、R2、定时任务、域名与 Turnstile：看懂这套博客跑在 Cloudflare 上的每个部件，控制台巡检、常用命令与免费额度速查。' },
   { slug: 'guide', file: 'GUIDE.md', icon: '📖', title: '使用手册', desc: '后台导览、写文章全流程、快捷键、评论与媒体管理、设置逐项说明。' },
   { slug: 'plaza', file: 'PLAZA.md', icon: '🧭', title: '广场', desc: '内容聚合流：三步接入官方广场，让每篇文章与微博被更多博主看到；含混排口径与自建 hub。' },
   { slug: 'themes', file: 'THEMES.md', icon: '🎨', title: '主题开发', desc: '一套主题 = 八个必需渲染函数（+ 可选 member / rank）+ 全局 CSS，三步注册新主题。' },
@@ -232,12 +233,18 @@ ${html}
 
 // 文档中心落地页
 function indexPage() {
+  // DOCS 管线之外的手工维护卡片：官网独立页（页面在 public/docs/security-audit.html，
+  // 非本脚本渲染），登记在这里保证每次重建不丢入口
+  const auditCard = `
+        <a class="card card-link" href="security-audit.html">
+          <h3>🛡️ 安全审计报告</h3><p>2026-10 全量安全体检（大众版）：0 高危、27 项发现全部独立复核、21 项已修复上线。</p>
+        </a>`
   const cards = DOCS.map(
     (d) => `
         <a class="card card-link" href="${d.slug}.html">
           <h3>${d.icon} ${d.title}</h3><p>${d.desc}</p>
         </a>`
-  ).join('')
+  ).join('') + auditCard
   const body = `
 <main id="top">
   <section class="hero docs-hero">
@@ -261,7 +268,7 @@ function indexPage() {
 </main>`
   return page({
     title: '文档中心 - 博客号 BlogHao',
-    description: '博客号 BlogHao 全部中文文档：部署教程、使用手册、主题开发、插件开发、API 参考、排版规范、演示站指南、路线图、版本大事记与逐版本更新日志。',
+    description: '博客号 BlogHao 全部中文文档：部署教程、使用手册、Cloudflare 基础、主题开发、插件开发、API 参考、排版规范、演示站指南、路线图、版本大事记与逐版本更新日志。',
     body,
   })
 }

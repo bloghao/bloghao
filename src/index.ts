@@ -6,10 +6,11 @@ import { siteClosedResponse } from './closed'
 import { clientIp, getCookie, rateLimit } from './auth'
 import { ensureSchema, getPostBySlug, getSettings, listCategories, listPublishedTags, listPosts, listSitemapPages, listSitemapPosts } from './db'
 import { isEn, recordEditionFailure } from './i18n'
+import { mcpRoutes } from './mcp'
 import { goPageHtml, isTrustedOutHost } from './outlink'
 import { renderAbout, renderArchive, renderCategory, renderGuestbook, renderHome, renderLinks, renderMember, renderNotFound, renderPage, renderPost, renderRank, renderSearch, renderWeibo } from './pages'
 import { mergeUnlockCookie, PP_COOKIE, PP_TTL_MS, verifyPostPassword } from './protect'
-import { buildRss, buildSitemap } from './rss'
+import { buildJsonFeed, buildRss, buildSitemap } from './rss'
 import { siteBase } from './render'
 import { purgeVisits } from './stats'
 import { purgeTrash } from './trash'
@@ -20,7 +21,7 @@ import { isDemo } from './utils'
 const app = new Hono<{ Bindings: Env; Variables: { user: SessionUser | null } }>()
 
 // 外链中间页的 CSP（/go 路由专用）：无脚本需求，比前台更收紧——default-src 'none' 只留内联样式
-const CSP_GO = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+const CSP_GO = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
 // 老库缺列自动补齐（幂等），每个 isolate 只执行一次
 let schemaReady: Promise<void> | null = null
@@ -52,6 +53,8 @@ app.use('*', async (c, next) => {
 })
 
 app.route('/api', api)
+// MCP 服务器（AI 助手接入，src/mcp.ts）：复用 externalToken 鉴权；闭站中间件自动覆盖（不进白名单）
+app.route('/mcp', mcpRoutes)
 
 /* ---------------- 英文测试版守卫（English 0.1，机制见 src/i18n.ts） ----------------
  * 英文版渲染抛错时：落库 editionEnStatus=fallback（下一次 getSettings 起 isEn=false，全站自动
@@ -180,6 +183,18 @@ const rssHandler: PublicHandler = async (c) => {
 }
 app.get('/rss.xml', rssHandler)
 for (const p of RSS_ALIASES) app.get(p, rssHandler)
+
+// JSON Feed 1.1（C12，buildJsonFeed 与 RSS 同一份防泄漏口径）：只有规范地址不设别名，
+// 闭站中间件同样覆盖（订阅面随闭站 503）
+const jsonFeedHandler: PublicHandler = async (c) => {
+  const settings = await getSettings(c.env.DB)
+  const { items } = await listPosts(c.env.DB, { status: 'published', limit: 50 })
+  const siteUrl = siteBase(settings, new URL(c.req.url).origin)
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  c.header('Cache-Control', 'public, max-age=600')
+  return c.body(buildJsonFeed(settings, items, siteUrl))
+}
+app.get('/feed.json', jsonFeedHandler)
 
 app.get('/sitemap.xml', async (c) => {
   const settings = await getSettings(c.env.DB)

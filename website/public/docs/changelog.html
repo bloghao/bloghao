@@ -36,6 +36,7 @@
       <a class="docs-side-title" href="index.html">📚 文档中心</a>
       <ul class="docs-side-list">
       <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
       <li><a href="guide.html">📖 使用手册</a></li>
       <li><a href="plaza.html">🧭 广场</a></li>
       <li><a href="themes.html">🎨 主题开发</a></li>
@@ -59,26 +60,58 @@
 <blockquote>
 <p>升级方式：同步本仓库最新代码后重新部署即可，D1 结构自动增量迁移；个别需要手动动作的条目以「⚠️ 升级注意」标出。开发线的完整迭代细节见各仓库 git log——这里是给部署用户的要点。</p>
 </blockquote>
-<h2 id="unreleased"><a href="https://github.com/bloghao/bloghao/compare/v2.4.0...HEAD" target="_blank" rel="noopener noreferrer">Unreleased</a></h2><p>（尚未发布的内容，日常随手记入，发布时整段移入新版本小节。）</p>
-<h2 id="240---2026-10-11"><a href="https://github.com/bloghao/bloghao/compare/v2.3.0...v2.4.0" target="_blank" rel="noopener noreferrer">2.4.0</a> - 2026-10-11</h2><p>本版本是一次<strong>发布前全面安全审计</strong>的加固批次（五路并行审计：安全核心 / API 与会员 / 数据层 / 前端 / 渲染与基础设施），加上<strong>广场微博补漏自愈</strong>——微博上广场从此不怕推送失败，广场页信息流升级三段式布局。</p>
+<h2 id="unreleased"><a href="https://github.com/bloghao/bloghao/compare/v2.5.0...HEAD" target="_blank" rel="noopener noreferrer">Unreleased</a></h2><p>（尚未发布的内容，日常随手记入，发布时整段移入新版本小节。）</p>
+<h2 id="250---2026-10-12"><a href="https://github.com/bloghao/bloghao/compare/v2.4.0...v2.5.0" target="_blank" rel="noopener noreferrer">2.5.0</a> - 2026-10-12</h2><p>本版本把「安全」升级为<strong>常态化机制</strong>：发布次日即完成第二轮全量审计（七类攻击面并行猎捕 + 独立复核，27 项发现 21 项修复，报告见 docs/），并顺手补上两块能力版图——<strong>AI 助手接入（MCP）<strong>与</strong>注册人机验证（Turnstile）</strong>；后台概览新增「系统」状态卡与版本号展示，运维状态从此一眼可见。</p>
 <h3 id="新增">新增</h3><ul>
+<li><strong>MCP 服务器（B10）</strong>：<code>POST /mcp</code> Streamable HTTP 无状态模式（JSON-RPC 2.0 手写零依赖，不开 SSE），AI 助手（Claude / Cursor 等）凭一枚令牌即可发文 / 发微博 / 查文章 / 查评论——鉴权复用开放 API 同一枚令牌（空 = 接口关闭），演示站与一键闭站自动关闭；业务校验失败回工具错误不透内部堆栈。用法见 GUIDE §8.3、协议契约见 docs/API.md</li>
+<li><strong>注册人机验证（Turnstile）</strong>：后台「设置 → 会员」成对填入 Cloudflare Turnstile 的 Site Key / Secret Key 即启用——注册需先通过人机验证，批量小号刷积分的路子基本断掉；两键成对校验（只填一个整体拒绝），Secret 全链路打码，默认关闭、不开行为与从前完全一致。站点verify 校验 fail-closed：验证服务不可用时宁可暂挡注册，不留无验证窗口</li>
+<li><strong>后台系统状态卡（B12）</strong>：概览页新增「系统」面板——微博 / 评论 / 会员体量、最近备份时间与体积、当前系统版本号，未开启备份有明确提示；<code>/admin/stats</code> 同步扩展出参</li>
+<li><strong>JSON Feed（C12）</strong>：<code>/feed.json</code> 输出 JSON Feed 1.1，与 RSS 共用同一份防泄漏口径（密码文只出作者自填摘要、会员锁文只出试读段、rssFullText 开关同效）；日期走北京时间口径</li>
+<li><strong>评论区表情选择器</strong>：文章 / 留言板 / 微博评论三处输入框旁新增「😊 表情」入口，微信文本码表情一键插入，与编辑器同一套码表</li>
+<li><strong>后台版本号展示</strong>：概览「系统」卡显示当前系统版本号（<code>src/version.ts</code> 镜像 package.json，守卫测试防漂移），升级核对不用再猜</li>
+<li><strong>自托管控制面站点投稿</strong>：官网「他们也在写博客号」目录表单的投稿接收端点与投稿卡进控制面板（Origin 白名单 + 同 IP 每小时 5 条限流 + 同 URL 去重，落盘待人工上架）</li>
+<li><strong>官网新增两页</strong>：2026-10 全量安全审计报告大众版（<code>/docs/security-audit.html</code>，普通用户也能看懂）与 Cloudflare 基础使用教程</li>
+</ul>
+<h3 id="变更">变更</h3><ul>
+<li><strong>wechat 主题导航与页脚重排</strong>：顶栏去掉「微博」独立入口（首页微博流头部自带「全部 →」，纯微博模式「首页」即微博），「留言板」「友情链接」进顶栏（挂在「关于我」后）；页脚不再重复微博/留言板/友情链接/关于我，只留 排行榜/随机/RSS/管理 等次级入口；移动端顶栏单行横滑断点从 480px 抬到 560px（多两项后一行装得下了）</li>
+</ul>
+<h3 id="安全">安全</h3><ul>
+<li><strong>第二轮全量安全审计（2026-10-12），27 项发现 21 项修复</strong>，全部带回归测试。要点：<ul>
+<li><strong>积分日上限并发竞态</strong>：记账预查与写入不在同一事务，并发可刷穿「每日 20 分」刷排行榜——改为 batch 内条件写（条件 UPDATE + 超额条件 DELETE 谓词互斥），新增竞态回归用例</li>
+<li><strong>公开写端点入站体积预检</strong>：非 GET 请求先看 Content-Length（常规 2MB / 上传与外部微博 multipart 30MB），超限 413——此前 ~99MB JSON 可整读进内存打爆 isolate</li>
+<li><strong>密码文摘要泄漏</strong>：发布后补设访问密码时残留的自动摘要继续经 RSS / meta / 列表公开——现在设锁即与旧正文摘要比对清空，存量泄漏行下次保存自愈</li>
+<li><strong>广场锁文生命周期闭环</strong>：RSS 加 <code>&lt;bloghao:locked&gt;</code> 机器可读标志、hub 拉取跳过锁文；加锁 / 升档 / 转草稿 / 删除即时广播 <code>deleted</code> 下架（<code>firePlazaRetract</code>）——「加密文不上广场」契约不再被订阅路绕过</li>
+<li><strong>出网与代理加固</strong>：书影音封面代理改走统一 SSRF 防线（重定向逐跳白名单复查 + 流式限长，新增 <code>opts.hostOk</code> 钩子）；自配 Webhook / 广场端点落配置即过公网校验</li>
+<li><strong>滥用面收口</strong>：会员评论限流叠加 IP 桶、统计打点限流收紧至 1/4、封禁会员过审不计分、关闭会员体系后存量会话按游客、恢复微博不再挤占置顶名额、TG webhook 按消息 ID 短窗幂等（超时重投不再重复发博）、演示站敏感面（备份 / 导出 / 粘贴转存 / 友链抓图）全部短路、<code>commentWebhookUrl</code> 进敏感键全链路打码</li>
+<li><strong>加固位</strong>：<code>/go</code> 中间页补 <code>frame-ancestors &#39;none&#39;</code>、编辑器预览补 <code>noopener</code>、外观查表与导出包条目名防原型链 / 路径注入、卡片链接生成时协议白名单</li>
+</ul>
+</li>
+<li>回归测试 518 → 553，冒烟 189 项同步全绿；完整报告与逐条终态见 docs/SECURITY-AUDIT-REPORT-2026-10-12.md</li>
+</ul>
+<h3 id="修复">修复</h3><ul>
+<li><strong>wechat 移动端两处</strong>：真 390px 下评论头的作者/会员徽标与回复按钮被挤到框内拆字换行（「作者」拆成两行）——评论头放开 flex 换行、整字不拆；顶栏转横向滚动后「分类话题」下拉被滚动容器剪掉——菜单打开时放开导航裁剪并转导航锚定定位（site.js 切 <code>snav-open</code>，<code>:has</code> 兜底无 JS）</li>
+<li><strong>英文测试版随 v2.4.0 代码补齐</strong>：feed 频道标题走词典、分享卡与配图删除按钮文案收尾</li>
+<li><strong>自托管（docker-poc）</strong>：控制面镜像构建补齐 scheme.ts（新增兄弟模块未进 COPY 清单导致构建必炸）；广场 hub 的 Node 运行器源码入库（此前文档引用而源码漏提交）</li>
+</ul>
+<h2 id="240---2026-10-11"><a href="https://github.com/bloghao/bloghao/compare/v2.3.0...v2.4.0" target="_blank" rel="noopener noreferrer">2.4.0</a> - 2026-10-11</h2><p>本版本是一次<strong>发布前全面安全审计</strong>的加固批次（五路并行审计：安全核心 / API 与会员 / 数据层 / 前端 / 渲染与基础设施），加上<strong>广场微博补漏自愈</strong>——微博上广场从此不怕推送失败，广场页信息流升级三段式布局。</p>
+<h3 id="新增-1">新增</h3><ul>
 <li><strong>广场微博补漏自愈</strong>：微博此前只靠「发布瞬间推送」上广场，推送失败即永久缺席且没有自愈路——新增公开微博接口（<code>GET /api/public/weibo</code>，只读、仅已发布内容、无敏感字段），广场 hub 定时拉取对齐（推送优先、拉取只补漏不覆盖，超 30 天的旧内容不补）；hub 管理端新增「手动触发补漏」。协议见 docs/PLAZA.md「微博补漏」</li>
 <li><strong>广场卡三段式信息流</strong>：广场页卡片升级为「左身份位 / 中内容 / 右内容缩略图」三段式布局，长卡短卡节奏更清晰</li>
 </ul>
-<h3 id="安全">安全</h3><ul>
+<h3 id="安全-1">安全</h3><ul>
 <li><strong>出网统一入口收口</strong>：公众号采集抓取与友链图标抓取改走统一 SSRF 防线（私网拒绝 + 重定向逐跳复查 + 响应体流式限长）——此前重定向落点不复查、响应体不设上限</li>
 <li><strong>演示站出网短路补齐</strong>：链接卡抓取、书影音搜索与封面代理三个端点此前在演示站可达（演示凭据公示），现一律 404，与「订阅与备份」外呼同口径</li>
 <li><strong>冷启动与恢复自愈</strong>：独立页面建表语句补齐软删列（特定冷启动路径曾造成整站 500 窗口，并新增「建表必须自带全部补列」的不变量测试）；恢复备份后全文索引自动重建（此前记账位随备份回灌，恢复后关键词搜索会静默失效）</li>
 <li><strong>杂项加固</strong>：链接卡抓取对畸形实体解码的 500 防护；书影音中转响应体流式限长；外部发布落库改「魔数优先」（声明 Content-Type 不可信）；会员锁文的社交卡图只出封面（OG 标记可能位于试读段之后）；采集草稿响应统一过口令剥离出口</li>
 <li><strong>回归测试 487 → 518</strong>：会话 token 全模块（哈希落库 / 查询比对 / 限流）、style 白名单净化、出网重定向逐跳复查、上传魔数与原型链穿透、Markdown 协议拒绝列表、schema 同步不变量——安全核心里此前没有守卫的面全部补齐</li>
 </ul>
-<h3 id="修复">修复</h3><ul>
+<h3 id="修复-1">修复</h3><ul>
 <li>广场微博卡在「摘要与标题同文截断」时不再重复渲染（兼容截断省略号）；广场 hub 管理端手动拉取的参数修正（此前触发即 500）</li>
 <li>备份文件名与上传年月目录统一按北京时间取日期（此前走 UTC，北京每月 1 日 0-8 点会归错档）；文章页 canonical / og:url / JSON-LD 的中文 slug 百分号编码，与 RSS / sitemap 同口径</li>
 <li>后台友链 / 页面排序请求期间防连击（此前连点会挪两格）；公众号采集插件补中文输入法回车判定</li>
 </ul>
 <h2 id="230---2026-10-11"><a href="https://github.com/bloghao/bloghao/compare/v2.2.0...v2.3.0" target="_blank" rel="noopener noreferrer">2.3.0</a> - 2026-10-11</h2><p>本版本带来 <strong>英文测试版</strong>（后台一键把前台整体切英文，异常自动回退中文）、<strong>主题外观变量</strong>（颜色 / 正文字体 / 字号不动代码即可调，内测）与一整批阅读体验升级——阅读进度条与吸顶导航、目录滚动高亮、创作热力图、上一篇 / 下一篇与标题锚点、返回顶部与代码块一键复制、评论楼层号与楼主徽标；页脚升级为站点名片、顶部导航新增 RSS 订阅入口（常用订阅路径全兼容），新站有「三步开张」引导卡，后台设置页重组为四页签、侧栏按职能重排。</p>
-<h3 id="新增-1">新增</h3><ul>
+<h3 id="新增-2">新增</h3><ul>
 <li><strong>英文测试版（内部代号 English 0.1）</strong>：后台「设置 → 语言版本」可把前台界面整体切到英文（文章与微博正文保持原文），页面顶部公示测试版横幅、测试期搜索引擎不收录（noindex）；英文版渲染出现异常时自动回退中文版并在后台顶部红色提醒（含错误摘要与时间），重新开启即重置。机制与词典集中在 <code>src/i18n.ts</code>（站长自填内容原样透传，中文版输出与历史版本完全一致）；前台 JS 文案随 <code>&lt;html data-edition=&quot;en&quot;&gt;</code> 切换</li>
 <li><strong>页脚站点名片</strong>：全站页脚升级为名片式——左侧头像、站名与简介，右侧「共 N 篇 · 约 X 万字 · YYYY 年写起」站点足迹；统计由每晚备份任务刷新、冷启动自动播种，不给页面渲染增加任何查询</li>
 <li><strong>导航 RSS 图标</strong>：所有主题的顶部导航末尾新增 RSS 订阅入口（图标随主题配色），博客圈的老朋友一眼就能找到订阅地址；wechat 主题移动端导航同步改单行横滑——会员开启时药丸不再被挤成孤儿行，「分类话题」下拉菜单转 fixed 定位逃出滚动容器裁剪</li>
@@ -94,7 +127,7 @@
 <li><strong>后台导航整改</strong>：设置页 11 个面板收进「站点 / 互动 / 进阶 / 数据」四页签——页内切换不丢未保存输入，「保存全部」跨页签生效，进阶页签集中闭站 / 灰度 / 外部服务等低频配置并提示「不确定的先别动」；侧栏按「数据 / 内容 / 互动 / 系统」四组重排，「分类」页并入文章页第二页签「分类标签」（原 <code>#/categories</code> 地址自动重定向）</li>
 </ul>
 <h2 id="220---2026-10-10"><a href="https://github.com/bloghao/bloghao/compare/v2.1.0...v2.2.0" target="_blank" rel="noopener noreferrer">2.2.0</a> - 2026-10-10</h2><p>本版本带来 <strong>会员体系</strong>（访客注册登录、积分与排行榜、会员专属文章分级）与 <strong>文章访问密码</strong>，搜索升级 FTS5 全文索引（中文友好、微博一并纳入），编辑器补齐写作五件套（表格 / 查找替换 / 本地备份 / 点图改 / 专注模式）与链接卡片；外链跳转提醒、微信表情、评论 QQ 头像、新主题「比特币」、上传图片自动剥离 EXIF/GPS 隐私元数据一并上车；官网新增内容聚合流「广场」，Docker 自托管补齐多租户控制面。</p>
-<h3 id="新增-2">新增</h3><ul>
+<h3 id="新增-3">新增</h3><ul>
 <li><strong>链接卡片与插入站内文章</strong>：编辑器「插入链接」升级三页签——「网址卡片」自动抓取目标页标题 / 摘要 / 配图生成引用卡（编辑器内实时预览、抓不到自动退化域名占位卡），「普通链接」保留原有超链接行为，新增「站内文章」页签——搜索标题或翻页浏览已发布文章，选中后可选「卡片 / 超链接」两种样式（卡片带封面与摘要，加密文带 🔒）。卡片在六套主题下各有贴合主题配色的样式，Markdown 模式退化为纯链接插入。服务端新增 <code>POST /api/admin/tools/linkmeta</code>（SSRF 防护：仅 http(s) 公网地址、限长限时限频）与 <code>GET /api/admin/posts/lookup</code>（轻出参选择器，注册在 <code>/:id</code> 之前）；机制见 <code>src/linkmeta.ts</code></li>
 <li><strong>广场</strong>：官网新增内容聚合流 <a href="https://bloghao.com/plaza/" target="_blank" rel="noopener noreferrer">bloghao.com/plaza</a>——所有开通同步的博客号，其公开文章与微博按「权重 + 新文推荐 + 随机展示」混排成一条河。后台「设置 → 服务端插件」填入广场站点 Token（向官方登记站点后发放）并开启「广场同步」插件即接入，发布文章 / 微博自动同步（加密文与会员专属文不上广场）；不想同步关掉插件即可。广场 hub 为独立 Worker（源码在 <code>plaza/</code> 目录），协议与自建指南见 docs/PLAZA.md</li>
 <li><strong>编辑器写作体验五件套</strong>：① <strong>表格</strong>——工具栏插入、光标进表格浮现行列操作条（插删行列 / 表头互换 / 删表），Markdown 模式支持管道表格语法往返不丢；② <strong>查找替换</strong>——顶栏按钮或 <code>⌘/Ctrl + F</code>，逐个 / 全部替换、区分大小写，富文本与 Markdown 模式都可用；③ <strong>本地备份兜底</strong>——未保存的输入每 2 秒留一份浏览器本地备份，断网 / 崩溃 / 误关后重进会问是否恢复；④ <strong>点击图片即可改</strong>——alt 描述与显示宽度（微信排版规范 data-w 口径）随时可调；⑤ <strong>专注模式</strong>——底栏一键隐藏全部界面只留写作区，<code>Esc</code> 退出</li>
@@ -114,7 +147,7 @@
 <li><strong>微博同步 Buffer（X 等）</strong>：服务端插件新增「微博同步 Buffer」——发微博后自动同步到 X 等社交平台，Buffer 排程平台免费档替用户承担 X API 按量计费（3 渠道）；API Key 与渠道 ID 在「设置 → 服务端插件」一键拉取，超 280 字符自动截断、<code>#话题#</code> 转 X 话题格式、站内配图走公链直传。同步建立在新增的 <code>onWeiboPublished</code> 钩子上（后台新建即发 / 草稿转发布 / 开放 API / TG 机器人四条路都触发，编辑已发布微博不重推），插件开发见 docs/PLUGINS.md</li>
 <li><strong>Docker 多租户控制面</strong>：<code>docker-poc</code> 新增网页控制台（<code>control.ts</code>）——开站 / 停用 / 删除 / 重置密码免重启热加载；配套「开台脚本 <code>add-tenant.sh</code>」一条命令开一个新博客站（<code>--demo</code> 开演示种子站、<code>--remove</code> 下线保留数据，兼容 jq / node 双后端），并附 1GB 内存小机部署清单 <a href="https://github.com/bloghao/bloghao/blob/main/docker-poc/DEPLOY-MICRO.md">DEPLOY-MICRO.md</a>（跑 30~50 个博客站的完整路径与容量账）</li>
 </ul>
-<h3 id="变更">变更</h3><ul>
+<h3 id="变更-1">变更</h3><ul>
 <li><strong>自动 Slug 更有标准</strong>：新建文章 / 页面不填 Slug 时，英文标题仍转短横线格式；中文标题从「p-随机串」改为「发布日期 + 4 位随机位」（如 <code>20261007-k3fx</code>，按北京时间取日期），可读、可按日排序，重名自动加序号不会发布失败；已有文章的链接保持不变</li>
 <li><strong>会员排行挂件下线首页</strong>：首页不再渲染会员积分排行卡片，榜单收敛到 <code>/rank</code> 页（导航「排行榜」入口不变）；排行榜条数设置仍控制 <code>/rank</code> 展示人数</li>
 <li><strong>会员评论表单全站贯通</strong>：登录会员打开文章 / 留言板 / 微博评论，三处表单都显示「以会员 xxx 的身份发言」并免填昵称（此前仅服务端识别会员身份，表单仍按游客渲染昵称输入框）</li>
@@ -122,7 +155,7 @@
 <li><strong>演示站正式域名 demo.bloghao.com</strong>：官网（bloghao.com）导航 / 首屏 / 快速开始 / 页脚的演示入口统一从 workers.dev 临时地址切到 <strong>demo.bloghao.com</strong>，并在快速开始与 README 里提醒「部署前可先去演示站转一圈」（账号 demo / demo1234，数据每 2 小时重置）；<code>wrangler.demo.jsonc</code> 以 <code>routes</code> 声明该自定义域名，<code>npm run deploy:demo</code> 部署时自动完成绑定与证书签发</li>
 <li><strong>默认主题排版优化</strong>：wechat 主题顶栏改 compact 布局（主条收窄五项、会员入口药丸右置），页脚改两段式链接组（排行榜等入口随对应功能开关显隐），移动端边距内收</li>
 </ul>
-<h3 id="修复-1">修复</h3><ul>
+<h3 id="修复-2">修复</h3><ul>
 <li><strong>手机上传图片静默失败</strong>：iOS Safari 上，前台微博发布器「加图」/卡片编辑、后台编辑器插图 / 视频 / 封面、后台媒体库 / 头像 /favicon / OG 卡图等动态创建的文件选择器，能打开选图、也能选中照片，但文件永远回不到页面——上传从未开始、全程无任何提示，点发布就变成纯文字微博。根因是动态 file input 未挂到页面 DOM（iOS 对游离节点不回填 change），已统一改为先隐藏挂载再打开选图器；同时前台发布 / 保存新增「图片还在上传中」守卫，图片没传完不再允许提交</li>
 <li><strong>后台会员接口鉴权与出参加固</strong>：<code>GET/PUT /api/admin/members</code> 曾注册在鉴权中间件之前，未登录可直接读取全部会员（含口令哈希字段）或修改任意会员档位 / 封禁状态——已收回到鉴权之后，列表出参不再包含口令与盐字段</li>
 <li><strong>前台编辑微博保存假报错</strong>：管理员在前台微博卡片上编辑含链接或话题的正文并保存时，实际已保存成功但界面提示失败（客户端重渲染代码的捕获组错位）；话题链接此前也会渲染成页内锚点而非话题筛选链接，均已修复</li>
@@ -131,10 +164,10 @@
 <li><strong>「历史上的今天」跨年边界</strong>：北京时间 0-8 点发布内容的年份标签在跨年日期可能显示错一天，已与名次计算的时区口径统一</li>
 </ul>
 <h2 id="210---2026-10-06"><a href="https://github.com/bloghao/bloghao/compare/v2.0.0...v2.1.0" target="_blank" rel="noopener noreferrer">2.1.0</a> - 2026-10-06</h2><p>本版本带来 <strong>Docker 自托管</strong>：同一套业务代码零改动跑进普通 Node 容器，不想把代码跑在 Cloudflare 上、手头有 VPS 的用户多了一条路（Cloudflare 版的部署方式不变）。</p>
-<h3 id="新增-3">新增</h3><ul>
+<h3 id="新增-4">新增</h3><ul>
 <li><strong>Docker 自托管</strong>（<code>docker-poc/</code>）：文章存内置 SQLite（WAL），图片存本地磁盘目录或 Cloudflare R2 桶（S3 兼容接口直连、SigV4 零依赖实现，启动自检 + <code>--copy-local-to-r2</code> 幂等迁移存量图片）；单进程按域名托管多个完全独立的博客站（库与上传物物理隔离），定时发布与北京时间 00:30 备份 / 回收站清理随容器运行；<code>XWLBLOG_PORT</code> 换端口、<code>XWLBLOG_BIND</code> 绑回环交给面板反代；数据卷属主由容器入口自动修复后降权运行；已在真实服务器全链路排练通过（验收 45 项，4核8G 舒适跑 100 站）。部署指引见 README「部署 → 方式三」与 <a href="https://github.com/bloghao/bloghao/blob/main/docker-poc/DEPLOY.md">docker-poc/DEPLOY.md</a></li>
 </ul>
-<h3 id="修复-2">修复</h3><ul>
+<h3 id="修复-3">修复</h3><ul>
 <li>回收站上线后首批加固：彻底删除的级联改守卫式子查询并前置于主行删除（主行 0 匹配不再误删存活文章的评论）；恢复端点补 <code>deleted_at</code> 守卫，过期定时文恢复自动转草稿并清掉 <code>publish_at</code>（防恢复即撞发）；媒体体检的清理 / 合并改分批提交（大批量不再整体失败）；上传指纹回填独立限频桶（60/分钟）；纯博客模式的页脚剥掉 <code>/weibo</code> 死链</li>
 </ul>
 <h2 id="200---2026-10-06"><a href="https://github.com/bloghao/bloghao/releases/tag/v2.0.0" target="_blank" rel="noopener noreferrer">2.0.0</a> - 2026-10-06</h2><p>首个按「开发 / 发布双仓」流程打 tag 的基线版本。2.0 在「写文章」的基础上，整合了作者实例沉淀的一整套日常记录与互动能力：</p>
@@ -161,19 +194,24 @@
       <div class="docs-toc-title">本页目录</div>
       <ul class="docs-toc-list">
         <li class="toc-d2"><a href="#unreleased" data-toc="unreleased">Unreleased</a></li>
-        <li class="toc-d2"><a href="#240---2026-10-11" data-toc="240---2026-10-11">2.4.0 - 2026-10-11</a></li>
+        <li class="toc-d2"><a href="#250---2026-10-12" data-toc="250---2026-10-12">2.5.0 - 2026-10-12</a></li>
         <li class="toc-d3"><a href="#新增" data-toc="新增">新增</a></li>
+        <li class="toc-d3"><a href="#变更" data-toc="变更">变更</a></li>
         <li class="toc-d3"><a href="#安全" data-toc="安全">安全</a></li>
         <li class="toc-d3"><a href="#修复" data-toc="修复">修复</a></li>
-        <li class="toc-d2"><a href="#230---2026-10-11" data-toc="230---2026-10-11">2.3.0 - 2026-10-11</a></li>
+        <li class="toc-d2"><a href="#240---2026-10-11" data-toc="240---2026-10-11">2.4.0 - 2026-10-11</a></li>
         <li class="toc-d3"><a href="#新增-1" data-toc="新增-1">新增</a></li>
-        <li class="toc-d2"><a href="#220---2026-10-10" data-toc="220---2026-10-10">2.2.0 - 2026-10-10</a></li>
-        <li class="toc-d3"><a href="#新增-2" data-toc="新增-2">新增</a></li>
-        <li class="toc-d3"><a href="#变更" data-toc="变更">变更</a></li>
+        <li class="toc-d3"><a href="#安全-1" data-toc="安全-1">安全</a></li>
         <li class="toc-d3"><a href="#修复-1" data-toc="修复-1">修复</a></li>
-        <li class="toc-d2"><a href="#210---2026-10-06" data-toc="210---2026-10-06">2.1.0 - 2026-10-06</a></li>
+        <li class="toc-d2"><a href="#230---2026-10-11" data-toc="230---2026-10-11">2.3.0 - 2026-10-11</a></li>
+        <li class="toc-d3"><a href="#新增-2" data-toc="新增-2">新增</a></li>
+        <li class="toc-d2"><a href="#220---2026-10-10" data-toc="220---2026-10-10">2.2.0 - 2026-10-10</a></li>
         <li class="toc-d3"><a href="#新增-3" data-toc="新增-3">新增</a></li>
+        <li class="toc-d3"><a href="#变更-1" data-toc="变更-1">变更</a></li>
         <li class="toc-d3"><a href="#修复-2" data-toc="修复-2">修复</a></li>
+        <li class="toc-d2"><a href="#210---2026-10-06" data-toc="210---2026-10-06">2.1.0 - 2026-10-06</a></li>
+        <li class="toc-d3"><a href="#新增-4" data-toc="新增-4">新增</a></li>
+        <li class="toc-d3"><a href="#修复-3" data-toc="修复-3">修复</a></li>
         <li class="toc-d2"><a href="#200---2026-10-06" data-toc="200---2026-10-06">2.0.0 - 2026-10-06</a></li>
       </ul>
     </aside>

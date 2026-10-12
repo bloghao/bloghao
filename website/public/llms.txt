@@ -21,6 +21,7 @@
 ## 开发文档（Markdown 源文件）
 
 - [部署教程](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/DEPLOY.md)：从注册 Cloudflare 到部署 Worker、绑定自定义域名、自动部署与备份恢复
+- [Cloudflare 基础教程](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/CLOUDFLARE-BASICS.md)：Workers、D1、R2、Cron 定时任务、自定义域名与 Turnstile 的基础说明，控制台巡检与常用运维命令速查
 - [使用手册](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/GUIDE.md)：后台导览、写文章全流程、快捷键、评论与媒体管理、设置逐项说明
 - [主题开发](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/THEMES.md)：一套主题 = 八个必需渲染函数（+ 可选 member / rank 两个）+ 全局 CSS，三步注册新主题，公共积木与排版规范底线
 - [广场](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/PLAZA.md)：官网广场（内容聚合流）的接入步骤、hub 部署与 ingest 协议、混排口径与认证徽标
@@ -31,6 +32,7 @@
 - [路线图](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/ROADMAP.md)：已上线能力与近期计划
 - [版本更新说明](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/VERSIONS.md)：从项目诞生到今天的大版本大事记，每个版本带来了什么
 - [更新日志](https://raw.githubusercontent.com/bloghao/bloghao/main/CHANGELOG.md)：每个版本更新了哪些细节（根目录，非 docs/），官方发布时回填
+- [安全审计报告 2026-10](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/SECURITY-AUDIT-REPORT-2026-10-12.md)：全量安全审计完整技术版（官方仓），大众版见官网 /docs/security-audit.html
 - [发布流程](https://raw.githubusercontent.com/bloghao/bloghao/main/docs/RELEASING.md)：维护者向——开发线 → 官方仓库的发布清单、版本号规则与挑洗台账
 
 ## 给智能体与贡献者的提示

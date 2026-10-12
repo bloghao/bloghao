@@ -1,9 +1,17 @@
 import type { PostRow, SettingsMap } from './types'
-import { isEn } from './i18n'
+import { parseTags } from './db'
+import { isEn, tr } from './i18n'
 import { siteMode } from './render'
 import { sanitizeHtml } from './sanitize'
-import { esc, fmtDate, teaserHtml } from './utils'
+import { esc, fmtDate, isoDate, teaserHtml } from './utils'
 import { cdata, rfc822, xmlEsc } from './xml'
+
+/** 会员锁文在 RSS / JSON Feed 里的尾注（防泄漏契约 A2：locked 只出试读段 + 引导） */
+function memberOnlySuffix(en: boolean): string {
+  return en
+    ? '<p>— The rest of this post is members-only. Log in as a member on the site to keep reading.</p>'
+    : '<p>—— 本文为会员专属内容，剩余部分请到站点登录会员后阅读。</p>'
+}
 
 export function buildRss(settings: SettingsMap, posts: PostRow[], siteUrl: string): string {
   const en = isEn(settings)
@@ -15,14 +23,14 @@ export function buildRss(settings: SettingsMap, posts: PostRow[], siteUrl: strin
       // 访问密码文章（password_hash 非空）更严：试读段也不出，description 只用作者自填摘要（src/protect.ts 防泄漏清单）
       const pwProtected = !!p.password_hash
       const memberLocked = !!p.min_tier && p.min_tier !== 'all'
+      // 机器可读锁标志（bloghao 命名空间）：广场 hub 的 RSS pull 补漏据此跳过锁文/密码文，
+      // 与 push 路 firePostPublished 的 locked 口径同源——「加密文不上广场」两条路都守住
+      const locked = pwProtected || memberLocked
       const encoded =
         fullText && p.content && !pwProtected
           ? `\n      <content:encoded>${cdata(
               memberLocked
-                ? teaserHtml(sanitizeHtml(p.content)) +
-                  (en
-                    ? '<p>— The rest of this post is members-only. Log in as a member on the site to keep reading.</p>'
-                    : '<p>—— 本文为会员专属内容，剩余部分请到站点登录会员后阅读。</p>')
+                ? teaserHtml(sanitizeHtml(p.content)) + memberOnlySuffix(en)
                 : sanitizeHtml(p.content)
             )}</content:encoded>`
           : ''
@@ -31,21 +39,63 @@ export function buildRss(settings: SettingsMap, posts: PostRow[], siteUrl: strin
       <link>${xmlEsc(siteUrl)}/post/${encodeURIComponent(p.slug)}</link>
       <guid isPermaLink="true">${xmlEsc(siteUrl)}/post/${encodeURIComponent(p.slug)}</guid>
       <pubDate>${rfc822(p.published_at)}</pubDate>
-      <description>${xmlEsc(p.summary)}</description>${encoded}
+      <description>${xmlEsc(p.summary)}</description>${encoded}${pwProtected || memberLocked ? '\n      <bloghao:locked>1</bloghao:locked>' : ''}
     </item>`
     })
     .join('\n')
   return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:bloghao="https://bloghao.com/plaza-ns">
   <channel>
-    <title>${xmlEsc(settings.siteName)}</title>
+    <title>${xmlEsc(tr(en, settings.siteName))}</title>
     <link>${xmlEsc(siteUrl)}</link>
-    <description>${xmlEsc(settings.siteDescription)}</description>
+    <description>${xmlEsc(tr(en, settings.siteDescription))}</description>
     <language>${en ? 'en' : 'zh-CN'}</language>
     <atom:link href="${xmlEsc(siteUrl)}/rss.xml" rel="self" type="application/rss+xml"/>
 ${items}
   </channel>
 </rss>`
+}
+
+/** JSON Feed 1.1（/feed.json，C12）：机器可读订阅格式，防泄漏口径与 buildRss 同一份——
+ *  密码文不出正文（只留作者自填摘要）、会员锁文只出试读段 + 引导、rssFullText 关闭时只出摘要。
+ *  日期走 isoDate（北京时间 +08:00 口径，与 JSON-LD 同源）；字段名是 JSON Feed 规范键，
+ *  输出经 JSON.stringify 序列化，无需 xmlEsc */
+export function buildJsonFeed(settings: SettingsMap, posts: PostRow[], siteUrl: string): string {
+  const en = isEn(settings)
+  const fullText = settings.rssFullText !== '0'
+  const feed = {
+    version: 'https://jsonfeed.org/version/1.1',
+    title: tr(en, settings.siteName),
+    home_page_url: siteUrl,
+    feed_url: `${siteUrl}/feed.json`,
+    description: tr(en, settings.siteDescription),
+    language: en ? 'en' : 'zh-CN',
+    authors: [{ name: tr(en, settings.siteName), url: siteUrl }],
+    items: posts.map((p) => {
+      const pwProtected = !!p.password_hash
+      const memberLocked = !!p.min_tier && p.min_tier !== 'all'
+      const contentHtml =
+        fullText && p.content && !pwProtected
+          ? memberLocked
+            ? teaserHtml(sanitizeHtml(p.content)) + memberOnlySuffix(en)
+            : sanitizeHtml(p.content)
+          : ''
+      // 封面属作者主动公开的导读面（与标题/摘要同口径），相对路径补成绝对地址
+      const cover = p.cover ? (p.cover.startsWith('/') ? siteUrl + p.cover : p.cover) : ''
+      return {
+        id: `${siteUrl}/post/${encodeURIComponent(p.slug)}`,
+        url: `${siteUrl}/post/${encodeURIComponent(p.slug)}`,
+        title: p.title,
+        summary: p.summary,
+        ...(contentHtml ? { content_html: contentHtml } : {}),
+        ...(cover ? { image: cover } : {}),
+        date_published: isoDate(p.published_at),
+        date_modified: isoDate(p.updated_at),
+        tags: parseTags(p),
+      }
+    }),
+  }
+  return JSON.stringify(feed)
 }
 
 export function buildSitemap(

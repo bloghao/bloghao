@@ -24,8 +24,8 @@ export interface PostPublishedPayload {
   slug: string
   title: string
   summary: string
-  /** 触发来源：后台手动发布 / 定时到点 */
-  via: 'admin' | 'scheduler'
+  /** 触发来源：后台手动发布 / 定时到点 / MCP（AI 助手，src/mcp.ts） */
+  via: 'admin' | 'scheduler' | 'mcp'
   /**
    * 加密文 / 会员锁文（password_hash 非空或 min_tier ≠ all）。广场同步插件据此跳过——
    * 加密文标题摘要都不该出现在公开广场（防泄漏清单同口径）。老调用点不传视为 false
@@ -411,4 +411,22 @@ export function fireWeiboPublished(env: Env, p: WeiboPublishedPayload): Promise<
 /** 评论事件广播：访客评论/留言三条路（文章、微博、留言板）都会调；任何失败都不影响留言本身 */
 export function fireCommentCreated(env: Env, p: CommentCreatedPayload): Promise<void> {
   return fireHook(env, (plugin) => plugin.onCommentCreated, p)
+}
+
+/** 广场下架广播（条目生命周期闭环）：已发布文章补设密码/升档锁文、转出发布态或软删时，
+ *  把对应条目从广场 hub 摘除（hub 的 deleted 协议字段，docs/PLAZA.md）——防「已加密/已删」
+ *  的标题与摘要永久滞留公开广场。锁文的 RSS 条目同时带 bloghao:locked 标志（src/rss.ts），
+ *  pull 补漏不会再捞回；解锁/恢复后 6h 内 pull 自愈补回。失败只丢一条下架，不影响主流程 */
+export async function firePlazaRetract(env: Env, entries: { kind: 'post' | 'weibo'; ref: string }[]): Promise<void> {
+  if (isDemo(env) || !entries.length) return
+  try {
+    const settings = await getSettings(env.DB)
+    if (!enabledPlugins(settings).some((p) => p.id === 'plaza-sync')) return
+    const endpoint = (settings.plazaEndpoint || PLAZA_OFFICIAL_HUB).trim().replace(/\/+$/, '')
+    const token = (settings.plazaToken || '').trim()
+    if (!/^https:\/\//i.test(endpoint) || !token) return
+    await plazaIngest(endpoint, token, { deleted: entries })
+  } catch {
+    /* 读不到设置 / 上报失败都放弃（与 fireHook 同口径吞错） */
+  }
 }

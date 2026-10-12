@@ -75,6 +75,17 @@ function pageOpts(c: C, o: Parameters<typeof page>[0]): Parameters<typeof page>[
 const CSP =
   "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http: blob:; media-src 'self' https:; script-src 'self'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; object-src 'none'"
 
+/** 会员页开启 Turnstile 注册验证时的放行版：挑战脚本与 iframe 来自 challenges.cloudflare.com
+ *  （固定可信端点，仅此页放行，其余页面保持严格 CSP）。replace 自 CSP 自动跟随主策略变更；
+ *  两个锚点串若在 CSP 里被改名，这里会静默失效——动 CSP 时顺手核对这两处 */
+const CSP_TURNSTILE = CSP.replace(
+  "script-src 'self'",
+  "script-src 'self' https://challenges.cloudflare.com"
+).replace(
+  "base-uri 'self'",
+  "base-uri 'self'; frame-src 'self' https://challenges.cloudflare.com"
+)
+
 function baseHeaders(c: C) {
   c.header('Content-Security-Policy', CSP)
   c.header('X-Content-Type-Options', 'nosniff')
@@ -937,6 +948,9 @@ export async function renderMember(c: C): Promise<Response> {
   baseHeaders(c)
   const settings = await getSettings(c.env.DB)
   if (!membersEnabled(settings)) return renderNotFound(c)
+  // 注册人机验证（Turnstile）：仅此页放行挑战脚本与 iframe，sitekey 经 <html data-turnstile>
+  // 下发（page() 内按 path==='/member' 注入），site.js 据此懒挂载组件
+  if (settings.turnstileSiteKey) c.header('Content-Security-Policy', CSP_TURNSTILE)
   const theme = getTheme(settings.theme)
   const en = isEn(settings)
   const [categories, tags, pages, session] = await Promise.all([

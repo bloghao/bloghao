@@ -49,20 +49,19 @@ function foot(s: SettingsMap, links: string): string {
   const en = isEn(s)
   return `<footer class="wx-footer">${footCardHtml(s, en)}${esc(tr(en, s.footerText || ''))}<span class="wx-footer-links">${footLinks(s, links)}</span></footer>`
 }
-/** 页脚链接组：compact 顶栏收窄后，留言板/友情链接/排行榜/随机降级到页脚（排行随会员开关，纯微博不出「随机」，与顶栏同口径） */
+/** 页脚链接组：微博/留言板/友情链接/关于我已进顶栏（compact 收窄后页脚不再重复），页脚只留次级入口（排行随会员开关，纯微博不出「随机」，与顶栏同口径） */
 function footLinksFor(s: SettingsMap, en: boolean): { home: string; archive: string; article: string; about: string } {
   const rank = s.membersEnabled === '1' ? `<a href="/rank">${tr(en, '排行榜')}</a>` : ''
   const random = siteMode(s) === 'weibo' ? '' : `<a href="/random">${tr(en, '随机')}</a>`
-  const demoted = `<a href="/guestbook">${tr(en, '留言板')}</a><a href="/links">${tr(en, '友情链接')}</a>${rank}${random}<a href="/about">${tr(en, '关于我')}</a>`
-  const weibo = `<a href="/weibo">${tr(en, '微博')}</a>`
+  const secondary = `${rank}${random}`
   const admin = `<a href="/admin">${en ? 'Admin' : '管理'}</a>`
   const rss = '<a href="/rss.xml">RSS</a>'
   const back = `<a href="/">${en ? 'Home' : '回主页'}</a>`
   return {
-    home: `${weibo}${demoted}${rss}${admin}`,
-    archive: `${back}${weibo}${demoted}${rss}${admin}`,
-    article: `${back}${weibo}${demoted}${admin}`,
-    about: `${back}${weibo}<a href="/guestbook">${tr(en, '留言板')}</a>${rank}${random}${admin}`,
+    home: `${secondary}${rss}${admin}`,
+    archive: `${back}${secondary}${rss}${admin}`,
+    article: `${back}${secondary}${admin}`,
+    about: `${back}${secondary}${admin}`,
   }
 }
 

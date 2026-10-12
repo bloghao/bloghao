@@ -17,11 +17,8 @@ import { esc } from './utils'
  *  前四项是站长自有域名（官方版挑洗时按 docs/RELEASING.md 个人定制台账处理），
  *  其余为主流官方大站；客户端 site.js 有一份同表镜像，改动两边同步 */
 export const TRUSTED_OUT_DOMAINS: readonly string[] = [
-  // 站长自有
+  // 项目自有域（官网 / 广场 hub / 市场目录）
   'bloghao.com',
-  'xiaowuleyi.com',
-  'habfut.com',
-  'btchao.com',
   // 国际主流 / 大厂
   'apple.com',
   'icloud.com',

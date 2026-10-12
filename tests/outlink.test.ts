@@ -12,9 +12,9 @@ test('isTrustedOutHost：主域与子域命中，伪装域不命中', () => {
   assert.equal(isTrustedOutHost('www.apple.com'), true)
   assert.equal(isTrustedOutHost('a.b.apple.com'), true)
   assert.equal(isTrustedOutHost('APPLE.COM.'), true)
-  // 个人域名（官方版挑洗时按台账剔除）
-  assert.equal(isTrustedOutHost('blog.xiaowuleyi.com'), true)
+  // 项目自有域 bloghao.com 信任直连（官网 / 广场 hub / 市场目录）；站长个人域不在官方白名单
   assert.equal(isTrustedOutHost('bloghao.com'), true)
+  assert.equal(isTrustedOutHost('blog.xiaowuleyi.com'), false)
   // 前缀/后缀伪装不是子域
   assert.equal(isTrustedOutHost('notapple.com'), false)
   assert.equal(isTrustedOutHost('evilapple.com'), false)

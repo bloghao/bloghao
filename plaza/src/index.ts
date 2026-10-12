@@ -365,6 +365,7 @@ app.post('/api/admin/sites', async (c) => {
   const url = (body?.url || '').trim().replace(/\/+$/, '')
   const name = (body?.name || '').trim().slice(0, 100) || url.replace(/^https?:\/\//, '')
   if (!/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(url)) return c.json({ error: '需要 https:// 开头的站点地址' }, 400)
+  if (!pullHostOk(url)) return c.json({ error: '不接受该站点地址（内网后缀 / IP 字面量）' }, 400)
   const token = generatePlazaToken()
   try {
     await c.env.DB.prepare(
@@ -481,8 +482,25 @@ app.post('/api/admin/pull', async (c) => {
 
 /* ---------------- RSS pull 补漏（cron 每 6 小时） ---------------- */
 
+/** pull 源主机防线：内网后缀 / IP 字面量的站点不 pull（与注册校验同口径，防旧数据/旁路写库） */
+function pullHostOk(siteUrl: string): boolean {
+  try {
+    const h = new URL(siteUrl).hostname.toLowerCase()
+    return !(
+      h.endsWith('.internal') ||
+      h.endsWith('.local') ||
+      h.endsWith('.localhost') ||
+      /^\d{1,3}(\.\d{1,3}){3}$/.test(h) ||
+      h.includes(':')
+    )
+  } catch {
+    return false
+  }
+}
+
 /** pull 只做存在性兜底：单站单次 20 条、只灌 30 天内旧文、绝不覆盖 push 数据（source 守卫） */
 async function pullSiteRss(env: Env, site: SiteRow): Promise<number> {
+  if (!pullHostOk(site.site_url)) return 0
   const res = await fetch(`${site.site_url}/rss.xml`, {
     headers: { 'user-agent': 'BlogHaoPlaza/1.0 (+https://bloghao.com/plaza/)' },
     signal: AbortSignal.timeout(15_000),
@@ -495,6 +513,9 @@ async function pullSiteRss(env: Env, site: SiteRow): Promise<number> {
   const entries = parseRssItems(xml, 20)
   let n = 0
   for (const e of entries) {
+    // 锁文/密码文不进广场（RSS 里的 bloghao:locked 标志，与 push 路 locked 口径一致）；
+    // 非 https 链接同样不收（push 路 safeUrl 只收 https，pull 不做例外）
+    if (e.locked || !/^https:\/\//i.test(e.link)) continue
     const publishedAt = rssDateToMs(e.pubDate)
     if (Date.now() - publishedAt > 30 * 86_400_000) continue
     const slug = e.link.replace(/^https?:\/\/[^/]+\/post\//, '').replace(/\/+$/, '').slice(0, 200)

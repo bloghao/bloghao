@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>安全审计报告 - 博客号</title>
+<meta name="description" content="博客号 BlogHao 2026-10 全量安全审计报告（大众版）：没有高危问题，27 项发现全部独立复核，21 项已修复上线，其余均有明确跟进口径。看懂这次体检查了什么、修了什么、对你的影响。">
+<meta property="og:title" content="安全审计报告 - 博客号">
+<meta property="og:description" content="给博客号做的一次全面安全体检：0 高危、27 项发现全部复核、21 项已修复上线。普通用户也能看懂。">
+<meta property="og:type" content="article">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css?v=20261011i">
+<style>
+/* ===== 审计报告页专属样式（复用官网设计令牌，scope 前缀 audit- 防冲突） ===== */
+.audit-hero { position: relative; overflow: hidden; padding: 150px 0 70px; background:
+  radial-gradient(680px 340px at 82% -40px, rgba(178, 58, 41, 0.10), transparent 70%),
+  radial-gradient(520px 300px at 8% 10%, rgba(178, 58, 41, 0.05), transparent 70%); }
+.audit-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent-dark);
+  border: 1px solid rgba(178, 58, 41, 0.18); border-radius: 999px; padding: 6px 16px; font-size: 13.5px; font-weight: 700; }
+.audit-hero h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.25; letter-spacing: -0.5px; margin: 20px 0 14px; }
+.audit-hero h1 em { font-style: normal; color: var(--accent); }
+.audit-hero .audit-sub { font-size: 17px; color: var(--sub); max-width: 680px; }
+.audit-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 42px; }
+.audit-stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 22px 20px 18px; box-shadow: var(--shadow); }
+.audit-stat b { display: block; font-size: 34px; line-height: 1.15; letter-spacing: -1px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.audit-stat b.ok { color: #2c7a4b; }
+.audit-stat span { font-size: 13px; color: var(--sub); }
+.audit-sec { padding: 64px 0 8px; }
+.audit-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 34px; counter-reset: step; }
+.audit-step { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 20px 20px; }
+.audit-step i { position: absolute; top: -14px; left: 18px; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-style: normal; font-weight: 800; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(178, 58, 41, 0.35); }
+.audit-step h3 { font-size: 16px; margin-bottom: 8px; }
+.audit-step p { font-size: 13.5px; color: var(--sub); line-height: 1.75; }
+.audit-findings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 34px; }
+.audit-finding { background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--accent);
+  border-radius: var(--radius); padding: 26px 22px 22px; box-shadow: var(--shadow); }
+.audit-finding .f-ico { font-size: 30px; }
+.audit-finding h3 { font-size: 17.5px; margin: 12px 0 4px; }
+.audit-finding .f-was { font-size: 13px; color: var(--accent-dark); font-weight: 700; }
+.audit-finding p { font-size: 14px; color: var(--sub); margin-top: 10px; line-height: 1.8; }
+.audit-finding .f-fixed { margin-top: 14px; font-size: 13px; font-weight: 700; color: #2c7a4b; }
+.audit-disp { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 30px; }
+.audit-disp .card p { font-size: 14px; color: var(--sub); line-height: 1.8; }
+.pill { display: inline-block; font-size: 12px; font-weight: 800; border-radius: 999px; padding: 3px 11px; vertical-align: 1px; }
+.pill-fixed { background: rgba(44, 122, 75, 0.12); color: #2c7a4b; }
+.pill-mit { background: rgba(196, 143, 30, 0.14); color: #9a6b12; }
+.pill-track { background: rgba(110, 103, 94, 0.14); color: var(--sub); }
+.audit-table { width: 100%; border-collapse: collapse; margin-top: 24px; background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.audit-table th { text-align: left; font-size: 13px; color: var(--sub); font-weight: 700;
+  padding: 13px 18px; background: var(--tint); border-bottom: 1px solid var(--line); }
+.audit-table td { padding: 13px 18px; font-size: 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.audit-table tr:last-child td { border-bottom: 0; }
+.audit-table td:last-child { color: var(--sub); }
+.audit-ok { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 24px; margin-top: 30px; }
+.audit-ok li { list-style: none; background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px 16px; font-size: 14px; display: flex; gap: 10px; align-items: flex-start; }
+.audit-ok li b { color: #2c7a4b; }
+.audit-action { margin-top: 34px; background: var(--card); border: 1px solid rgba(178, 58, 41, 0.25);
+  border-radius: var(--radius); padding: 34px 30px; box-shadow: var(--shadow);
+  background-image: radial-gradient(400px 160px at 90% 0%, rgba(178, 58, 41, 0.06), transparent 70%); }
+.audit-action h3 { font-size: 20px; margin-bottom: 14px; }
+.audit-action ul { margin: 0 0 4px; padding-left: 0; list-style: none; }
+.audit-action li { font-size: 15px; color: var(--sub); padding: 7px 0 7px 28px; position: relative; }
+.audit-action li::before { content: "✓"; position: absolute; left: 2px; color: var(--accent); font-weight: 800; }
+.audit-action a { color: var(--accent); font-weight: 700; }
+.audit-timeline { margin-top: 34px; border-left: 2px solid rgba(178, 58, 41, 0.25); padding-left: 26px; display: grid; gap: 20px; }
+.audit-tl { position: relative; }
+.audit-tl::before { content: ""; position: absolute; left: -33px; top: 5px; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.audit-tl b { font-size: 15px; }
+.audit-tl span { display: block; font-size: 13.5px; color: var(--sub); margin-top: 3px; line-height: 1.7; }
+.audit-note { margin-top: 26px; font-size: 13px; color: var(--sub); background: var(--tint);
+  border-radius: 12px; padding: 14px 18px; line-height: 1.8; }
+.audit-cta { text-align: center; padding: 72px 0 84px; }
+.audit-cta h2 { font-size: clamp(24px, 4vw, 34px); margin-bottom: 10px; }
+.audit-cta p { color: var(--sub); margin-bottom: 26px; }
+@media (max-width: 860px) {
+  .audit-stats { grid-template-columns: repeat(2, 1fr); }
+  .audit-steps { grid-template-columns: repeat(2, 1fr); row-gap: 30px; }
+  .audit-findings { grid-template-columns: 1fr; }
+  .audit-disp { grid-template-columns: 1fr; }
+  .audit-ok { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .audit-hero { padding-top: 120px; }
+  .audit-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .audit-stat { padding: 16px 14px 13px; }
+  .audit-stat b { font-size: 26px; }
+  .audit-steps { grid-template-columns: 1fr; }
+  .audit-table { display: block; overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="../index.html">
+      <img src="../favicon.svg" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="../index.html">返回官网</a>
+      <a href="index.html">文档中心</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================= 结论 Hero ================= -->
+  <section class="audit-hero">
+    <div class="wrap">
+      <span class="audit-badge reveal">🛡️ 2026 年 10 月 12 日 · 全量安全审计（大众版）</span>
+      <h1 class="reveal">给博客号做了一次<br><em>全面安全体检</em>，报告在这。</h1>
+      <p class="audit-sub reveal">
+        我们把整个系统交给一套独立的安全审计方法，按七类常见攻击手法逐面排查，每一条发现都经过第二轮独立复核。
+        一句话结论：<b>没有高危问题</b>；查出的隐患绝大多数已经修复上线，其余都有明确的跟进口径。
+      </p>
+      <div class="audit-stats reveal">
+        <div class="audit-stat"><b class="ok">0</b><span>高危问题</span></div>
+        <div class="audit-stat"><b>27</b><span>项发现 · 全部独立复核</span></div>
+        <div class="audit-stat"><b class="ok">21</b><span>项已修复并带测试上线</span></div>
+        <div class="audit-stat"><b>7</b><span>类攻击面逐项排查</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 审计怎么做 ================= -->
+  <section class="section audit-sec">
+    <div class="wrap">
+      <h2 class="sec-title reveal">这次体检是怎么做的</h2>
+      <p class="sec-sub reveal">不是跑一个扫描器就完事，而是像分科室检查一样，一科一科过。</p>
+      <div class="audit-steps">
+        <div class="audit-step reveal"><i>1</i>
+          <h3>七路分头排查</h3>
+          <p>身份门禁、代码注入、服务端乱访问、信息泄露、业务规则滥用、前端脚本、部署与供应链——七个方向并行排查，互不重复。</p>
+        </div>
+        <div class="audit-step reveal"><i>2</i>
+          <h3>发现者不打分</h3>
+          <p>每一条发现都由另一名独立复核员验证，试图推翻自己人给的结论；说不出具体后果的问题，一律不予定级。</p>
+        </div>
+        <div class="audit-step reveal"><i>3</i>
+          <h3>只在本地动手术</h3>
+          <p>全程使用本地测试环境与自动化测试验证，绝不触碰任何线上站点与用户数据——审计本身不引入新风险。</p>
+        </div>
+        <div class="audit-step reveal"><i>4</i>
+          <h3>方法论公开</h3>
+          <p>基于 Cloudflare 官方开源的 security-audit-skill 方法论裁剪执行，覆盖全部 35 个服务端模块、七套主题、前后台脚本、广场服务与部署配置。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 三件大事 ================= -->
+  <section class="section audit-sec">
+    <div class="wrap">
+      <h2 class="sec-title reveal">修好的三件大事</h2>
+      <p class="sec-sub reveal">八个较严重的问题全部坐实并处理，其中这三件最值得讲给你听（都已上线）。</p>
+      <div class="audit-findings">
+        <div class="audit-finding reveal">
+          <div class="f-ico">🏃</div>
+          <h3>「排队刷积分」被堵上了</h3>
+          <div class="f-was">原来：积分日上限存在并发缝隙</div>
+          <p>每位会员每天有积分上限。可当许多请求在同一瞬间涌入时，系统「先查今天发了多少、再记账」的两步之间有缝隙，可以插队刷分、把排行榜刷高。</p>
+          <div class="f-fixed">✓ 现在：账本当场对账，插队的直接作废，并补了专门的竞态测试。</div>
+        </div>
+        <div class="audit-finding reveal">
+          <div class="f-ico">📔</div>
+          <h3>「上锁的日记」不再露扉页</h3>
+          <div class="f-was">原来：设密码后开头摘要仍公开</div>
+          <p>给已发布的文章补设访问密码后，系统自动生成的开头摘要还挂在外墙上——订阅源和搜索卡片里能看到前 80 字正文，违背了「上锁就只露作者写的导读」的承诺。</p>
+          <div class="f-fixed">✓ 现在：上锁的瞬间自动摘掉残留摘要，已经泄漏的保存一次即自愈。</div>
+        </div>
+        <div class="audit-finding reveal">
+          <div class="f-ico">📣</div>
+          <h3>私密文章不再被广场转播</h3>
+          <div class="f-was">原来：锁文/删文在广场不下架</div>
+          <p>广场会收录站点的公开订阅源。你事后设为「仅会员可看」或已删除的文章，会被别人缓存的旧订阅继续带到公开广场，而且永远不会下架。</p>
+          <div class="f-fixed">✓ 现在：加锁、删除会立刻通知广场撤下；订阅源带上机器可读的锁文标记，拉取方自动跳过。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 全部发现处置 ================= -->
+  <section class="section audit-sec">
+    <div class="wrap">
+      <h2 class="sec-title reveal">27 项发现，每一项都有了归宿</h2>
+      <p class="sec-sub reveal">较严重的 8 项全部确认属实；轻微的 19 项逐条处置，没有一个悬空。</p>
+      <div class="audit-disp">
+        <div class="card reveal"><h3>✅ 加门锁 · 15 项已修复 <span class="pill pill-fixed">已上线</span></h3>
+          <p>超大提交先验 size 再处理（防内存被打爆）、演示站敏感面全部短路（备份/导出/外发抓取）、后台密钥全面打码、机器人消息防重、外链跳转页禁止被嵌入、编辑器预览加固、恢复文章不再挤占置顶名额、被封禁会员过审不再计分……</p></div>
+        <div class="card reveal"><h3>🚧 根治路上 · 2 项已缓解 <span class="pill pill-mit">持续跟进</span></h3>
+          <p>「注册零验证、小号刷分」的根治方案 Cloudflare Turnstile 人机验证已于本周上线（后台设置即可开启）；「统计打点可被刷」已把写入限流收紧到原来的四分之一，聚合写方案列入下轮设计。</p></div>
+        <div class="card reveal"><h3>📋 登记在案 · 4 项明确归属 <span class="pill pill-track">有跟进口径</span></h3>
+          <p>包括 workers.dev 平行入口（<b>本周已核实并关闭</b>）、TG 通知的旧格式兼容通道（重绑后移除）、游客评论的聚合去重（产品权衡）等——每一条都写在报告里，不是含糊的「已知问题」。</p></div>
+        <div class="card reveal"><h3>🔍 顺手的加固 · 全部完成 <span class="pill pill-fixed">已上线</span></h3>
+          <p>导出包条目名二次校验、卡片链接生成时过滤危险协议、主题配置查表防原型链穿透、关闭了 workers.dev 备用入口并重建了广场服务——审计报告里的遗留清单已在本周清账大半。</p></div>
+      </div>
+      <details class="reveal" style="margin-top:22px;">
+        <summary style="cursor:pointer;font-weight:700;color:var(--accent-dark);">想看较严重的 8 项逐条清单？点开</summary>
+        <table class="audit-table">
+          <thead><tr><th style="width:55%;">问题（大白话）</th><th>处置</th></tr></thead>
+          <tbody>
+            <tr><td>积分每日上限可以被并发请求绕过</td><td><span class="pill pill-fixed">已修</span> 账本当场对账</td></tr>
+            <tr><td>注册没有任何验证成本，小号可批量刷分</td><td><span class="pill pill-fixed">已根治</span> Turnstile 人机验证（本周上线）</td></tr>
+            <tr><td>超大的提交内容可能把服务打懵</td><td><span class="pill pill-fixed">已修</span> 进门先验大小，超限拒收</td></tr>
+            <tr><td>访问统计的打点接口可以被刷写</td><td><span class="pill pill-mit">已收紧</span> 限流降到 1/4，聚合写列入设计</td></tr>
+            <tr><td>图片代理会盲目跟随跳转</td><td><span class="pill pill-fixed">已修</span> 逐跳复查白名单 + 流式限长</td></tr>
+            <tr><td>给已发布文章补设密码后，开头摘要仍公开</td><td><span class="pill pill-fixed">已修</span> 设锁即摘除，存量自愈</td></tr>
+            <tr><td>订阅源会把锁文带给公开广场</td><td><span class="pill pill-fixed">已修</span> 机器可读锁文标志，拉取自动跳过</td></tr>
+            <tr><td>锁文 / 删文在广场永不下架</td><td><span class="pill pill-fixed">已修</span> 加锁与删除即时广播撤下</td></tr>
+          </tbody>
+        </table>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================= 确认健康 ================= -->
+  <section class="section audit-sec">
+    <div class="wrap">
+      <h2 class="sec-title reveal">体检确认健康的地方</h2>
+      <p class="sec-sub reveal">审计不只是找问题——这些面被逐点核对过，结论是干净。</p>
+      <ul class="audit-ok reveal">
+        <li><b>✓</b><span><b>注入零发现</b>：全部数据库查询、渲染转义、XML 输出共 93 处逐点核对，没有一处可注入。</span></li>
+        <li><b>✓</b><span><b>门禁无遗漏</b>：87 条接口的鉴权顺序逐条核对；伪造来源地址行不通。</span></li>
+        <li><b>✓</b><span><b>口令与会话</b>：密码单向哈希存储，登录令牌只存指纹，Cookie 深度防御无缺口。</span></li>
+        <li><b>✓</b><span><b>前后端口径一致</b>：前台脚本与服务端的安全规则逐字符镜像比对，零漂移。</span></li>
+        <li><b>✓</b><span><b>备份与清库</b>：备份表清单与演示站清库清单全覆盖，不会漏带或多删。</span></li>
+        <li><b>✓</b><span><b>供应链干净</b>：整个仓库扫不到任何密钥；运行时依赖依然只有 hono 一个。</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= 对你的影响 ================= -->
+  <section class="section audit-sec">
+    <div class="wrap">
+      <h2 class="sec-title reveal">如果你正在用博客号</h2>
+      <p class="sec-sub reveal">这次审计对你意味着什么，以及需要你做的（很少）。</p>
+      <div class="audit-action reveal">
+        <h3>你需要做的</h3>
+        <ul>
+          <li><b>升级到最新版</b>：同步仓库最新代码重新部署即可，数据库结构自动迁移，<b>没有任何手动操作</b>。</li>
+          <li><b>看看自己的版本号</b>：登录后台 → 概览 → 「系统」卡，会显示「系统版本：博客号 vX.Y.Z」（本周新增）。</li>
+          <li><b>顺手开启注册人机验证</b>：后台 → 设置 → 会员，把 Cloudflare Turnstile 的两把钥匙成对填入即可——防小号刷分，本次审计后新增，默认关闭、不开行为不变。</li>
+        </ul>
+        <p style="margin-top:14px;font-size:13.5px;color:var(--sub);">还在观望？这篇报告恰好说明了一件事：你的数据被一个「会主动体检自己」的系统保管着。去 <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a> 感受一下，或看 <a href="deploy.html">五分钟部署教程</a>。</p>
+      </div>
+      <div class="audit-timeline reveal">
+        <div class="audit-tl"><b>10 月 12 日 · 审计与修复</b><span>七路排查 → 独立复核 → 21 项修复上线，自动化测试与冒烟全绿，CI 双流水线通过。</span></div>
+        <div class="audit-tl"><b>10 月 12 日 · 遗留清账</b><span>关闭 workers.dev 备用入口、重建广场服务使锁文过滤生效、上线注册人机验证、后台新增版本号展示。</span></div>
+        <div class="audit-tl"><b>本周 · 公示</b><span>这份大众版报告在官网发布；完整技术版随仓库收录，季度复跑以本轮为基线。</span></div>
+      </div>
+      <p class="audit-note reveal">
+        诚实说明：按方法论的口径，单轮审计覆盖约为一半——没有一次体检能包看百病，所以我们把它当作周期性习惯而非一次性宣传：以本报告为基线，<b>按季度复跑</b>；统计打点的聚合写、游客评论的聚合去重两项产品级方案也已在排期。
+        想读原始技术报告（含每条发现的攻击链与修复位置）：<a href="https://github.com/bloghao/bloghao/blob/main/docs/SECURITY-AUDIT-REPORT-2026-10-12.md" target="_blank" rel="noopener">GitHub 上的完整版</a>。
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= 尾部 CTA ================= -->
+  <section class="audit-cta">
+    <div class="wrap wrap-narrow reveal">
+      <h2>博客号，博客好。</h2>
+      <p>免费部署，代码全在 GitHub，MIT 开源——安全这件事，我们替你上心。</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">⭐ 去 GitHub 点个 Star</a>
+        <a class="btn btn-lg" href="../index.html#start">现在就开号</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="../index.html">官网首页</a>
+      <a href="index.html">文档</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="https://github.com/bloghao/bloghao/blob/main/docs/SECURITY-AUDIT-REPORT-2026-10-12.md" target="_blank" rel="noopener">完整技术报告</a>
+    </span>
+  </div>
+</footer>
+
+<script src="../site.js?v=20261011h" defer></script>
+</body>
+</html>

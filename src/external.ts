@@ -24,6 +24,22 @@ const TG_FILE_LIMIT = 20 * 1024 * 1024 // Bot API getFile 上限 20MB
 
 const TG_API = 'https://api.telegram.org'
 
+// TG webhook 幂等:Telegram 是至少一次投递,处理成功但响应超时/中断时会重投同一 update_id,
+// 表现为重复发博/重复转存。按内存短窗去重(与 rateLimit 同「尽力而为」口径,isolate 重建
+// 即失效);窗口取 5 分钟——盖住超时重投的正常窗口,又不堵死「处理中抛错后 TG 间隔重试」
+// 的恢复路(堵死 = 静默丢消息,比重复更糟)
+const TG_UPDATE_TTL_MS = 5 * 60_000
+const tgSeenUpdates = new Map<number, number>()
+function tgUpdateSeen(updateId: number): boolean {
+  const now = Date.now()
+  if (tgSeenUpdates.size > 500) {
+    for (const [k, t] of tgSeenUpdates) if (now - t > TG_UPDATE_TTL_MS) tgSeenUpdates.delete(k)
+  }
+  const seenAt = tgSeenUpdates.get(updateId)
+  tgSeenUpdates.set(updateId, now)
+  return seenAt !== undefined && now - seenAt < TG_UPDATE_TTL_MS
+}
+
 type AppEnv = { Bindings: Env; Variables: { user: SessionUser } }
 
 function jsonError(message: string, status = 400) {
@@ -40,7 +56,8 @@ async function sleep(ms: number) {
 
 /* ---------------- 落库 / 存图（与后台发布器同一套约束） ---------------- */
 
-async function insertWeibo(db: D1Database, content: string, images: string[], status: 'published' | 'draft'): Promise<WeiboRow> {
+/** 开放 API / TG 机器人 / MCP（src/mcp.ts）三路共用的微博落库 */
+export async function insertWeibo(db: D1Database, content: string, images: string[], status: 'published' | 'draft'): Promise<WeiboRow> {
   const now = Date.now()
   const res = await db
     .prepare('INSERT INTO weibo (content, images, topics, status, published_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
@@ -453,6 +470,9 @@ telegramRoutes.post('/webhook', async (c) => {
   if (!secretOk) return c.json({ ok: false, error: 'bad secret' }, 401)
 
   const update = await c.req.json<TgUpdate>().catch(() => null)
+  if (update && typeof update.update_id === 'number' && tgUpdateSeen(update.update_id)) {
+    return c.json({ ok: true })
+  }
   const msg = update?.message // edited_message / channel_post 等一律忽略
   if (!msg || !msg.chat) return c.json({ ok: true })
   const chatId = String(msg.chat.id)

@@ -46,6 +46,13 @@ function relativeOf(url: string): string {
   return url.startsWith('/images/') ? 'images/' + url.slice('/images/'.length) : url
 }
 
+/** zip 条目名只认「跑不出目录」的 slug:写库侧 cleanSlug 已保证,这里防的是备份恢复/
+ *  手工改库旁路写进来的脏 slug(slug 带 / \ .. 会让解包端路径穿越);脏值退回 id 命名 */
+function zipEntrySlug(slug: string, id: number): string {
+  if (!slug || /[\\/]/.test(slug) || slug.includes('..') || slug.includes('\0')) return `post-${id}`
+  return slug
+}
+
 /** 从净化后的正文 HTML 收集站内图片 key（正文 img + OG 卡图；外链跳过） */
 export function collectImageKeysFromHtml(html: string): string[] {
   const keys: string[] = []
@@ -168,7 +175,7 @@ exportRoutes.get('/markdown', async (c) => {
           }) +
           '\n\n' +
           rewriteImageLinks(htmlToMd(postsHtml[i]))
-        await zip.add(`posts/${p.slug}.md`, new TextEncoder().encode(md), p.updated_at)
+        await zip.add(`posts/${zipEntrySlug(p.slug, p.id)}.md`, new TextEncoder().encode(md), p.updated_at)
       }
       if (weibo.length) {
         const lines = weibo.map((w) => {
@@ -196,7 +203,7 @@ exportRoutes.get('/markdown', async (c) => {
           }) +
           '\n\n' +
           rewriteImageLinks(htmlToMd(pagesHtml[i]))
-        await zip.add(`pages/${pg.slug}.md`, new TextEncoder().encode(md), pg.updated_at)
+        await zip.add(`pages/${zipEntrySlug(pg.slug, pg.id)}.md`, new TextEncoder().encode(md), pg.updated_at)
       }
       // 图片：R2 逐个流式写入（store 模式不压缩，边流边算 CRC），缺失记入 manifest
       for (const key of keys) {

@@ -41,6 +41,8 @@
     '登录中…': 'Logging in…',
     '注册成功，正在进入…': 'Account created — signing you in…',
     '登录成功，正在进入…': 'Logged in — redirecting…',
+    '请先完成人机验证': 'Please complete the verification first',
+    '人机验证还没就绪，请稍候再试': 'Verification is still loading — please wait a moment and retry',
     '操作失败，请重试': 'Something went wrong — please try again',
     '昵称不能为空': 'Display name cannot be empty',
     '保存中': 'Saving',
@@ -56,6 +58,7 @@
     '退出失败，请重试': 'Failed to log out — please try again',
     '说点什么…': 'Say something…',
     '😊 表情': '😊 Emoji',
+    '移除': 'Remove',
     '返回顶部': 'Back to top',
     '复制代码': 'Copy code',
     '已复制': 'Copied',
@@ -209,7 +212,7 @@
       .map(function (u, i) {
         return (
           '<span class="wb-composer-tile"><img src="' + esc(u) + '" alt="">' +
-          '<button type="button" class="wb-composer-tile-del" data-i="' + i + '" title="移除">×</button></span>'
+          '<button type="button" class="wb-composer-tile-del" data-i="' + i + '" title="' + T('移除') + '">×</button></span>'
         )
       })
       .join('')
@@ -252,7 +255,15 @@
     input.click()
   }
 
-  /* ---------------- 顶部导航「分类话题」折叠菜单：点外部 / Esc 收起 ---------------- */
+  /* ---------------- 顶部导航「分类话题」折叠菜单：点外部 / Esc 收起 ----------------
+   * 打开时给导航挂 snav-open：横滑形态（overflow-x:auto）下 WebKit 把滚动容器内 fixed 子元素
+   * 按容器定位（iOS 实测菜单被剪掉），主题 CSS 据此放开裁剪、菜单转导航锚定的 absolute */
+  document.addEventListener('toggle', function (e) {
+    var d = e.target
+    if (!d || !d.classList || !d.classList.contains('snav-dd')) return
+    var nav = d.closest ? d.closest('nav') : null
+    if (nav) nav.classList[d.open ? 'add' : 'remove']('snav-open')
+  }, true)
   function closeNavMenus(except) {
     var open = document.querySelectorAll('details.snav-dd[open]')
     for (var i = 0; i < open.length; i++) {
@@ -836,8 +847,10 @@
     panel.remove()
   })
 
-  // 给发布器 / 卡片编辑的按钮行插入表情按钮（插入动作依赖 JS，按钮也由 JS 动态加）
-  function wxqAttachButton(foot, ta) {
+  // 给发布器 / 卡片编辑 / 评论表单的按钮行插入表情按钮（插入动作依赖 JS，按钮也由 JS 动态加）。
+  // anchor 可选：评论 foot 是「提示语 + 发送」的 space-between 双孩子布局，把按钮插到发送前并给
+  // margin-left:auto（吸走自由空间）→ 提示语居左、表情+发送右侧成组；别改回 firstChild——会把提示语挤到中间
+  function wxqAttachButton(foot, ta, anchor) {
     if (!foot || foot.querySelector('[data-wxq-btn]')) return
     var btn = document.createElement('button')
     btn.type = 'button'
@@ -848,8 +861,24 @@
       e.preventDefault()
       wxqTogglePanel(btn, ta)
     })
-    foot.insertBefore(btn, foot.firstChild)
+    if (anchor) {
+      btn.style.marginLeft = 'auto'
+      foot.insertBefore(btn, anchor)
+    } else {
+      foot.insertBefore(btn, foot.firstChild)
+    }
   }
+
+  // 评论表单表情按钮（文章评论 / 留言板 / 微博评论——/weibo 页与首页微博流共用同一套 SSR）：
+  // 评论表单全是 SSR 静态 DOM，IIFE 顶层挂一次即可；按钮复用 wb-composer-add 的主题样式
+  document.querySelectorAll('.cmt-form-foot').forEach(function (foot) {
+    var form = foot.closest('form')
+    wxqAttachButton(foot, form && form.querySelector('.cmt-textarea'), foot.querySelector('.cmt-submit'))
+  })
+  document.querySelectorAll('.wb-cmt-foot').forEach(function (foot) {
+    var form = foot.closest('form')
+    wxqAttachButton(foot, form && form.querySelector('.wb-cmt-textarea'), foot.querySelector('.wb-cmt-submit'))
+  })
 
   /* ---------------- 前台发微博（管理员登录时微博页顶部的发布框，能力与后台发布器一致） ---------------- */
   var composerForm = document.querySelector('[data-wb-composer]')
@@ -1017,9 +1046,9 @@
     // 正则字面量在解析期就抛 SyntaxError，会让整个 site.js 瘫掉（匹配语义与服务端一致）
     var WB_TEXT_RE = /(https?:\/\/[^\s<>"'\u3000-\u303f\uff00-\uffef\u4e00-\u9fff]+)|((^|[^A-Za-z0-9#])(#[^\s#&<>"'，。！？；：、…~～,.!?;:]{1,24}(?:#|(?=[\s，。！？；：、…~～,.!?;:])|$)))/gu
 
-    // 与 src/outlink.ts 的 TRUSTED_OUT_DOMAINS 手工同步：前四项是站长自有域名，其余主流大站；
+    // 与 src/outlink.ts 的 TRUSTED_OUT_DOMAINS 手工同步：首项是项目自有域 bloghao.com，其余主流大站；
     // 白名单外域包 /go 中间页（外链提醒 + 免责声明），同源与白名单直出
-    var TRUSTED_OUT = ['bloghao.com', 'xiaowuleyi.com', 'habfut.com', 'btchao.com', 'apple.com', 'icloud.com', 'google.com', 'youtube.com', 'android.com', 'microsoft.com', 'live.com', 'office.com', 'bing.com', 'github.com', 'gitlab.com', 'stackoverflow.com', 'npmjs.com', 'wikipedia.org', 'wikimedia.org', 'mozilla.org', 'cloudflare.com', 'amazon.com', 'x.com', 'twitter.com', 'twimg.com', 'facebook.com', 'instagram.com', 'threads.net', 'linkedin.com', 'reddit.com', 'pinterest.com', 'tiktok.com', 'telegram.org', 't.me', 'discord.com', 'medium.com', 'substack.com', 'openai.com', 'anthropic.com', 'huggingface.co', 'weibo.com', 'weibo.cn', 'sina.com.cn', 'baidu.com', 'zhihu.com', 'bilibili.com', 'b23.tv', 'qq.com', 'tencent.com', '163.com', '126.com', 'netease.com', 'jd.com', 'taobao.com', 'tmall.com', 'alipay.com', 'aliyun.com', 'alibaba.com', 'douyin.com', 'kuaishou.com', 'xiaohongshu.com', 'sohu.com', 'csdn.net', 'juejin.cn', 'cnblogs.com', 'segmentfault.com', 'v2ex.com', 'gitee.com', 'oschina.net', 'jianshu.com', 'sspai.com', 'ithome.com', '36kr.com', 'mi.com', 'xiaomi.com', 'huawei.com']
+    var TRUSTED_OUT = ['bloghao.com', 'apple.com', 'icloud.com', 'google.com', 'youtube.com', 'android.com', 'microsoft.com', 'live.com', 'office.com', 'bing.com', 'github.com', 'gitlab.com', 'stackoverflow.com', 'npmjs.com', 'wikipedia.org', 'wikimedia.org', 'mozilla.org', 'cloudflare.com', 'amazon.com', 'x.com', 'twitter.com', 'twimg.com', 'facebook.com', 'instagram.com', 'threads.net', 'linkedin.com', 'reddit.com', 'pinterest.com', 'tiktok.com', 'telegram.org', 't.me', 'discord.com', 'medium.com', 'substack.com', 'openai.com', 'anthropic.com', 'huggingface.co', 'weibo.com', 'weibo.cn', 'sina.com.cn', 'baidu.com', 'zhihu.com', 'bilibili.com', 'b23.tv', 'qq.com', 'tencent.com', '163.com', '126.com', 'netease.com', 'jd.com', 'taobao.com', 'tmall.com', 'alipay.com', 'aliyun.com', 'alibaba.com', 'douyin.com', 'kuaishou.com', 'xiaohongshu.com', 'sohu.com', 'csdn.net', 'juejin.cn', 'cnblogs.com', 'segmentfault.com', 'v2ex.com', 'gitee.com', 'oschina.net', 'jianshu.com', 'sspai.com', 'ithome.com', '36kr.com', 'mi.com', 'xiaomi.com', 'huawei.com']
 
     function trustedOutHost(host) {
       var h = String(host || '').toLowerCase().replace(/\.+$/, '')
@@ -1856,11 +1885,49 @@
   var memAuth = document.querySelector('.mem-auth')
   if (memAuth) {
     var memForms = memAuth.querySelectorAll('[data-member-form]')
+    /* 注册人机验证（Turnstile，A2 根治）：sitekey 挂 <html data-turnstile>（服务端仅 /member
+     * 下发），未配置则整个分支旁路、注册行为与历史完全一致。组件用显式渲染、注册表单首次
+     * 可见时才挂（隐藏容器里 Turnstile 渲染不出）；令牌一次性，注册失败后 reset 换新再提交；
+     * 脚本加载失败不重试到成功不给出路——无令牌的提交会被服务端拒绝（fail closed） */
+    var turnstileSiteKey = document.documentElement.getAttribute('data-turnstile') || ''
+    var turnstileReady = false
+    var turnstileLoading = false
+    var turnstileWidgetId = null
+    var turnstileToken = function () {
+      return turnstileReady && window.turnstile && window.turnstile.getResponse && turnstileWidgetId !== null
+        ? window.turnstile.getResponse(turnstileWidgetId)
+        : ''
+    }
+    var turnstileEnsure = function () {
+      if (!turnstileSiteKey || turnstileReady || turnstileLoading) return
+      turnstileLoading = true
+      window.__xwTurnstileCb = function () {
+        turnstileLoading = false
+        var form = memAuth.querySelector('[data-member-form="register"]')
+        if (!form || !window.turnstile || !window.turnstile.render) return
+        var box = document.createElement('div')
+        box.className = 'mem-turnstile'
+        form.insertBefore(box, form.querySelector('.mem-btn'))
+        turnstileWidgetId = window.turnstile.render(box, { sitekey: turnstileSiteKey })
+        turnstileReady = true
+      }
+      var sc = document.createElement('script')
+      sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=__xwTurnstileCb'
+      sc.async = true
+      sc.onerror = function () { turnstileLoading = false }
+      document.head.appendChild(sc)
+    }
+    var turnstileReset = function () {
+      if (turnstileReady && window.turnstile && window.turnstile.reset && turnstileWidgetId !== null) {
+        window.turnstile.reset(turnstileWidgetId)
+      }
+    }
     if (memForms.length > 1) {
       var memShow = function (name) {
         memForms.forEach(function (f) {
           f.hidden = f.getAttribute('data-member-form') !== name
         })
+        if (name === 'register') turnstileEnsure()
       }
       memAuth.addEventListener('click', function (e) {
         var btn = e.target && e.target.closest ? e.target.closest('[data-member-swap]') : null
@@ -1888,6 +1955,17 @@
           var nick = form.querySelector('[name=nickname]')
           if (nick && nick.value.trim()) body.nickname = nick.value.trim()
           if (email && email.value.trim()) body.email = email.value.trim()
+          // Turnstile 令牌（配置了 sitekey 才校验）：未就绪先在本侧拦下，省一次注定失败的请求
+          if (turnstileSiteKey) {
+            var tok = turnstileToken()
+            if (!tok) {
+              if (tip) tip.textContent = T(turnstileReady ? '请先完成人机验证' : '人机验证还没就绪，请稍候再试')
+              btn.textContent = label
+              btn.disabled = false
+              return
+            }
+            body.turnstileToken = tok
+          }
         }
         postJSON('/api/member/' + kind, body)
           .then(function () {
@@ -1900,6 +1978,7 @@
             if (tip) tip.textContent = err.message || T('操作失败，请重试')
             btn.textContent = label
             btn.disabled = false
+            if (kind === 'register') turnstileReset()
           })
       })
     })

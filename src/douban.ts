@@ -748,7 +748,9 @@ export function buildCardHtml(item: MediaItem): string {
         }</span>`
       : ''
   const src = SOURCE_LABEL[item.source]?.(item.type) || ''
-  const link = (item.link || '').trim()
+  // link 可能来自第三方 API 响应(iTunes collectionViewUrl / Google Books infoLink),
+  // 生成时只放行 http(s)、存库净化兜底——其余退化为纯展示卡(与 linkmeta 卡同口径)
+  const link = /^https?:\/\//i.test((item.link || '').trim()) ? (item.link || '').trim() : ''
 
   const style =
     'display: flex;margin: 14px 0;padding: 12px 14px;background-color: #fafafa;border: 1px solid #ececec;border-radius: 10px;text-decoration: none;'

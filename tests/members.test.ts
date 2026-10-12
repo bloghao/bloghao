@@ -29,6 +29,9 @@ test('cstDayStart：北京时间当日 0 点（UTC 分量 + 去掉 +8 偏移）'
 function fakePointsDb(initial = 0) {
   const log: { member_id: number; delta: number; reason: string; ref_id: number }[] = []
   let balance = initial
+  // 当日累计(桩内所有账本行都视为当天)
+  const daySum = (memberId: number, reason: string) =>
+    log.filter((l) => l.member_id === memberId && l.reason === reason).reduce((x, l) => x + l.delta, 0)
   const db = {
     prepare(sql: string) {
       let args: unknown[] = []
@@ -49,7 +52,17 @@ function fakePointsDb(initial = 0) {
               ref_id: args[3] as number,
             })
           } else if (sql.includes('UPDATE members SET points')) {
+            // 三语句条件批的②:SUM 子查询守卫,超当日上限 changes=0 不入账(与 points.ts 同谓词)
+            if (sql.includes('created_at >= ?) <= ?') && daySum(args[3] as number, args[4] as string) > (args[6] as number)) {
+              return { success: true, meta: { changes: 0 } }
+            }
             balance += args[0] as number
+          } else if (sql.includes('DELETE FROM member_points_log')) {
+            // 三语句条件批的③:SUM 超上限时按 ref_id 摘除本行(与②谓词互斥)
+            if (daySum(args[3] as number, args[4] as string) > (args[6] as number)) {
+              const idx = log.findIndex((l) => l.member_id === args[0] && l.reason === args[1] && l.ref_id === args[2])
+              if (idx >= 0) log.splice(idx, 1)
+            }
           }
           return { success: true, meta: { changes: 1 } }
         },
@@ -72,8 +85,9 @@ function fakePointsDb(initial = 0) {
       return stmt
     },
     batch: async (stmts: { run(): Promise<unknown> }[]) => {
-      for (const s of stmts) await s.run()
-      return []
+      const out: unknown[] = []
+      for (const s of stmts) out.push(await s.run())
+      return out
     },
   }
   return { db: db as unknown as D1Database, log, balance: () => balance }
@@ -109,6 +123,39 @@ test('awardPoints：评论单日上限 10 条（第 11 条起拦下），账本�
   const overflow = await awardPoints(db, 3, 'comment', { refId: 11 })
   assert.equal(overflow.ok, false)
   assert.equal(log.length, 10)
+})
+
+test('awardPoints：日上限批内守卫——SUM 预查后并发抢占的额度被条件批摘除', async () => {
+  const { db, log, balance } = fakePointsDb()
+  for (let i = 1; i <= 9; i++) await awardPoints(db, 8, 'comment', { refId: i })
+  assert.equal(balance(), 18)
+  // 模拟并发竞态:让 SUM 预查读到旧快照(18,判定可过),随后另一路抢先把当日额度顶满
+  const realPrepare = db.prepare.bind(db)
+  let hijacked = false
+  ;(db as unknown as { prepare: (sql: string) => unknown }).prepare = (sql: string) => {
+    const stmt = realPrepare(sql)
+    if (!hijacked && sql.includes('AS s FROM member_points_log')) {
+      hijacked = true
+      return {
+        bind: (...a: unknown[]) => {
+          ;(stmt as { bind: (...b: unknown[]) => unknown }).bind(...a)
+          return {
+            first: async () => {
+              log.push({ member_id: 8, delta: 2, reason: 'comment', ref_id: 999 })
+              return { s: 18 }
+            },
+          }
+        },
+      }
+    }
+    return stmt
+  }
+  const r = await awardPoints(db, 8, 'comment', { refId: 100 })
+  assert.equal(r.ok, false, '批内 SUM 已超上限,条件 UPDATE 不入账')
+  assert.equal(r.delta, 0)
+  assert.equal(balance(), 18, '余额不动')
+  assert.ok(!log.some((l) => l.ref_id === 100), '超额账本行被条件 DELETE 摘除')
+  assert.equal(log.length, 10, '账本回到 10 行(9 条 + 并发抢占 1 条)')
 })
 
 test('awardPoints：adminAdjust 用给定 delta（可负）且不受日上限约束', async () => {

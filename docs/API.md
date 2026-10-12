@@ -349,6 +349,25 @@ Telegram Bot API 的 Webhook 接收端，由 Telegram 服务器调用（校验 `
 - `/draft 文字` 存草稿；其余指令回复可用指令说明
 - 限频 20 次/分钟/Chat
 
+### POST /mcp（MCP 服务器，AI 助手接入）
+Model Context Protocol 端点（**Streamable HTTP 无状态模式**）：JSON-RPC 2.0 进、`application/json` 出，不开 SSE 流（`GET`/`DELETE` → 405）。鉴权与开放 API 同一枚 Token（Bearer / X-Auth-Token；空 Token = 接口关闭），限频 30 次/分钟/Token，鉴权失败 10 次/10 分钟/IP。演示站 404；一键闭站时随全站 503。
+
+方法：`initialize`（协议版本协商，支持 `2025-06-18` / `2025-03-26`，客户端未知版本回最新）、`ping`、`tools/list`、`tools/call`；`notifications/*` 回 202 空 body；兼容数组批处理（逐条派发，全通知回 202）。
+
+工具清单（`tools/call` 入参 `arguments` 即下表入参）：
+
+| 工具 | 入参（粗体必填） | 行为 |
+| --- | --- | --- |
+| `publish_post` | **title**、**content**、format（`markdown` 默认 / `html`）、status（`draft` 默认 / `published`）、slug、summary、tags[]、cover | Markdown 先 `mdToHtml` 再 `sanitizeHtml` 入库（与后台编辑器 MD 模式同链路）；slug 自动查重加序号；出参 `{id, slug, status, url}`。发布即广播 `PostPublishedPayload`（`via:'mcp'`，`locked` 恒 false——工具面不收密码/档位）。定时发布 / 访问密码 / 会员档位不支持 |
+| `list_posts` | status（`all` 默认 / `published` / `draft` / `scheduled`）、q、page、limit（≤50） | 复用 `listPosts`（过滤回收站行）；出参不含正文，带 `hasPassword`；q 关键词搜索不命中加密文（同 listPosts q 分支） |
+| `get_post` | id 或 slug 二选一 | 出参过 `postAdminView`（`password_hash` 永不出参，只给 `hasPassword`），含正文存库 HTML |
+| `list_comments` | status（`pending` 默认 / `approved` / `all`）、type（`all` / `post` / `weibo` / `guestbook`）、limit（≤50） | 带 post_title / weibo_content / parent_nickname 上下文；出参只给审核需要的列，email / qq / ip / avatar 不出 |
+| `publish_weibo` | **content** 或 images[]（站内 `/images/…` 或 http(s)，≤9 张）、status（`published` 默认 / `draft`） | 与 `POST /api/external/weibo` 同口径（不含 base64 传图）；话题自动提取；发布即广播 `WeiboPublishedPayload`（`via:'external'`） |
+
+- 错误：401 无效 Token / 未生成；429 限频；400 parse error（-32700）/ 空 batch（-32600）；-32601 未知方法；-32602 未知工具 / 缺工具名
+- 业务校验失败（空标题、图片地址无效等）回 `result.isError: true` 的工具错误，不是 JSON-RPC error
+- 用法与客户端配置见 [GUIDE §8.3](GUIDE.md)
+
 ## HTML 白名单（净化器摘要）
 
 - 保留：`p br hr h1-h6 blockquote pre code ul ol li a img video source strong b em i u s del ins mark sup sub small span section div figure figcaption table thead tbody tfoot tr th td caption details summary abbr cite q kbd samp wbr`

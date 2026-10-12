@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { bufferPostText, fireCommentCreated, firePostPublished, fireWeiboPublished, listServerPlugins, plazaSign, renderFooterHtml } from '../src/hooks.ts'
+import { bufferPostText, fireCommentCreated, firePlazaRetract, firePostPublished, fireWeiboPublished, listServerPlugins, plazaSign, renderFooterHtml } from '../src/hooks.ts'
 import { verifyPlazaSignature } from '../plaza/src/core.ts'
 import { DEFAULT_SETTINGS } from '../src/db.ts'
 import type { Env, SettingsMap } from '../src/types.ts'
@@ -290,6 +290,39 @@ test('广场同步：只填 token 即默认同步官方 hub，未填 token 静�
     await firePostPublished(env3, { slug: 'a', title: 'b', summary: '', via: 'admin' })
     assert.equal(cap.calls.length, 2)
     assert.equal(JSON.parse(String(cap.calls[1].init?.body)).items[0].url, '')
+  } finally {
+    cap.restore()
+  }
+})
+
+test('firePlazaRetract：下架广播带 deleted 载荷；未配置 / 停用插件不外发', async () => {
+  const cap = captureFetch()
+  try {
+    // 配置齐全：deleted 进 ingest body，不携带 items（下架与上架是两种载荷）
+    const env = fakeEnv([
+      { key: 'plazaToken', value: 'a'.repeat(32) },
+      { key: 'plazaEndpoint', value: 'https://hub.example.com/plaza' },
+    ])
+    await firePlazaRetract(env, [{ kind: 'post', ref: 'hello-world' }])
+    assert.equal(cap.calls.length, 1)
+    assert.ok(cap.calls[0].url.startsWith('https://hub.example.com/plaza/api/ingest'), cap.calls[0].url)
+    const body = JSON.parse(String(cap.calls[0].init?.body))
+    assert.deepEqual(body.deleted, [{ kind: 'post', ref: 'hello-world' }])
+    assert.ok(!('items' in body), '下架广播不携带 items')
+
+    // 未配置 token：静默不外发
+    await firePlazaRetract(fakeEnv([]), [{ kind: 'weibo', ref: '9' }])
+    assert.equal(cap.calls.length, 1)
+
+    // plaza-sync 被停用：同口径不外发（下架跟随插件开关）
+    await firePlazaRetract(
+      fakeEnv([
+        { key: 'plazaToken', value: 'a'.repeat(32) },
+        { key: 'serverPluginsDisabled', value: 'plaza-sync' },
+      ]),
+      [{ kind: 'post', ref: 'x' }]
+    )
+    assert.equal(cap.calls.length, 1)
   } finally {
     cap.restore()
   }

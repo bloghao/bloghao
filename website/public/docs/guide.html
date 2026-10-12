@@ -36,6 +36,7 @@
       <a class="docs-side-title" href="index.html">📚 文档中心</a>
       <ul class="docs-side-list">
       <li><a href="deploy.html">🚀 部署教程</a></li>
+      <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
       <li><a class="is-active" href="guide.html">📖 使用手册</a></li>
       <li><a href="plaza.html">🧭 广场</a></li>
       <li><a href="themes.html">🎨 主题开发</a></li>
@@ -134,8 +135,8 @@
 <td><strong>随机阅读</strong>：随机跳到一篇已发布文章</td>
 </tr>
 <tr>
-<td><a href="https://blog.xiaowuleyi.com/rss.xml" target="_blank" rel="noopener noreferrer">/rss.xml</a> · <a href="https://blog.xiaowuleyi.com/sitemap.xml" target="_blank" rel="noopener noreferrer">/sitemap.xml</a></td>
-<td>RSS 全文订阅与站点地图（自动生成）；常用别名路径（<code>/feed</code>、<code>/rss</code>、<code>/atom.xml</code>、<code>/index.xml</code>、<code>/feeds/posts/default</code>、<code>?feed=rss2</code>）同样可订阅，前端与站点地图只展示规范地址</td>
+<td><a href="https://blog.xiaowuleyi.com/rss.xml" target="_blank" rel="noopener noreferrer">/rss.xml</a> · <a href="https://blog.xiaowuleyi.com/feed.json" target="_blank" rel="noopener noreferrer">/feed.json</a> · <a href="https://blog.xiaowuleyi.com/sitemap.xml" target="_blank" rel="noopener noreferrer">/sitemap.xml</a></td>
+<td>RSS 全文订阅与站点地图（自动生成）；<code>/feed.json</code> 是 JSON Feed 1.1 机器可读订阅格式（内容口径与 RSS 一致）；常用别名路径（<code>/feed</code>、<code>/rss</code>、<code>/atom.xml</code>、<code>/index.xml</code>、<code>/feeds/posts/default</code>、<code>?feed=rss2</code>）同样可订阅，前端与站点地图只展示规范地址</td>
 </tr>
 <tr>
 <td><a href="https://blog.xiaowuleyi.com/admin/" target="_blank" rel="noopener noreferrer">/admin/</a></td>
@@ -357,7 +358,7 @@
 </tbody></table></div>
 <p>完整规则表见 <a href="typography.html">wechat-typography-spec.md</a>。没有红字就是好排版，放心发布。</p>
 <h2 id="8-发微博随手记">8. 发微博（随手记）</h2><p>不是每句话都值得起标题、配摘要——短想法、生活记录、看到的图片，走后台「<strong>微博</strong>」页的发布器：<strong>写上字（或直接配图）就能发</strong>。</p>
-<p>发布框里有「😊 表情」按钮，点开微信默认表情面板选表情插入（存的是 <code>[微笑]</code> 文本码，前台渲染成行内小图；评论区手打文本码同样渲染）。</p>
+<p>发布框里有「😊 表情」按钮，点开微信默认表情面板选表情插入（存的是 <code>[微笑]</code> 文本码，前台渲染成行内小图）。<strong>评论区也有同款表情按钮</strong>——文章评论、留言板、微博评论三处都能点开面板选表情，手打文本码同样渲染。</p>
 <p><strong>前台也能直接发、直接管</strong>：管理员登录后打开 <code>/weibo</code>，时间线顶部就有同一个发布器（访客看不到），加图 / 粘贴 / 拖拽 / 话题 / 草稿全部支持，点「发布」后页面自动刷新出新微博；每张卡片的底栏右侧还有<strong>编辑 / 置顶（取消置顶）/ 删除</strong>三个管理按钮（同样只有你能看到）——编辑就地展开、改完保存立即生效（文字和图都能改），置顶取消置顶不用刷新，删除有二次确认。下架转草稿仍回后台操作。</p>
 <p><strong>发布器怎么用</strong>：</p>
 <ul>
@@ -452,6 +453,60 @@ curl -X POST https://blog.xiaowuleyi.com/api/external/weibo \
   -H &quot;Authorization: Bearer $TOKEN&quot; \
   -H &quot;Content-Type: application/json&quot; \
   -d '{&quot;content&quot;:&quot;截图&quot;, &quot;images&quot;:[&quot;data:image/png;base64,iVBORw0…&quot;]}'</code></pre></div><p><strong>规则与后台发布器完全一致</strong>：文字 ≤ 5000 字、图片 ≤ 9 张（JPG / PNG / WebP / GIF，文件走接口上传 ≤ 25MB）、话题从正文 <code>#话题</code> 自动提取、<code>&quot;status&quot;:&quot;draft&quot;</code> 存草稿、限频 30 次/分钟。返回 <code>{ok, id, url, status, images}</code>，<code>url</code> 直接指向这条微博。接口参数详见 <a href="api.html">API.md</a>。</p>
+<h3 id="83-ai-助手接入mcp-服务器">8.3 AI 助手接入：MCP 服务器</h3><p>博客内置了一个 <strong>MCP（Model Context Protocol）服务器</strong>——Claude Code、Cursor 等 AI 助手配好之后，可以直接<strong>帮你发文、查评论、发微博</strong>，不用打开后台。</p>
+<p><strong>接入三步</strong>：</p>
+<ol>
+<li><p>在「设置 → 外部发布」点「<strong>生成 Token</strong>」并复制（与 8.2 开放 API 是<strong>同一枚令牌</strong>）</p>
+</li>
+<li><p>在 AI 助手的 MCP 配置里加一条（URL 换成你自己的域名）：</p>
+<div class="codeblock" data-lang="json"><pre><code>{
+  &quot;mcpServers&quot;: {
+    &quot;bloghao&quot;: {
+      &quot;url&quot;: &quot;https://blog.xiaowuleyi.com/mcp&quot;,
+      &quot;headers&quot;: { &quot;Authorization&quot;: &quot;Bearer 你的Token&quot; }
+    }
+  }
+}</code></pre></div></li>
+<li><p>重启 / 刷新 AI 助手，看到 5 个 <code>bloghao</code> 工具即接入完成</p>
+</li>
+</ol>
+<p><strong>可用工具</strong>：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>工具</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>publish_post</code></td>
+<td>新建文章：正文<strong>默认 Markdown</strong>，可存草稿或直接发布，支持自定义 slug / 摘要 / 标签 / 封面</td>
+</tr>
+<tr>
+<td><code>list_posts</code></td>
+<td>按状态、关键词分页列出文章（含草稿，不含正文）</td>
+</tr>
+<tr>
+<td><code>get_post</code></td>
+<td>按 id 或 slug 读单篇全文，供修改前核对</td>
+</tr>
+<tr>
+<td><code>list_comments</code></td>
+<td>按状态（默认待审）/ 归属列出评论，适合「帮我把待审评论过一遍」</td>
+</tr>
+<tr>
+<td><code>publish_weibo</code></td>
+<td>发随手记微博，与 8.2 开放 API 同口径（≤5000 字、≤9 图、话题自动提取）</td>
+</tr>
+</tbody></table></div>
+<p><strong>规则与边界</strong>：</p>
+<ul>
+<li>推荐节奏：先 <code>status: draft</code> 存草稿 → 你在后台预览确认 → 再发布（<code>publish_post</code> 默认就是草稿）</li>
+<li>正文存库前统一过净化器（Markdown 先转 HTML，与后台编辑器 Markdown 模式同一条链路）</li>
+<li>Token = 发布权限，只配在自己的 AI 助手里；想撤销，点「重新生成」Token 即可</li>
+<li>限频 30 次/分钟；鉴权失败有额外防爆破限制（10 次/10 分钟）</li>
+<li>定时发布、访问密码、会员档位暂不支持经 MCP 设置；演示站不开放 MCP；<strong>一键闭站时 MCP 一并停用</strong>（与其他对外发布通道同口径）</li>
+</ul>
 <h2 id="9-媒体库图床">9. 媒体库（图床）</h2><p>侧栏「媒体」：所有上传过的图片和视频按时间倒序展示，点击可预览、复制访问地址（<code>/images/u/202610/xxx.png</code>）、删除。写文章、发微博、传头像图标、采集公众号配图——都存在这一个桶里。</p>
 <ul>
 <li>上传限制：JPG / PNG / WebP / GIF / MP4 / WebM，单文件 ≤ 25MB</li>
@@ -529,9 +584,10 @@ curl -X POST https://blog.xiaowuleyi.com/api/external/weibo \
 <ul>
 <li><strong>会员功能</strong>（默认关）：关闭时前台没有任何会员入口，<code>/member</code>、<code>/rank</code> 都是 404；开启后顶部导航出现「会员」「排行榜」两项（位于「关于我」之前）</li>
 <li><strong>排行榜条数</strong>：榜单页（<code>/rank</code>）展示的人数上限（1-50，默认 10）</li>
+<li><strong>注册人机验证（Turnstile，选填）</strong>：到 Cloudflare Dashboard → Turnstile 创建一个站点（域名填自己的），把 <strong>Site Key</strong> 与 <strong>Secret Key</strong> 成对填进后台这两个框（两键必须同时填写或同时留空）。配置后前台注册需先通过 Cloudflare 人机验证，批量小号刷积分的路子基本断掉；两键留空即关闭，注册行为与从前一致</li>
 </ul>
 <h3 id="会员侧">会员侧</h3><ul>
-<li><strong>注册 / 登录</strong>：「会员中心」（<code>/member</code>）里注册（用户名 + 密码 + 可选昵称与邮箱，蜜罐 + 限流防机器人）、登录、退出；密码 8-64 位，服务端 PBKDF2 单向哈希存储，与站长账号完全隔离</li>
+<li><strong>注册 / 登录</strong>：「会员中心」（<code>/member</code>）里注册（用户名 + 密码 + 可选昵称与邮箱，蜜罐 + 限流防机器人，站长开启 Turnstile 后还需通过人机验证）、登录、退出；密码 8-64 位，服务端 PBKDF2 单向哈希存储，与站长账号完全隔离</li>
 <li><strong>个人资料</strong>：登录后会员中心出身份卡（昵称 / 档位 / 积分 / 注册时间）与两张修改卡——<strong>昵称</strong>中英文均可（注册时选填，仅作展示不做唯一），<strong>每 30 天可修改一次</strong>，冷却中卡片会写明下次可改日期；<strong>密码</strong>修改需验证当前密码，成功后其他设备全部退出登录（当前设备保持登录）。<strong>本站不提供密码找回</strong>——注册与改密表单旁都有提醒，请务必记好密码，遗失无法找回</li>
 <li><strong>评论带身份</strong>：登录后文章 / 留言板 / 微博三处评论表单都显示「以会员 xxx 的身份发言」并免填昵称，发出的评论自动带会员昵称与档位徽标；表单里填的昵称 / 邮箱 / 网站字段会被忽略</li>
 <li><strong>QQ 头像</strong>：会员中心「QQ 头像」卡里绑定自己的 QQ 号（选填），评论区与排行榜会显示你的 QQ 头像（服务端抓取后转存到自己站内图床，国内直连零成本）；QQ 号本身不会公开展示，仅用于抓取头像。头像没抓到时同一张卡可一键重试；没绑定的用户在评论区显示昵称首字图标</li>
@@ -700,7 +756,7 @@ npx wrangler r2 object get xwblog-images/ --file=?   # 图片按需从媒体库�
     </article>
   
   <nav class="docs-pager">
-    <a class="docs-pager-link is-prev" href="deploy.html"><span>← 上一篇</span><b>🚀 部署教程</b></a>
+    <a class="docs-pager-link is-prev" href="cloudflare.html"><span>← 上一篇</span><b>☁️ Cloudflare 基础</b></a>
     <a class="docs-pager-link is-next" href="plaza.html"><span>下一篇 →</span><b>🧭 广场</b></a>
   </nav>
   </main>
@@ -719,6 +775,7 @@ npx wrangler r2 object get xwblog-images/ --file=?   # 图片按需从媒体库�
         <li class="toc-d2"><a href="#8-发微博随手记" data-toc="8-发微博随手记">8. 发微博（随手记）</a></li>
         <li class="toc-d3"><a href="#81-从外面发微博telegram-机器人推荐" data-toc="81-从外面发微博telegram-机器人推荐">8.1 从外面发微博：Telegram 机器人（推荐）</a></li>
         <li class="toc-d3"><a href="#82-程序化发布开放-api" data-toc="82-程序化发布开放-api">8.2 程序化发布：开放 API</a></li>
+        <li class="toc-d3"><a href="#83-ai-助手接入mcp-服务器" data-toc="83-ai-助手接入mcp-服务器">8.3 AI 助手接入：MCP 服务器</a></li>
         <li class="toc-d2"><a href="#9-媒体库图床" data-toc="9-媒体库图床">9. 媒体库（图床）</a></li>
         <li class="toc-d2"><a href="#10-评论管理" data-toc="10-评论管理">10. 评论管理</a></li>
         <li class="toc-d2"><a href="#11-友情链接" data-toc="11-友情链接">11. 友情链接</a></li>
