@@ -1,5 +1,5 @@
-/* ===== 主题外观变量（B9 · 内测）=====
- * 后台「皮肤 → 外观变量」可调颜色 / 字体 / 正文字号，不动主题代码。
+/* ===== 主题外观变量（B9）=====
+ * 后台「皮肤 → 外观变量」可调颜色 / 字体 / 正文字号 / 圆角，不动主题代码。
  * 机制：settings.appearance 存一份扁平 JSON（角色键 → 色值，另有 font / fontSize），
  * 渲染期 appearanceHeadStyle() 按当前主题把语义角色映射回该主题自己的 CSS 变量，产出一小段
  * 覆盖 <style> 挂在主题样式之后（同特异性后者胜）。未设置时输出空串——不配置 = 输出与
@@ -27,7 +27,10 @@ export type AppearanceRoleKey = (typeof APPEARANCE_ROLES)[number]['key']
 /** 深浅衍生色：shade = 向黑压深 amount%；tint = 向透明冲淡 amount%（color-mix，旧浏览器降级回落原值） */
 type DerivedVar = { varName: string; kind: 'shade' | 'tint'; amount: number }
 type RoleEntry = { vars: string[]; default: string; derived?: DerivedVar[] }
-type ThemeAppearance = { roles: Partial<Record<AppearanceRoleKey, RoleEntry>>; richSize: number }
+/** 圆角旋钮：主题 CSS :root 里 --<p>-radius 为基准值，--<p>-radius-lg 用 calc(var * 系数) 派生，
+ * 覆盖样式只需重写基准变量一枚，大小两级成比例走 */
+type ThemeRadius = { var: string; default: number; lgFactor: number }
+type ThemeAppearance = { roles: Partial<Record<AppearanceRoleKey, RoleEntry>>; richSize: number; radius?: ThemeRadius }
 
 /* 各主题语义角色 → CSS 变量映射。default 必须与主题 CSS :root 里的值一致（镜像守卫盯着）；
  * 变量缺失的角色不写条目（minimal 黑白设计无主色/卡片底，链接色仅 wechat 有专用变量） */
@@ -43,6 +46,7 @@ export const THEME_APPEARANCE: Record<string, ThemeAppearance> = {
       card: { vars: ['--wx-card'], default: '#ffffff' },
       line: { vars: ['--wx-line'], default: '#e8e2d9' },
     },
+    radius: { var: '--wx-radius', default: 8, lgFactor: 1.75 },
   },
   paper: {
     richSize: 17,
@@ -54,6 +58,7 @@ export const THEME_APPEARANCE: Record<string, ThemeAppearance> = {
       card: { vars: ['--pp-card'], default: '#fffdf8' },
       line: { vars: ['--pp-line'], default: '#e2dccc' },
     },
+    radius: { var: '--pp-radius', default: 4, lgFactor: 1.5 },
   },
   midnight: {
     richSize: 16.5,
@@ -65,6 +70,7 @@ export const THEME_APPEARANCE: Record<string, ThemeAppearance> = {
       card: { vars: ['--md-card'], default: '#161a22' },
       line: { vars: ['--md-line'], default: '#232936' },
     },
+    radius: { var: '--md-radius', default: 8, lgFactor: 1.5 },
   },
   minimal: {
     richSize: 17,
@@ -74,6 +80,7 @@ export const THEME_APPEARANCE: Record<string, ThemeAppearance> = {
       bg: { vars: ['--mn-bg'], default: '#ffffff' },
       line: { vars: ['--mn-line'], default: '#eaeaea' },
     },
+    radius: { var: '--mn-radius', default: 2, lgFactor: 2 },
   },
   journal: {
     richSize: 17,
@@ -85,6 +92,7 @@ export const THEME_APPEARANCE: Record<string, ThemeAppearance> = {
       card: { vars: ['--jrn-card'], default: '#fffdf6' },
       line: { vars: ['--jrn-line'], default: '#e7ddc9' },
     },
+    radius: { var: '--jrn-radius', default: 10, lgFactor: 1.6 },
   },
   bitcoin: {
     richSize: 16.5,
@@ -103,6 +111,7 @@ export const THEME_APPEARANCE: Record<string, ThemeAppearance> = {
       card: { vars: ['--bt-surface'], default: '#ffffff' },
       line: { vars: ['--bt-border'], default: '#e7e4dc' },
     },
+    radius: { var: '--bt-radius', default: 10, lgFactor: 1.6 },
   },
   rednote: {
     richSize: 16,
@@ -121,6 +130,7 @@ export const THEME_APPEARANCE: Record<string, ThemeAppearance> = {
       card: { vars: ['--rn-surface'], default: '#ffffff' },
       line: { vars: ['--rn-line'], default: '#f0f0f0' },
     },
+    radius: { var: '--rn-radius', default: 12, lgFactor: 1.33 },
   },
 }
 
@@ -235,6 +245,14 @@ export function cleanAppearanceSettings(raw: string): string | null {
       out[k] = stack
       continue
     }
+    if (k === 'radius') {
+      if (v === '' || v == null) continue
+      // 只收 number（Number([]) 会隐式变 0，放宽 typeof 会放数组穿透）
+      if (typeof v !== 'number' || !Number.isFinite(v)) return null
+      // 0 = 直角风格（合法值，与 fontSize 的「0 = 清除」语义不同：清除 radius 靠省键）
+      out[k] = Math.round(Math.min(24, Math.max(0, v)))
+      continue
+    }
     if (!ROLE_KEYS.includes(k)) return null
     if (typeof v !== 'string') return null
     const color = normalizeColor(v)
@@ -245,6 +263,7 @@ export function cleanAppearanceSettings(raw: string): string | null {
   for (const r of ROLE_KEYS) if (r in out) ordered[r] = out[r]
   if ('font' in out) ordered.font = out.font
   if ('fontSize' in out) ordered.fontSize = out.fontSize
+  if ('radius' in out) ordered.radius = out.radius
   return Object.keys(ordered).length ? JSON.stringify(ordered) : ''
 }
 
@@ -282,6 +301,10 @@ export function appearanceHeadStyle(settings: SettingsMap): string {
       }
     }
   }
+  // 圆角：只重写主题的基准变量，--<p>-radius-lg 在主题 CSS 里用 calc 派生成比例走；同默认值不输出
+  if (theme.radius && typeof obj.radius === 'number' && obj.radius !== theme.radius.default) {
+    picks.push(`${theme.radius.var}:${Math.round(Math.min(24, Math.max(0, obj.radius)))}px`)
+  }
   const rules: string[] = []
   if (picks.length) rules.push(`:root{${picks.join(';')}}`)
   if (typeof obj.font === 'string' && obj.font) {
@@ -306,8 +329,11 @@ export function appearanceMeta(themeId: string) {
       key: r.key,
       label: r.label,
       default: (t.roles[r.key] as RoleEntry).default,
+      /** 该角色映射的主题 CSS 变量名（后台实时预览用它构造同款覆盖样式） */
+      vars: (t.roles[r.key] as RoleEntry).vars,
     })),
     richSize: t.richSize,
+    radius: t.radius ? { var: t.radius.var, default: t.radius.default, lgFactor: t.radius.lgFactor } : null,
     fontPresets: FONT_PRESETS.map((p) => ({ id: p.id, label: p.label, stack: p.stack })),
   }
 }

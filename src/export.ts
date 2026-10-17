@@ -4,16 +4,16 @@
  * - Markdown 包：全部文章（含草稿，front-matter 带 status）+ 微博 + 独立页面 + 被引用的图片。
  *   正文服务端 HTML→MD（src/html-md.ts），图片从 R2 流式打进 zip（src/zip.ts），整包不过内存。
  * - WXR：WordPress eXtended RSS 1.2，文章（HTML 正文）+ 分类 + 标签，供 WordPress / emlog 等导入器使用；
- *   微博不进 WXR（两边无对应模型），用 Markdown 包携带。
+ *   微博（含 B19 视频）不进 WXR（两边无对应模型），用 Markdown 包携带（视频文件与封面帧进 zip 的 images/）。
  * 挂载于 /api/admin/export（api.ts），受登录中间件保护，GET + 会话 Cookie 即下载。
  */
 import { Hono } from 'hono'
-import { getSettings, listPages, parseTags } from './db'
+import { getSettings, listPages, parseTags, weiboVideoView } from './db'
 import { htmlToMd } from './html-md'
 import { siteBase } from './render'
 import { extractOgImage, sanitizeHtml } from './sanitize'
 import type { Env, PageRow, PostRow, SessionUser, WeiboRow } from './types'
-import { cstDate, fmtDate } from './utils'
+import { cstDate, fmtDate, isDemo } from './utils'
 import { cdata, rfc822, xmlEsc } from './xml'
 import { ZipWriter } from './zip'
 
@@ -27,7 +27,8 @@ const MAX_ROWS = 100_000 // 与备份的 TABLE_ROW_LIMIT 同口径（D1 单查�
  *  与 /images 路由同一白名单口径（u/ / og/ 前缀）：.. 与目录外 key 拒收——
  *  真实 R2 无所谓，docker-poc 的 r2disk 落盘时会把 .. 拼进文件路径，自己的文章
  *  不能让导出功能炸掉或写出租户目录 */
-function keyOf(url: string): string | null {
+/** 导出仅为测试导入面（tests/export-guard.test.ts）：纯函数零行为变更 */
+export function keyOf(url: string): string | null {
   if (!url.startsWith('/images/')) return null
   const raw = url.slice('/images/'.length)
   let key: string
@@ -48,7 +49,7 @@ function relativeOf(url: string): string {
 
 /** zip 条目名只认「跑不出目录」的 slug:写库侧 cleanSlug 已保证,这里防的是备份恢复/
  *  手工改库旁路写进来的脏 slug(slug 带 / \ .. 会让解包端路径穿越);脏值退回 id 命名 */
-function zipEntrySlug(slug: string, id: number): string {
+export function zipEntrySlug(slug: string, id: number): string {
   if (!slug || /[\\/]/.test(slug) || slug.includes('..') || slug.includes('\0')) return `post-${id}`
   return slug
 }
@@ -113,6 +114,9 @@ function attachmentHeaders(filename: string, contentType: string): Headers {
 }
 
 exportRoutes.get('/markdown', async (c) => {
+  // 演示站守卫（AGENTS 演示站防线；2026-10-12 审计 B11 当时只落了 backup 侧，导出侧 2026-10-15 补齐）：
+  // 体验者凭据公示，整包导出内容 + 图片的口子不能开
+  if (isDemo(c.env)) return Response.json({ error: '演示站不开放导出' }, { status: 404 })
   const db = c.env.DB
   const [postsRes, catRes, weiboRes] = await Promise.all([
     // 回收站里的已删行不进导出包（导出是用户产物；备份仍是全表含回收站）
@@ -151,6 +155,14 @@ exportRoutes.get('/markdown', async (c) => {
     } catch {
       /* images 列损坏就跳过这条微博的图 */
     }
+    // 微博视频（B19）：视频本体与封面帧一起打包——导出要能完整还原，坏 JSON 由解析层兜底成 null
+    const vid = weiboVideoView(w)
+    if (vid) {
+      for (const src of [vid.url, vid.poster]) {
+        const k = keyOf(src)
+        if (k) keys.add(k)
+      }
+    }
   }
 
   const stream = new TransformStream<Uint8Array>()
@@ -187,7 +199,10 @@ exportRoutes.get('/markdown', async (c) => {
           } catch {
             /* 同上，损坏跳过 */
           }
-          return `## ${fmtDateTimeCst(w.published_at ?? w.created_at)}\n\n${w.content}${imgs ? '\n\n' + imgs : ''}`
+          // 视频（B19）：给链接而不是内嵌播放器，封面帧按图片贴出；文件本体在 zip 的 images/ 里
+          const vid = weiboVideoView(w)
+          const vidLine = vid ? `[视频](${relativeOf(vid.url)})` + (vid.poster ? `\n\n![](${relativeOf(vid.poster)})` : '') : ''
+          return `## ${fmtDateTimeCst(w.published_at ?? w.created_at)}\n\n${w.content}${vidLine ? '\n\n' + vidLine : ''}${imgs ? '\n\n' + imgs : ''}`
         })
         await zip.add('weibo.md', new TextEncoder().encode('# 微博\n\n' + lines.join('\n\n') + '\n'), now)
       }
@@ -249,6 +264,8 @@ exportRoutes.get('/markdown', async (c) => {
 })
 
 exportRoutes.get('/wxr', async (c) => {
+  // 同 /markdown：演示站不开放导出
+  if (isDemo(c.env)) return Response.json({ error: '演示站不开放导出' }, { status: 404 })
   const db = c.env.DB
   const settings = await getSettings(db)
   const [postsRes, catRes] = await Promise.all([

@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { DEFAULT_SETTINGS } from '../src/db.ts'
 import { buildSitemap } from '../src/rss.ts'
-import { footLinks, siteMode, siteNav, weiboHomeFeed, type SiteMode } from '../src/render.ts'
+import { footLinks, siteMode, siteNav, weiboHomeFeed, weiboPager, type SiteMode } from '../src/render.ts'
 import type { WeiboItemView } from '../src/render.ts'
 
 // ── 站点模式（后台「设置 → 站点模式」）：四值决定微博/博客模块的显隐与首页优先级 ──
@@ -139,4 +139,45 @@ test('footLinks：纯博客剥掉 /weibo 链接，其余模式原样保留', () 
   }
   // 脏值回退 blog-weibo → 不剥
   assert.equal(footLinks({}, links), links)
+})
+
+// ── 微博页翻页：上一页/下一页 + 页码跳转表单 ──
+// 跳转表单刻意复用文章列表 pagerHtml 的 .pager-jump / .pager-input / .pager-go 三个 class
+// （七主题共用一套样式，微博页零新增 CSS）——改微博分页口径先跑这组。
+
+test('weiboPager：跳转表单与文章列表同款，action 固定指向 /weibo', () => {
+  const html = weiboPager(3, 107)
+  assert.match(html, /<nav class="wb-pager">/)
+  assert.match(html, /3 \/ 107/)
+  assert.match(html, /<form class="pager-jump" action="\/weibo" method="get">/)
+  assert.match(html, /<input class="pager-input" type="number" name="page" min="1" max="107" value="3"/)
+  assert.match(html, /<button class="pager-go" type="submit">跳转<\/button>/)
+  // 无话题筛选时不带隐藏域
+  assert.doesNotMatch(html, /name="topic"/)
+  // 翻页链接仍指 /weibo（纯微博模式首页渲染在 '/' 时同一内容）
+  assert.match(html, /href="\/weibo\?page=2"/)
+  assert.match(html, /href="\/weibo\?page=4"/)
+})
+
+test('weiboPager：按话题筛选时翻页链接与跳转表单都带回 topic', () => {
+  const html = weiboPager(2, 5, '生活 & 日常')
+  assert.match(html, /href="\/weibo\?page=1&topic=%E7%94%9F%E6%B4%BB%20%26%20%E6%97%A5%E5%B8%B8"/)
+  assert.match(html, /<input type="hidden" name="topic" value="生活 &amp; 日常">/)
+})
+
+test('weiboPager：边界——只有一页整体不渲染，首页上一页置灰、末页下一页置灰', () => {
+  assert.equal(weiboPager(1, 1), '')
+  const first = weiboPager(1, 3)
+  assert.match(first, /<span class="wb-pager-btn is-disabled">← 新一条<\/span>/)
+  assert.match(first, /<a class="wb-pager-btn" href="\/weibo\?page=2">更早的 →<\/a>/)
+  const last = weiboPager(3, 3)
+  assert.match(last, /<span class="wb-pager-btn is-disabled">更早的 →<\/span>/)
+  assert.match(last, /<input class="pager-input" type="number" name="page" min="1" max="3" value="3"/)
+})
+
+test('weiboPager：英文版跳转表单与文章列表同文案', () => {
+  const html = weiboPager(1, 3, undefined, true)
+  assert.match(html, /<span class="pager-jump-text">Page<\/span>/)
+  assert.match(html, /<span class="pager-jump-text">of 3<\/span>/)
+  assert.match(html, /<button class="pager-go" type="submit">Go<\/button>/)
 })

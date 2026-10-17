@@ -1,6 +1,6 @@
-// 博客号官网 —— Cloudflare Pages 纯静态站点（无任何服务端代码，无需构建）
-// 本地预览：cd website && npx wrangler pages dev public
-// 手动部署：cd website && npx wrangler pages deploy public
+// 博客号官网 —— 纯静态站点（无任何服务端代码、无构建链）
+// 线上部署：维护者自有服务器 Caddy 静态直出（见 docs/DEPLOY.md §11），与 Cloudflare 无关
+// 本地预览（可选）：cd website && npx wrangler pages dev public
 // 文档页生成：仓库根目录 npm run build:docs（docs/*.md → public/docs/*.html，结果随仓库提交，改文档后重跑）
 {
   "$schema": "../node_modules/wrangler/config-schema.json",

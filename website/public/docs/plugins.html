@@ -5,20 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>插件开发 - 博客号文档</title>
 <meta name="description" content="一个 JS 文件扩展编辑器，window.BlogHao 插件 API 与加载机制，无需构建。">
+<link rel="canonical" href="https://bloghao.com/docs/plugins.html">
+<meta property="og:url" content="https://bloghao.com/docs/plugins.html">
+<meta property="og:image" content="https://bloghao.com/assets/editor.png">
 <meta property="og:title" content="插件开发 - 博客号文档">
 <meta property="og:description" content="一个 JS 文件扩展编辑器，window.BlogHao 插件 API 与加载机制，无需构建。">
 <meta property="og:type" content="article">
-<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=20261012a">
-<link rel="stylesheet" href="/docs.css?v=20261012a">
-<script src="/docs/docs-search-index.js?v=20261012a"></script>
+<link rel="icon" href="/favicon.svg?v=20261014d" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261014d">
+<link rel="stylesheet" href="/docs.css?v=20261014d">
+<script src="/docs/docs-search-index.js?v=20261014d"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
     <a class="nav-logo" href="/index.html">
-      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+      <img src="/favicon.svg?v=20261014d" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
@@ -101,7 +104,7 @@
 </thead>
 <tbody><tr>
 <td><code>registerPlugin(def)</code></td>
-<td>注册插件；<code>def = { name, title?, icon?, onClick(ctx) }</code>，<code>icon</code> 是 SVG 字符串</td>
+<td>注册插件；<code>def = { name, title?, icon?, onClick(ctx), onMount?(ctx) }</code>，<code>icon</code> 是 SVG 字符串；<code>onMount</code> 在编辑器挂载后触发一次（重挂载补注册时同样触发），适合做初始化（拉数据、注样式）</td>
 </tr>
 <tr>
 <td><code>insertHTML(html)</code></td>
@@ -110,6 +113,18 @@
 <tr>
 <td><code>getHTML()</code> / <code>setHTML(html)</code></td>
 <td>读取 / 替换正文 HTML</td>
+</tr>
+<tr>
+<td><code>getSelectionText()</code> / <code>getSelectionHTML()</code></td>
+<td>读取当前选区的纯文本 / HTML（编辑器外的选区一律返回空串）</td>
+</tr>
+<tr>
+<td><code>replaceSelection(html)</code></td>
+<td>用给定 HTML 替换当前选区；无有效选区时退化为光标处插入</td>
+</tr>
+<tr>
+<td><code>registerShortcut(combo, handler)</code></td>
+<td>注册编辑器快捷键，如 <code>registerShortcut(&#39;mod+shift+k&#39;, (ctx) =&gt; …)</code>。组合键<strong>必须带修饰键</strong>（<code>mod</code>/<code>ctrl</code>/<code>cmd</code>/<code>meta</code>——<code>mod</code> 在 Mac 映射 Cmd、其他平台 Ctrl，可叠加 <code>shift</code>/<code>alt</code>），纯字母键会抢正文输入、注册时直接忽略；中文输入法组词回车不触发</td>
 </tr>
 <tr>
 <td><code>exec(cmd, value?)</code></td>
@@ -121,13 +136,14 @@
 </tr>
 <tr>
 <td><code>version</code></td>
-<td>插件 API 版本，当前 <code>&#39;1.0&#39;</code></td>
+<td>插件 API 版本，当前 <code>&#39;1.1&#39;</code>（1.1 起有选区读写 / 快捷键 / onMount）</td>
 </tr>
 </tbody></table></div>
 <p><code>onClick(ctx)</code> 的 <code>ctx</code> 与 <code>window.BlogHao</code> 上的方法相同，直接用 <code>ctx.insertHTML(...)</code> 即可。</p>
 <h2 id="加载机制">加载机制</h2><p>编辑器初始化时读取 <code>/plugins/manifest.json</code>（数组，按序加载），逐个 <code>import(&#39;/plugins/&lt;file&gt;&#39;)</code>。单个插件加载失败只会在控制台告警，不影响编辑器与其他插件。</p>
 <p><strong>启停</strong>：后台「插件」页可以随时停用某个插件（写入 settings 的 <code>pluginsDisabled</code> 名单），编辑器加载时跳过名单内的 id，下次打开编辑器生效——不再需要手改 manifest 重新部署。</p>
-<p><strong>市场</strong>：<code>public/market/catalog.json</code> 是后台「皮肤 / 插件」页「市场」标签页的数据源（内置精选目录，<code>{ themes: [...], plugins: [...] }</code>，条目 <code>{ id, name, description, link }</code>）。收录新作品 = 往里加一条；未来切换成远程目录时前端只需换数据来源。</p>
+<p><strong>远程安装（B8 插件半边）</strong>：后台「插件 → 插件市场」底部「远程插件」面板，粘贴插件文件的 <strong>https 直链</strong>（或点市场条目的「安装」按钮——条目带 <code>src</code> 字段即出现）即可装进站内：服务端抓取文件（走统一出网防线、≤ 256KB、须调用 <code>registerPlugin</code>）、落 R2、登记进 settings 的 <code>pluginsInstalled</code>。编辑器加载时除静态 manifest 外还会拉 <code>/plugins/installed.json</code> 清单、逐个 <code>import(&#39;/plugin-files/&lt;id&gt;&#39;)</code>（管理员会话门槛），与 manifest 插件同一套加载 / 停用 / 补注册机制。卸载删文件并撤登记，已打开的编辑器刷新后不再加载。演示站不开放安装。机制核心（id 白名单 / 内容安检 / 登记表纯函数）在 <code>src/pluginpkg.ts</code>。</p>
+<p><strong>市场</strong>：<code>public/market/catalog.json</code> 是后台「皮肤 / 插件」页「市场」标签页的数据源（内置精选目录，<code>{ themes: [...], skins: [...], plugins: [...] }</code>）。<code>plugins</code> 条目 <code>{ id, name, description, link }</code>，带 <code>src</code>（插件文件 https 直链）即出现「安装」按钮；<code>skins</code> 条目内联 <code>pack</code>（<code>{ name, appearance, css }</code>），在皮肤页一键应用为皮肤包。收录新作品 = 往里加一条；未来切换成远程目录时前端只需换数据来源。</p>
 <p><strong>建议</strong>：插件自己的状态（如设置项）存 <code>localStorage</code>（加前缀 <code>bloghao-plugin-&lt;name&gt;-</code>），不要请求外部服务——CSP 与规范都鼓励完全本地化。</p>
 <h2 id="注意事项">注意事项</h2><ul>
 <li>插入的 HTML 会<strong>在保存时经过服务端白名单净化</strong>（防 XSS）：脚本、事件属性、<code>javascript:</code> 链接等会被剥除；排版类内联样式、<code>data-w</code>、<code>data-ignore-width</code>、<code>data-no-dark</code> 等规范属性会保留。</li>
@@ -142,7 +158,7 @@
 <p>公众号封面（<code>msg_cdn_url</code>）常是正文首图的<strong>衍生裁切</strong>（同一媒体 ID、不同尺寸/格式段，字符串比对不出来）。普通图文采集时会按媒体 ID（<code>mmbizAssetId</code>）识别这种情况，正文里去掉那张图——封面只放封面位，文章页不再一图两现；贴图不适用（其封面本就取自首图，图即内容）。</p>
 <p>服务端实现见 <code>src/collect.ts</code>（<code>POST /api/admin/collect/wechat</code>，需登录）。限制：每分钟 10 篇 / IP，单篇最多转存 30 张图，单次抓取（页面/图片）超时 15 秒，正文 ≤ 约 900KB；公众号<strong>内嵌视频暂不支持</strong>。</p>
 <p>面向使用者的完整说明见 <a href="guide.html">GUIDE.md</a> 第 6 节。</p>
-<h2 id="服务端插件随内核运行">服务端插件（随内核运行）</h2><p>编辑器插件跑在浏览器，服务端插件跑在 Worker 里：内核在关键动作处广播事件（钩子），插件订阅处理。当前钩子四个——</p>
+<h2 id="服务端插件随内核运行">服务端插件（随内核运行）</h2><p>编辑器插件跑在浏览器，服务端插件跑在 Worker 里：内核在关键动作处广播事件（钩子），插件订阅处理。当前钩子八个——</p>
 <div class="table-wrap"><table>
 <thead>
 <tr>
@@ -157,9 +173,24 @@
 <td>同步到 TG 频道、广场同步</td>
 </tr>
 <tr>
+<td><code>onPostUpdated</code></td>
+<td><strong>编辑已发布文章</strong>且编辑后仍处于发布态（转草稿/定时与锁文跃迁走下架同步，不在此列）</td>
+<td>IndexNow 类「编辑也让搜索引擎重抓」</td>
+</tr>
+<tr>
+<td><code>onPostDeleted</code></td>
+<td>文章<strong>软删进回收站</strong>（彻底删除不触发——回收站恢复是唯一生路）</td>
+<td>同步类插件的删除下架</td>
+</tr>
+<tr>
 <td><code>onWeiboPublished</code></td>
 <td>微博<strong>发布</strong>（后台新建即发 / 草稿转发布 / 开放 API / TG 机器人四条路都触发；编辑已发布微博不重推）</td>
 <td>同步到 X 等社交平台、广场同步</td>
+</tr>
+<tr>
+<td><code>onWeiboDeleted</code></td>
+<td>微博<strong>软删进回收站</strong></td>
+<td>同步类插件的删除下架</td>
 </tr>
 <tr>
 <td><code>onCommentCreated</code></td>
@@ -167,19 +198,25 @@
 <td>Webhook 通知（飞书 / 企微 / Bark）、同步到审核流</td>
 </tr>
 <tr>
+<td><code>onBackupCompleted</code></td>
+<td>备份成功写盘（每晚 cron 与手动「立即备份」；skipped / 失败不触发）</td>
+<td><strong>异地备份推送</strong>——插件凭 <code>ctx.env.IMAGES.get(payload.key)</code> 取件转推 GitHub / 另一账号</td>
+</tr>
+<tr>
 <td><code>footerHtml</code></td>
 <td>每个公开页渲染时（同步）</td>
 <td>页脚注入挂件、徽章、自定义代码</td>
 </tr>
 </tbody></table></div>
-<p>内置五个官方插件（源码与注册表都在 <code>src/hooks.ts</code>）：<strong>发布同步 Telegram 频道</strong>（复用「外部发布」的 Bot Token，频道 ID 在「设置 → 外部发布」）、<strong>微博同步 Buffer（X 等）</strong>（Buffer 是社交排程平台，免费档 3 渠道并含 API 访问，替用户承担 X API 按量计费；API Key 与渠道 ID 在「设置 → 服务端插件」，渠道 ID 可一键拉取，X 免费档 280 字符超出自动截断，站内话题（<code>#话题</code> 或成对 <code>#话题#</code>）转 X 话题格式，站内配图走公链直传）、<strong>评论 Webhook 推送</strong>（地址在「设置 → 服务端插件」）、<strong>页脚自定义代码</strong>（同在「设置 → 服务端插件」，受 CSP 保护外部脚本不执行）、<strong>广场同步</strong>（发布时把公开文章/微博推给官网广场 bloghao.com/plaza，Token 与地址在「设置 → 服务端插件」，加密文与会员锁文自动跳过，机制见 <a href="plaza.html">PLAZA.md</a>）。后台「插件」页的「服务端插件」区可随时启停（存 settings 的 <code>serverPluginsDisabled</code>，立即生效）。</p>
+<p>内置六个官方插件（源码与注册表都在 <code>src/hooks.ts</code>）：<strong>发布同步 Telegram 频道</strong>（复用「外部发布」的 Bot Token，频道 ID 在「设置 → 外部发布」）、<strong>微博同步 Buffer（X 等）</strong>（Buffer 是社交排程平台，免费档 3 渠道并含 API 访问，替用户承担 X API 按量计费；API Key 与渠道 ID 在「设置 → 服务端插件」，渠道 ID 可一键拉取，X 免费档 280 字符超出自动截断，站内话题（<code>#话题</code> 或成对 <code>#话题#</code>）转 X 话题格式，站内配图走公链直传）、<strong>评论 Webhook 推送</strong>（地址在「设置 → 服务端插件」）、<strong>通用出站 Webhook</strong>（见下节）、<strong>页脚自定义代码</strong>（同在「设置 → 服务端插件」，受 CSP 保护外部脚本不执行）、<strong>广场同步</strong>（发布时把公开文章/微博推给官网广场 bloghao.com/plaza，Token 与地址在「设置 → 服务端插件」，加密文与会员锁文自动跳过，机制见 <a href="plaza.html">PLAZA.md</a>）。后台「插件」页的「服务端插件」区可随时启停（存 settings 的 <code>serverPluginsDisabled</code>，立即生效）。</p>
 <p><code>onPostPublished</code> 的 payload 带可选 <code>locked</code> 布尔（发布的是加密访问文或会员专属文）——同步类插件必须据此跳过，别把锁文标题捅到公开面。</p>
+<h2 id="插件配置通道不必再为配置改内核">插件配置通道（不必再为配置改内核）</h2><p>服务端插件要配置项，在插件定义上声明 <code>configFields</code>（<code>{ key, label, type: &#39;text&#39;|&#39;textarea&#39;, placeholder?, help? }[]</code>），后台「插件」页该插件行会出现「配置」按钮，弹窗按声明渲染表单，值存进 settings 的 <code>serverPluginConfig</code>（JSON：<code>{ 插件id: { 字段键: 值 } }</code>，单值 ≤ 500 字符）。处理器里用 <code>pluginConfig(ctx.settings, 自身id)</code> 读；保存时自动过两道校验——顶层键必须是注册插件 id、字段键必须在 <code>configFields</code> 里，插件可再实现 <code>configValidate(cfg)</code> 做语义校验（返回错误文案 = 拒绝保存，如公网地址校验）。<strong>通用出站 Webhook</strong> 就是第一个吃这套通道的官方插件：自选事件清单（<code>post_published / post_updated / post_deleted / weibo_published / weibo_deleted / comment_created / backup_completed</code>）+ 目标 URL（落配置即过公网 https 校验）+ 可选 HMAC 签名（<code>X-Bloghao-Timestamp</code> + <code>X-Bloghao-Signature</code> = HMAC-SHA256(密钥, <code>时间戳.请求体</code>)，与广场同步同口径可复用校验代码），n8n / 飞书 / 自建系统一个地址全接走。事件清单是<strong>三态</strong>：留空 = 全部放行；合法清单 = 只发这些；<strong>非空但含坏项 = 拒发</strong>（失败关闭，别让一次配置写脏把「只发某事件」放大成「全事件外推」）。发送走内核统一出网入口 <code>fetchPublicResource</code>（起点 + 每一跳重过 <code>fetchableUrl</code>，<code>expectBody:false</code> 只发不收）。</p>
 <p><strong>铁律</strong>：插件抛错绝不影响主流程——fire 函数统一吞错，发文 / 评论 / 渲染照常。</p>
-<p><strong>写一个自己的</strong>：在 <code>src/hooks.ts</code> 的 <code>SERVER_PLUGINS</code> 注册表加一个对象即可（<code>id/title/description/version/author</code> + 一个或多个钩子函数），随部署生效。第三方服务端插件目前以「提交 PR 进注册表」的方式分发（与主题注册表同模式，Workers 无法运行时安装代码文件）；需要配置项的插件，约定用 <code>settings</code> 键并在后台「设置」页放对应输入框（参考官方三个的实现）。</p>
+<p><strong>写一个自己的</strong>：在 <code>src/hooks.ts</code> 的 <code>SERVER_PLUGINS</code> 注册表加一个对象即可（<code>id/title/description/version/author</code> + 一个或多个钩子函数 + 可选 <code>configFields/configValidate</code>），随部署生效。第三方服务端插件目前以「提交 PR 进注册表」的方式分发（与主题注册表同模式，Workers 无法运行时安装服务端代码；编辑器插件的远程安装见上文，两条线能力边界不同）。历史上「插件要配置就得加 settings 专属键 + 设置页输入框」的老路（评论 Webhook、广场同步等官方插件的实现）仍然有效，新插件优先用配置通道。</p>
 <h2 id="路线图">路线图</h2><p>后续计划（欢迎 PR）：</p>
 <ul>
-<li>远程市场目录与更顺畅的安装体验（Workers 无法运行时写代码文件，主题/插件安装仍以源码方式为主）</li>
-<li>更多服务端钩子：微博发布、友链申请通过等事件</li>
+<li>远程市场目录（catalog 换远程源，前端只换数据来源）与市场仓库独立立项（皮肤包 + 编辑器插件两类可安装资产已就绪）</li>
+<li>更多服务端钩子：友链申请通过等事件（编辑/删除/备份钩子已上线）</li>
 </ul>
 
     </article>
@@ -199,6 +236,7 @@
         <li class="toc-d2"><a href="#注意事项" data-toc="注意事项">注意事项</a></li>
         <li class="toc-d2"><a href="#内置插件公众号采集wechat-collect" data-toc="内置插件公众号采集wechat-collect">内置插件：公众号采集（wechat-collect）</a></li>
         <li class="toc-d2"><a href="#服务端插件随内核运行" data-toc="服务端插件随内核运行">服务端插件（随内核运行）</a></li>
+        <li class="toc-d2"><a href="#插件配置通道不必再为配置改内核" data-toc="插件配置通道不必再为配置改内核">插件配置通道（不必再为配置改内核）</a></li>
         <li class="toc-d2"><a href="#路线图" data-toc="路线图">路线图</a></li>
       </ul>
     </aside>
@@ -215,6 +253,6 @@
     </span>
   </div>
 </footer>
-<script src="/docs.js?v=20261012a" defer></script>
+<script src="/docs.js?v=20261014d" defer></script>
 </body>
 </html>

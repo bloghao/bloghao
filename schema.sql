@@ -83,12 +83,17 @@ CREATE TABLE IF NOT EXISTS posts (
   published_at INTEGER,
   publish_at   INTEGER,                -- 定时发布时间：到点由 Cron 翻成 published（src/scheduler.ts）
   password_hash TEXT   NOT NULL DEFAULT '', -- 访问密码（src/protect.ts）：salt:hash（PBKDF2），空 = 未加密；与 min_tier 并存，密码墙优先
+  ai_generated INTEGER NOT NULL DEFAULT 0, -- AI 生成标注（编辑器「更多」自愿申报，勾选后文章页 meta 行显示标识；PUT 缺键即保留同 password 口径）
   created_at   INTEGER NOT NULL,
   updated_at   INTEGER NOT NULL,
   deleted_at   INTEGER                 -- 回收站：非 NULL = 已移入回收站（30 天后 cron 彻底清除，src/trash.ts）
 );
 CREATE INDEX IF NOT EXISTS idx_posts_status ON posts (status, pinned DESC, published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_updated ON posts (updated_at DESC);
+-- 列表时间线排序索引（D1 读放大优化 P0-1）：listPosts/listWeibo 的 ORDER BY 用 COALESCE(published_at, created_at)，
+-- 与上面裸 published_at 列结构不匹配，翻页会全表扫描 + 临时排序（D1 按行读取计费）。
+-- 表达式必须与 src/db.ts 的排序片段一字不差（含 DESC 与部分索引 WHERE），改排序三处同步（tests/feed-index.test.ts 守卫）
+CREATE INDEX IF NOT EXISTS idx_posts_feed ON posts (status, pinned DESC, COALESCE(published_at, created_at) DESC, id DESC) WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS comments (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,6 +110,7 @@ CREATE TABLE IF NOT EXISTS comments (
   content    TEXT    NOT NULL,
   status     TEXT    NOT NULL DEFAULT 'approved', -- approved | pending
   ip         TEXT    NOT NULL DEFAULT '',
+  ip_region  TEXT    NOT NULL DEFAULT '', -- 评论 IP 属地快照（src/ipregion.ts）：写库定格 cf（CN:Guangdong / US / HK），空 = 无数据（旧评论/自托管）不展示
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_comments_post ON comments (post_id, created_at);
@@ -114,11 +120,12 @@ CREATE INDEX IF NOT EXISTS idx_comments_post ON comments (post_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments (status, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS categories (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  name       TEXT    NOT NULL UNIQUE,
-  slug       TEXT    NOT NULL UNIQUE,
-  sort       INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name        TEXT    NOT NULL UNIQUE,
+  slug        TEXT    NOT NULL UNIQUE,
+  sort        INTEGER NOT NULL DEFAULT 0,
+  description TEXT    NOT NULL DEFAULT '', -- 分类描述（B23）：归档页页头一行说明 + meta description
+  created_at  INTEGER NOT NULL
 );
 
 -- 单分类：一篇文章最多属于一个分类（post_id 为主键）
@@ -133,6 +140,7 @@ CREATE TABLE IF NOT EXISTS weibo (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   content      TEXT    NOT NULL DEFAULT '',
   images       TEXT    NOT NULL DEFAULT '[]', -- JSON 数组，如 ["/images/u/202510/xxx.jpg"]
+  video        TEXT    NOT NULL DEFAULT '',   -- 单条视频（B19）：JSON 串 {"url":"/images/u/…mp4","poster":"…jpg","w":1280,"h":720}，空串 = 无视频
   topics       TEXT    NOT NULL DEFAULT '[]', -- JSON 数组，从正文 #话题# 自动提取
   status       TEXT    NOT NULL DEFAULT 'published', -- draft | published
   pinned       INTEGER NOT NULL DEFAULT 0,          -- 置顶（最多 3 条，应用层限制）
@@ -143,6 +151,9 @@ CREATE TABLE IF NOT EXISTS weibo (
   deleted_at   INTEGER                 -- 回收站：非 NULL = 已移入回收站（30 天后 cron 彻底清除，src/trash.ts）
 );
 CREATE INDEX IF NOT EXISTS idx_weibo_status ON weibo (status, published_at DESC);
+-- 时间线排序索引同 posts（P0-1）：pinnedFirst 形态（/weibo 页）与 recency 形态（公开 API / 首页入口卡）各一条
+CREATE INDEX IF NOT EXISTS idx_weibo_feed ON weibo (status, COALESCE(published_at, created_at) DESC, id DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_weibo_feed_pinned ON weibo (status, pinned DESC, COALESCE(published_at, created_at) DESC, id DESC) WHERE deleted_at IS NULL;
 
 -- FTS5 全文索引（src/fts.ts，ROADMAP B4）：trigram 分词适配中文（无空格文本按 3 字滑窗成词），
 -- external content 挂原表省一份正文存储。增量同步触发器在 db.ts 的 SCHEMA_TRIGGERS 挂——
@@ -236,6 +247,21 @@ CREATE TABLE IF NOT EXISTS visit_log (
 CREATE INDEX IF NOT EXISTS idx_visit_day ON visit_log (day, ts);
 -- 滚动清理 DELETE WHERE ts < ? 走前导索引（visit_log 是量最大的日志表，全表扫不值）
 CREATE INDEX IF NOT EXISTS idx_visit_ts ON visit_log (ts);
+
+-- 爬虫 / AI 抓取日志（后台「统计」页，src/bots.ts）：服务端按 User-Agent 识别后旁路落库
+-- （爬虫不执行 JS，进不了 visit_log）。只存识别名/类别 + 路径 + 国家码，不存 IP / UA 原文。
+-- 识别规则与写入闸见 src/bots.ts；日志类数据不进备份，保留 180 天由每晚备份 cron 顺带清理。
+CREATE TABLE IF NOT EXISTS bot_log (
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts      INTEGER NOT NULL,               -- 毫秒时间戳
+  day     TEXT    NOT NULL,               -- 北京时间 YYYY-MM-DD
+  name    TEXT    NOT NULL DEFAULT '',    -- 识别名（GPTBot / Google / 必应…）
+  kind    TEXT    NOT NULL DEFAULT '',    -- ai | se | feed | seo | arch
+  path    TEXT    NOT NULL DEFAULT '',    -- 请求路径（截 300）
+  country TEXT    NOT NULL DEFAULT ''     -- CF-IPCountry 两字母码
+);
+CREATE INDEX IF NOT EXISTS idx_bot_day ON bot_log (day, ts);
+CREATE INDEX IF NOT EXISTS idx_bot_ts ON bot_log (ts);
 
 -- 回收站软删行极少：部分索引只收 deleted_at IS NOT NULL，trash 面查询与 30 天到期清理免全表扫
 CREATE INDEX IF NOT EXISTS idx_posts_deleted ON posts (deleted_at) WHERE deleted_at IS NOT NULL;

@@ -13,5 +13,6 @@ npx wrangler d1 create plaza-db
 # 把返回的 database_id 填进 wrangler.jsonc
 npx wrangler d1 execute DB --remote --file schema.sql
 npx wrangler secret put PLAZA_ADMIN_TOKEN
+npx wrangler secret put PLAZA_HASH_SECRET   # 可选但建议：点赞/曝光天级哈希私盐
 npx wrangler deploy
 ```

@@ -31,6 +31,7 @@ Cloudflare 在这个架构里只做 DNS + CDN，不再运行代码。已在甲�
 |---|---|---|
 | D1 `prepare().bind().first/all/run`、`batch`、`meta.changes/last_row_id` | Node 内置 `node:sqlite` | 行统一转普通对象（node:sqlite 返回 null 原型对象）；batch 用事务实现 |
 | R2 `put/get/head/delete/list`、流式 `body`、`httpEtag`、`writeHttpMetadata` | 磁盘目录 + 旁车 `.meta.json` | 正文流式读出，导出 zip「边流边算 CRC」不变；etag 带引号，304 协商同口径 |
+| R2 `put(key, ReadableStream)`（流式落盘）与 `get(key, { range: { offset, length } \| { suffix } })` | 磁盘 + `fs.createReadStream({start,end})` | 整站包（B26）用：包可达几百 MB，上传流式写盘不整包缓冲；导入按 Range 读 zip 中央目录（在文件末尾） |
 | `ExecutionContext.waitUntil` | 记日志的 Promise 兜底 | 经 Hono `app.fetch(req, env, ctx)` 第三参注入 |
 | wrangler assets（`public/`） | server.ts 内置静态文件层 | 文件命中才返回，其余进应用 |
 | `triggers.crons` | 进程内 setInterval | 分钟级扫定时发布；UTC 16:30 触发备份窗口 |
@@ -173,6 +174,17 @@ CDN 套 CDN）不在覆盖范围，请收敛成上表之一。
 登录限流、同源 Origin 校验、会话 Cookie HttpOnly（https 链路带 Secure）12 小时、
 全部操作进 ops.log。**注意**：控制面要热写 tenants.json，docker compose 里的
 tenants.json 挂载不能是 `:ro`；不用控制面时保持未配置状态即可（整体 404 不存在）。
+
+再配 `PLAZA_HUB_URL` + `PLAZA_ADMIN_TOKEN`（指向自己的广场 hub，官方 hub 需要
+管理员 token，见 docs/PLAZA.md）后，分站与广场自动同步：**开通即收录**（注册进 hub，
+站点 token 直接写进租户库——「广场同步」插件默认开启，发布实时进广场、删除/锁文
+自动下架，hub 6 小时 pull 继续兜底），停用→hub 同步隐藏、启用→自动补注册、彻底删除→
+hub 删站级联清内容；仪表盘「广场 hub」卡片的「分站收录进广场」按钮用于存量站补录。
+演示租户（种子假数据）与停用租户一律不收录；未配这两个 env 时行为不变。
+
+面板的「租户」列表每行还带**收录状态**（✓ 可被抓取 / ⛔ 不收录 / ⛔ 已闭站 / 演示站·刻意
+不进索引，来自各租户库的 `siteNoindex` / `siteClosed`），分站详情页给同样的状态与「去哪关」
+的指路——多站点下哪个二级域名掉出搜索引擎与 AI 的视野，面板上一眼可见。
 
 ## 文件清单
 

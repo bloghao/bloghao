@@ -224,7 +224,7 @@ export function post(d: PostData): string {
     <a class="wx-meta-avatar" href="/" aria-label="${en ? 'Back to home' : '返回首页'}">${avatar(s)}</a>
     <div class="wx-meta-main">
       <a class="wx-account" href="/">${esc(tr(en, s.siteName))}</a>
-      <span class="wx-date">${en ? `${fmtDateEn(p.published_at)} · ${p.readingMinutes} min read` : `${fmtDateCN(p.published_at)} · ${p.readingMinutes} 分钟`}</span>
+      <span class="wx-date">${en ? `${fmtDateEn(p.published_at)} · ${p.readingMinutes} min read${p.aiGenerated ? ' · AI-generated' : ''}` : `${fmtDateCN(p.published_at)} · ${p.readingMinutes} 分钟${p.aiGenerated ? ' · AI 生成' : ''}`}</span>
     </div>
   </div>
   ${p.cover ? `<div class="wx-cover"><img src="${esc(p.cover)}" alt=""></div>` : ''}

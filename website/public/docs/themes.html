@@ -5,20 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>主题开发 - 博客号文档</title>
 <meta name="description" content="一套主题 = 八个必需渲染函数（+ 可选 member / rank）+ 全局 CSS，三步注册新主题。">
+<link rel="canonical" href="https://bloghao.com/docs/themes.html">
+<meta property="og:url" content="https://bloghao.com/docs/themes.html">
+<meta property="og:image" content="https://bloghao.com/assets/editor.png">
 <meta property="og:title" content="主题开发 - 博客号文档">
 <meta property="og:description" content="一套主题 = 八个必需渲染函数（+ 可选 member / rank）+ 全局 CSS，三步注册新主题。">
 <meta property="og:type" content="article">
-<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=20261012a">
-<link rel="stylesheet" href="/docs.css?v=20261012a">
-<script src="/docs/docs-search-index.js?v=20261012a"></script>
+<link rel="icon" href="/favicon.svg?v=20261014d" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261014d">
+<link rel="stylesheet" href="/docs.css?v=20261014d">
+<script src="/docs/docs-search-index.js?v=20261014d"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
     <a class="nav-logo" href="/index.html">
-      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+      <img src="/favicon.svg?v=20261014d" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
@@ -270,6 +273,22 @@ export const THEMES: Record&lt;string, ThemeModule&gt; = {
 <li><strong>行高 ≥ 字号</strong>：<code>line-height</code> 小于 <code>font-size</code> 会让多行文字重叠</li>
 <li><strong>别在正文容器设 font-family</strong>：跟随默认字体栈，各端观感一致（标题/代码可用）</li>
 </ol>
+<h2 id="外观变量契约b9主题必须支持的旋钮">外观变量契约（B9：主题必须支持的旋钮）</h2><p>后台「皮肤 → 外观变量」让用户不改代码调颜色 / 字体 / 正文字号 / 圆角，机制在 <code>src/appearance.ts</code>。新主题要接入这套体系（否则用户的配置在你的主题上不生效），契约四条：</p>
+<ol>
+<li><p><strong>配色用 CSS 变量</strong>：主色 / 正文 / 次要文字 / 页面背景 / 卡片底 / 分隔线（链接色可选）各定义一个 <code>:root</code> 变量（如 <code>--my-accent</code>），渲染走变量而不是写死的色值</p>
+</li>
+<li><p><strong>正文显式字号</strong>：<code>.rich</code> 必须显式声明 <code>font-size</code></p>
+</li>
+<li><p><strong>圆角收编两个 token</strong>：<code>:root</code> 声明基准圆角与大圆角两级，大圆角用 calc 从基准派生（覆盖样式只重写基准一枚，两档成比例走）：</p>
+<div class="codeblock" data-lang="css"><pre><code>:root {
+  --my-radius: 8px;                                /* 卡片 / 缩略图 / 输入等主圆角 */
+  --my-radius-lg: calc(var(--my-radius) * 1.75);   /* 大面板档（示例：14px） */
+}</code></pre></div><p>卡片、面板、正文图片、代码块等「视觉主体」的 <code>border-radius</code> 一律引用这两个变量；小纹理（2-6px 的标签、角标）与药丸（999px）、圆头像（50%）保持字面量不动——它们是主题性格，不随旋钮缩放</p>
+</li>
+<li><p><strong>登记映射表</strong>：<code>src/appearance.ts</code> 的 <code>THEME_APPEARANCE</code> 加一条（各角色的变量名 + 默认值 + <code>richSize</code> + <code>radius: { var, default, lgFactor }</code>）。这张表有<strong>镜像守卫</strong>（tests/appearance.test.ts 逐主题核对 CSS <code>:root</code> 实际值与 <code>.rich</code> 基线字号），主题改色 / 改圆角忘了同步，测试会红</p>
+</li>
+</ol>
+<p>未接入也不报错——外观面板只是不列出你的主题（<code>appearanceMeta</code> 返回 null）。</p>
 
     </article>
   
@@ -287,6 +306,7 @@ export const THEMES: Record&lt;string, ThemeModule&gt; = {
         <li class="toc-d2"><a href="#公共积木来自-srcrenderts鼓励复用" data-toc="公共积木来自-srcrenderts鼓励复用">公共积木（来自 src/render.ts，鼓励复用）</a></li>
         <li class="toc-d2"><a href="#交互约定" data-toc="交互约定">交互约定</a></li>
         <li class="toc-d2"><a href="#排版规范建议遵守" data-toc="排版规范建议遵守">排版规范（建议遵守）</a></li>
+        <li class="toc-d2"><a href="#外观变量契约b9主题必须支持的旋钮" data-toc="外观变量契约b9主题必须支持的旋钮">外观变量契约（B9：主题必须支持的旋钮）</a></li>
       </ul>
     </aside>
 </div>
@@ -302,6 +322,6 @@ export const THEMES: Record&lt;string, ThemeModule&gt; = {
     </span>
   </div>
 </footer>
-<script src="/docs.js?v=20261012a" defer></script>
+<script src="/docs.js?v=20261014d" defer></script>
 </body>
 </html>

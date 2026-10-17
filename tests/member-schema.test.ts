@@ -134,7 +134,7 @@ test('备份登记：members 与积分账本进备份，member_sessions 属临�
 // ── ensureSchema 老库升级流程：缺列自动 ALTER、新表自动建、二次执行幂等 ──
 
 function makeFakeOldDb(): { db: D1Database; emitted: string[]; tables: Map<string, Set<string>> } {
-  // 老库形态：SCHEMA_COLUMNS 涉及的五表都在，但缺所有待补列（publish_at/deleted_at/member_id/min_tier…）
+  // 老库形态：SCHEMA_COLUMNS 涉及的六表都在，但缺所有待补列（publish_at/deleted_at/member_id/min_tier/description…）
   const tables = new Map<string, Set<string>>(
     Object.entries({
       posts: ['id', 'slug', 'title', 'content', 'summary', 'cover', 'tags', 'status', 'pinned', 'views', 'likes', 'author_id', 'published_at', 'created_at', 'updated_at'],
@@ -142,6 +142,8 @@ function makeFakeOldDb(): { db: D1Database; emitted: string[]; tables: Map<strin
       pages: ['id', 'title', 'slug', 'content', 'status', 'show_in_nav', 'sort', 'created_at', 'updated_at'],
       comments: ['id', 'post_id', 'nickname', 'email', 'website', 'content', 'status', 'ip', 'created_at'],
       uploads: ['id', 'key', 'name', 'mime', 'size', 'created_at'],
+      // categories 是 v0.1 起的原始表：老库必然有它，缺的只是 B23 的 description 列
+      categories: ['id', 'name', 'slug', 'sort', 'created_at'],
     }).map(([t, cols]) => [t, new Set(cols)])
   )
   const emitted: string[] = []

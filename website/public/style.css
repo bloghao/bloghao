@@ -392,3 +392,85 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; ba
   .showcase-grid { grid-template-columns: 1fr; }
   .roadmap { flex-direction: column; text-align: center; }
 }
+
+/* ---------- 赞助招募 ---------- */
+/* 虚线边框 = 「虚位以待」的视觉隐喻；暖纸渐变面板与 roadmap / showcase-submit 同语言 */
+.section-support { padding-bottom: 0; }
+.support-panel {
+  text-align: center;
+  background: linear-gradient(135deg, #fdf4e3, #faf0df 55%, #f6e9d2);
+  border: 1.5px dashed rgba(178, 58, 41, 0.35);
+  border-radius: 26px;
+  padding: 44px 30px 38px;
+}
+.support-flag {
+  display: inline-block; font-size: 13px; font-weight: 800; color: var(--accent);
+  background: var(--accent-soft); border-radius: 999px; padding: 6px 15px;
+}
+.support-panel .sec-title { margin-top: 16px; }
+.support-panel .sec-sub { max-width: 620px; margin: 12px auto 0; }
+/* 双轨：机构（冠名大卡）/ 个人（名字 + 金额鸣谢墙） */
+.support-tier + .support-tier { margin-top: 28px; }
+.support-tier-title {
+  margin: 26px 0 14px; font-size: 16px; font-weight: 800; color: #4a443c;
+  display: flex; align-items: baseline; justify-content: center; gap: 10px; flex-wrap: wrap;
+}
+.support-tier-title i { font-style: normal; font-size: 12.5px; font-weight: 600; color: var(--sub); }
+.support-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+}
+.support-slot {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 24px 14px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1.5px dashed rgba(178, 58, 41, 0.3);
+  border-radius: 16px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.support-slot:hover {
+  transform: translateY(-4px);
+  border-color: rgba(178, 58, 41, 0.55);
+  box-shadow: 0 10px 26px rgba(178, 58, 41, 0.1);
+}
+.support-slot-icon { font-size: 26px; line-height: 1; }
+.support-slot b { font-size: 15.5px; margin-top: 8px; letter-spacing: 0.02em; }
+.support-slot i { font-style: normal; font-size: 12.5px; color: var(--sub); }
+/* 个人赞助鸣谢墙：药丸小卡（名字 + 金额）；将来人多改跑马灯时只需把 .support-wall 换成横向滚动轨道 */
+.support-wall {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px;
+  max-width: 720px; margin: 0 auto;
+}
+.support-backer {
+  display: inline-flex; align-items: baseline; gap: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(178, 58, 41, 0.22);
+  border-radius: 999px; padding: 8px 18px;
+}
+.support-backer b { font-size: 13.5px; letter-spacing: 0.02em; }
+.support-backer i { font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--accent); }
+.support-backer.is-empty { border-style: dashed; color: var(--sub); font-size: 13px; }
+.support-wall-note { margin: 14px auto 0; font-size: 12.5px; color: var(--sub); }
+.support-contact { display: flex; align-items: center; justify-content: center; gap: 10px 14px; flex-wrap: wrap; margin-top: 30px; }
+.support-contact-label { font-size: 14.5px; font-weight: 600; color: #4a443c; }
+.support-wx { display: inline-flex; align-items: center; gap: 8px; }
+.support-wx code { font-size: 15px; font-weight: 700; padding: 4px 14px; }
+.support-copy {
+  border: none; border-radius: 999px; cursor: pointer;
+  background: var(--accent); color: #fff;
+  padding: 7px 18px; font-size: 13.5px; font-weight: 700;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.support-copy:hover { background: var(--accent-dark); }
+.support-copy:active { transform: scale(0.96); }
+.support-copy.is-done { background: #1e7a46; }
+.support-contact-note { font-size: 12.5px; color: var(--sub); }
+
+@media (max-width: 1100px) {
+  /* 导航加「赞助」后 620-1100px 区间防挤爆：收紧间距 */
+  .nav-links { gap: 15px; }
+  .nav-inner { gap: 18px; }
+}
+@media (max-width: 620px) {
+  .support-grid { grid-template-columns: 1fr; }
+  .support-panel { padding: 36px 20px 30px; }
+}

@@ -1,4 +1,5 @@
 import type { SettingsMap } from './types'
+import { invalidateSharedSettings } from './db'
 import { cstDate } from './utils'
 
 /* ---------------- 英文版（内部代号 English 0.1，测试版） ----------------
@@ -30,6 +31,9 @@ const ZH_EN: Record<string, string> = {
   '由 博客号 驱动 · 住在 Cloudflare 上': 'Powered by BlogHao · Lives on Cloudflare',
   '<p>在这里写下关于你的故事。</p>': '<p>Write your story here.</p>',
   '本站暂时关闭，请稍后再来。': 'This site is temporarily closed. Please check back later.',
+  // 后台概览「系统」卡：一键清理页面缓存按钮与提示（后台界面不走 enGuard，词条暂存备用）
+  '清理缓存': 'Purge cache',
+  '页面缓存已清理，访客即刻看到最新页面': 'Page cache purged — visitors now see the latest pages',
   // 顶部导航 / 共享构建器
   '首页': 'Home',
   '微博': 'Notes',
@@ -79,6 +83,7 @@ const ZH_EN: Record<string, string> = {
   '发送': 'Post',
   '留言即刻展示，请友善交流': 'Comments appear instantly — please be kind',
   '提交后审核通过即展示': 'Your comment will appear once approved',
+  '发布后将显示 IP 属地': 'Your IP region will be shown publicly',
   '还没有留言，来抢沙发～': 'No comments yet — be the first!',
   '还没有人留言，来坐个沙发，说点什么吧～': 'No messages yet — come say hello!',
   '作者已关闭留言。': 'Comments are closed.',
@@ -158,6 +163,13 @@ const ZH_EN: Record<string, string> = {
   '密码一旦遗失无法找回，请务必记好': 'Passwords cannot be recovered — remember yours',
   '已有账号？': 'Already have an account?',
   '去登录': 'Log in',
+  // 微博视频（B19）
+  '视频': 'Video',
+  '最大 25MB，MP4 / WebM': 'Up to 25MB, MP4 / WebM',
+  '图片 / 视频，一条微博最多 1 个视频': 'Photos / video — one video per note',
+  '删除这条评论（其下回复一并删除，不可恢复）': 'Delete this comment (its replies go too, and this cannot be undone)',
+  '只支持 MP4 / WebM 视频': 'Only MP4 / WebM videos are supported',
+  '写点什么，或者配张图 / 加段视频吧': 'Write something, or attach a photo / video first',
   // 闭站页
   '站点暂时关闭': 'Temporarily closed',
 }
@@ -233,6 +245,8 @@ export async function recordEditionFailure(db: D1Database, err: unknown): Promis
       upsert('editionEnError', msg),
       upsert('editionEnAt', String(Date.now())),
     ])
+    // 立即失效 settings 共享快照：回退必须「下一次 getSettings 起 isEn=false」
+    await invalidateSharedSettings(db)
   } catch (e) {
     console.error('[en-edition] record fallback failed:', e)
   }

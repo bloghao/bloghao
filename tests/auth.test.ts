@@ -1,11 +1,16 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { DatabaseSync, type StatementSync } from 'node:sqlite'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   clearSessionCookie,
   clientIp,
   createSession,
   createMemberSession,
   destroyOtherMemberSessions,
+  destroyOtherSessions,
   destroySession,
   getCookie,
   getMemberUser,
@@ -50,6 +55,32 @@ function fakeDb(handler?: (sql: string, binds: unknown[]) => unknown) {
 }
 
 const reqWithCookie = (cookie: string) => new Request('https://x.test/', { headers: { cookie } })
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const SCHEMA_SQL = readFileSync(join(ROOT, 'schema.sql'), 'utf8')
+
+/** 极简 D1 适配（同 tests/fts.test.ts / tests/mcp.test.ts 的 d1FromSqlite） */
+function d1FromSqlite(db: DatabaseSync): D1Database {
+  const cache = new Map<string, StatementSync>()
+  const stmtOf = (sql: string) => {
+    let st = cache.get(sql)
+    if (!st) cache.set(sql, (st = db.prepare(sql)))
+    return st
+  }
+  return {
+    prepare: (sql: string) => {
+      const run = async (...binds: unknown[]) => {
+        const info = stmtOf(sql).run(...(binds as never[]))
+        return { success: true, meta: { last_row_id: Number(info.lastInsertRowid), changes: Number(info.changes) } }
+      }
+      return {
+        bind: (...binds: unknown[]) => ({ run: () => run(...binds), first: async () => stmtOf(sql).get(...(binds as never[])) ?? null }),
+        run: () => run(),
+        first: async () => stmtOf(sql).get() ?? null,
+      }
+    },
+  } as unknown as D1Database
+}
 
 test('randomToken：默认 32 字节 = 64 位十六进制，两次调用不重复', () => {
   const a = randomToken()
@@ -151,6 +182,34 @@ test('sessionCookie：HttpOnly + Secure + SameSite=Lax 属性齐全', () => {
   const c = sessionCookie('tok')
   assert.match(c, /^bloghao_session=tok;/)
   for (const flag of ['HttpOnly', 'Secure', 'SameSite=Lax']) assert.ok(c.includes(flag), `缺 ${flag}`)
+})
+
+test('destroyOtherSessions（管理员改密踢其他设备）：keepToken 哈希后比对，口径与会员侧一致', async () => {
+  const token = randomToken()
+  const { db, calls } = fakeDb()
+  await destroyOtherSessions(db, 7, token)
+  assert.match(calls[0].sql, /DELETE FROM sessions WHERE user_id = \? AND token <> \?/)
+  assert.equal(calls[0].binds[0], 7)
+  assert.equal(calls[0].binds[1], await sha256Of(token)) // 落库是 SHA-256，被保留的当前会话必须按哈希比对
+})
+
+/* ── 真库行为守卫：api.ts 曾拿 Cookie 明文 token 直接和库里 SHA-256 哈希比较（恒不相等），
+ * 「保留当前会话」被写成「删光全部会话」——改密即被自己踢下线。只要实现漏了 tokenHash
+ * 或误删了当前行，这里就红 ── */
+test('destroyOtherSessions：改密后当前会话保留、其余失效、其他用户不受牵连（真库）', async () => {
+  const sqlite = new DatabaseSync(':memory:')
+  sqlite.exec(SCHEMA_SQL)
+  const d1 = d1FromSqlite(sqlite)
+  const keep = await createSession(d1, 1)
+  const other1 = await createSession(d1, 1)
+  const other2 = await createSession(d1, 1)
+  const stranger = await createSession(d1, 2)
+  await destroyOtherSessions(d1, 1, keep)
+  const left = sqlite.prepare('SELECT token FROM sessions ORDER BY created_at').all().map((r) => r.token)
+  assert.deepEqual(left.sort(), [await sha256Of(keep), await sha256Of(stranger)].sort())
+  // 失效的会话用 Cookie 原文走正常查询链路也必须查不到
+  assert.equal(await getSessionUser(d1, reqWithCookie(`${SESSION_COOKIE}=${other1}`)), null)
+  assert.equal(await getSessionUser(d1, reqWithCookie(`${SESSION_COOKIE}=${other2}`)), null)
 })
 
 test('rateLimit：窗口内计满拒绝、换 key 互不影响、窗口过期重置（fake 时钟）', () => {

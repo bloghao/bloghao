@@ -98,35 +98,41 @@ export function buildJsonFeed(settings: SettingsMap, posts: PostRow[], siteUrl: 
   return JSON.stringify(feed)
 }
 
+/**
+ * sitemap：只收录「有独立内容、值得提交」的页面——首页 / 关于 / 归档 / 微博流 / 独立页 / 分类页 / 文章页。
+ * 标签页（自动生成的薄聚合页，页面本身已 noindex）与留言板 / 友链（薄 UGC 页）不收录，
+ * /page/about（会 301 到 /about）也不重复收录——2026-10 SEO 审计：此前 sitemap 提交了 100 个标签页
+ * 而标签页 canonical 却指向首页，是自相矛盾的收录信号。
+ * lastmod 口径：文章/独立页用 updated_at，首页与归档用最新文章的 updated_at（此前的
+ * Date.now() 每天都变，Google 会不信任恒为「今天」的 lastmod），分类页用其下文章的最新更新时间。
+ */
 export function buildSitemap(
   settings: SettingsMap,
   posts: { slug: string; updated_at: number }[],
   siteUrl: string,
-  categories: { slug: string; name: string }[] = [],
-  tags: { name: string; count: number }[] = [],
-  pages: { slug: string; updated_at: number }[] = []
+  categories: { slug: string; name: string; lastmod?: string }[] = [],
+  pages: { slug: string; updated_at: number }[] = [],
+  weiboLastmod?: number
 ): string {
+  const latestPostAt = posts[0]?.updated_at || 0
+  const aboutPage = pages.find((p) => p.slug === 'about')
   const urls = [
-    { loc: `${siteUrl}/`, lastmod: fmtDate(Date.now()) },
-    { loc: `${siteUrl}/about`, lastmod: '' },
-    { loc: `${siteUrl}/archives`, lastmod: fmtDate(Date.now()) },
-    { loc: `${siteUrl}/guestbook`, lastmod: '' },
+    { loc: `${siteUrl}/`, lastmod: latestPostAt ? fmtDate(latestPostAt) : '' },
+    { loc: `${siteUrl}/about`, lastmod: aboutPage ? fmtDate(aboutPage.updated_at) : '' },
+    { loc: `${siteUrl}/archives`, lastmod: latestPostAt ? fmtDate(latestPostAt) : '' },
     // 纯博客模式前台隐藏了微博模块（/weibo 302 回首页），sitemap 不再收录
-    ...(siteMode(settings) === 'blog' ? [] : [{ loc: `${siteUrl}/weibo`, lastmod: '' }]),
-    { loc: `${siteUrl}/links`, lastmod: '' },
-    // 独立页面（/page/:slug）：slug 做百分号编码（中文 slug 是非 ASCII IRI）
-    ...pages.map((p) => ({
-      loc: `${siteUrl}/page/${encodeURIComponent(p.slug)}`,
-      lastmod: fmtDate(p.updated_at),
-    })),
-    // 分类/标签列表页同样可收录；slug/标签名做百分号编码（中文标签是非 ASCII IRI）
+    ...(siteMode(settings) === 'blog' ? [] : [{ loc: `${siteUrl}/weibo`, lastmod: weiboLastmod ? fmtDate(weiboLastmod) : '' }]),
+    // 独立页面（/page/:slug）：slug 做百分号编码（中文 slug 是非 ASCII IRI）；about 走专属短链 /about
+    ...pages
+      .filter((p) => p.slug !== 'about')
+      .map((p) => ({
+        loc: `${siteUrl}/page/${encodeURIComponent(p.slug)}`,
+        lastmod: fmtDate(p.updated_at),
+      })),
+    // 分类归档页同样可收录；slug 做百分号编码（中文分类名是非 ASCII IRI）
     ...categories.map((cat) => ({
       loc: `${siteUrl}/category/${encodeURIComponent(cat.slug)}`,
-      lastmod: '',
-    })),
-    ...tags.map((t) => ({
-      loc: `${siteUrl}/tag/${encodeURIComponent(t.name)}`,
-      lastmod: '',
+      lastmod: cat.lastmod || '',
     })),
     ...posts.map((p) => ({
       loc: `${siteUrl}/post/${encodeURIComponent(p.slug)}`,

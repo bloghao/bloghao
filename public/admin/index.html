@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <!-- 后台经 wrangler assets 直出不经过 Worker（前台 CSP 在 pages.ts baseHeaders），只能用 meta 兜底。
-     style 允许 inline：编辑器 contenteditable 依赖 style 属性；img 需 data:（粘贴图片预览） -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http: data:; media-src 'self' https:; script-src 'self'; connect-src 'self'; base-uri 'self'; object-src 'none'">
+     style 允许 inline：编辑器 contenteditable 依赖 style 属性；img 需 data:（粘贴图片预览）。
+     form-action 在 meta 里有效（frame-ancestors 才是 meta 无效项，走 public/_headers 响应头）；
+     后台无原生表单提交（交互全走 fetch），'self' 只拦表单被改指向外域 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http: data:; media-src 'self' https:; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
 <title>博客号后台</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="./admin.css">

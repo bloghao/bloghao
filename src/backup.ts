@@ -7,6 +7,7 @@
  * - 本地验证：wrangler dev --test-scheduled 后 curl "http://localhost:8787/__scheduled?cron=30+16+*+*+*"
  */
 import { getSettings, saveSettings } from './db'
+import { fireBackupCompleted } from './hooks'
 import { notifyAdminText } from './external'
 import { purgeExpiredSessions, purgeExpiredMemberSessions } from './auth'
 import type { Env } from './types'
@@ -103,6 +104,11 @@ export async function scheduledBackup(_controller: unknown, env: Env): Promise<v
     /* ignore */
   }
   const r = await runBackup(env)
+  if (r.ok && !r.skipped) {
+    // 备份完成广播（src/hooks.ts）：异地备份类插件凭 payload.key 从 R2 取件推送；
+    // cron 无 waitUntil 可用，直接 await——夜间任务不差这十几秒
+    await fireBackupCompleted(env, { key: r.key ?? '', bytes: r.bytes ?? 0, tables: r.tables ?? 0, at: Date.now() }).catch(() => {})
+  }
   if (r.truncated?.length) {
     await notifyAdminText(
       env,

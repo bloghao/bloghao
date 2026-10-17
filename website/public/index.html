@@ -5,12 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>博客号 BlogHao —— 微信有公众号，你有博客号</title>
 <meta name="description" content="博客号 BlogHao：完全运行在 Cloudflare Workers + D1 + R2 上的开源博客系统。不用申请、不用排队，五分钟部署，想写就写，数据 100% 归你。博客号，博客好！">
+<link rel="canonical" href="https://bloghao.com/">
 <meta property="og:title" content="博客号 BlogHao —— 微信有公众号，你有博客号">
 <meta property="og:description" content="博客号，博客好！公众号风格写作 · 排版规范体检 · 七套主题 · 会员积分与访问密码 · 图片粘贴自动上云 · 免费部署">
-<meta property="og:image" content="./assets/editor.png">
+<meta property="og:url" content="https://bloghao.com/">
+<meta property="og:image" content="https://bloghao.com/assets/editor.png">
 <meta property="og:type" content="website">
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="./style.css?v=20261011i">
+<link rel="stylesheet" href="./style.css?v=20261014d">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"SoftwareApplication","name":"博客号 BlogHao","url":"https://bloghao.com/","applicationCategory":"WebApplication","operatingSystem":"Cloudflare Workers","description":"完全运行在 Cloudflare Workers + D1 + R2 上的开源博客系统：五分钟部署、免维护、数据 100% 归你。","screenshot":"https://bloghao.com/assets/editor.png","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"author":{"@type":"Organization","name":"博客号 BlogHao","url":"https://bloghao.com/"}},
+{"@type":"WebSite","name":"博客号 BlogHao","url":"https://bloghao.com/","description":"博客号 BlogHao 官网：部署教程、使用文档、主题与插件广场。"}
+]}
+</script>
 </head>
 <body>
 
@@ -27,6 +35,7 @@
       <a href="./plaza/" class="nav-plaza">广场</a>
       <a href="#start">快速开始</a>
       <a href="#docs">文档</a>
+      <a href="#support">赞助</a>
     </nav>
     <div class="nav-cta">
       <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
@@ -44,7 +53,7 @@
   <section class="hero">
     <div class="hero-bg" aria-hidden="true"></div>
     <div class="wrap hero-inner">
-      <span class="hero-badge reveal">微信有公众号，你有博客号 ✌️ · <a href="./docs/changelog.html">v2.4</a> · MIT 开源</span>
+      <span class="hero-badge reveal">微信有公众号，你有博客号 ✌️ · <a href="./docs/changelog.html">v2.5.1</a> · MIT 开源</span>
       <h1 class="reveal">博客号，博客好。</h1>
       <p class="hero-sub reveal">
         一套完全跑在 Cloudflare（Workers + D1 + R2）上的开源博客系统。<br class="pc-only">
@@ -57,7 +66,7 @@
       <figure class="hero-shot reveal">
         <div class="shot-frame">
           <div class="shot-dots" aria-hidden="true"><i></i><i></i><i></i></div>
-          <img src="./assets/editor.png" alt="博客号编辑器：公众号风格写作区，右侧为摘要 / 封面 / 标签栏" loading="eager">
+          <img src="./assets/editor.png" alt="博客号编辑器：公众号风格写作区，右侧为摘要 / 封面 / 标签栏" loading="eager" width="1280" height="800">
         </div>
         <figcaption>写作后台：截图直接粘贴，自动上传 R2 图床</figcaption>
       </figure>
@@ -115,7 +124,7 @@
         <article class="card reveal">
           <div class="card-icon">🧩</div>
           <h3>开放的插件系统</h3>
-          <p><code>window.BlogHao.registerPlugin({...})</code> 一个文件给编辑器加按钮，无需构建、无需重启；内置「公众号采集」，粘贴链接一键转载。</p>
+          <p><code>window.BlogHao.registerPlugin({...})</code> 一个文件给编辑器加按钮，无需构建、无需重启；内置「公众号采集」，粘贴链接一键转载，插件市场还能粘贴地址远程安装。服务端插件（TG 发布 / 评论通知 / 广场同步 / 出站 Webhook / 页脚自定义）在后台勾选即用。</p>
         </article>
         <article class="card reveal">
           <div class="card-icon">🔒</div>
@@ -144,8 +153,8 @@
         </article>
         <article class="card reveal">
           <div class="card-icon">🎚️</div>
-          <h3>主题外观变量（内测）</h3>
-          <p>主色、正文、背景、卡片、链接等 7 个语义色 + 正文字体与字号，后台面板不动代码即可调，保存即全站生效，随时一键恢复默认。</p>
+          <h3>外观变量与皮肤包</h3>
+          <p>主色、正文、背景、卡片、链接等 7 个语义色 + 正文字体 / 字号 / 圆角，后台面板不动代码即可调（实时预览、保存即全站生效、随时恢复默认）；官方皮肤包一点换装，也能粘贴导入自己的配色，或追加一段自定义 CSS。</p>
         </article>
         <article class="card reveal">
           <div class="card-icon">🐳</div>
@@ -252,13 +261,12 @@
     <div class="wrap roadmap reveal">
       <span class="roadmap-tag">📝 最近更新</span>
       <div class="roadmap-items">
-        <span>🎉 <a href="./docs/changelog.html">v2.4.0</a> 已发布 —— 发布前五路全面安全审计、广场微博补漏自愈与三段式信息流</span>
+        <span>🎉 <a href="./docs/changelog.html">v2.5.1</a> 已发布 —— 第二轮全量安全审计、MCP 服务器、注册人机验证、文档中心站内搜索</span>
       </div>
     </div>
     <div class="wrap roadmap reveal">
       <span class="roadmap-tag">🚧 即将上线</span>
       <div class="roadmap-items">
-        <span>🧩 MCP 服务器 —— AI 助手直接帮你发文</span>
         <span>🔔 通知渠道抽象 —— 飞书 / 企业微信 / Bark 触达</span>
         <span>✔️ <a href="./plaza/">广场</a>已上线 —— 你的文章与微博，官网首页之外再亮一次</span>
       </div>
@@ -288,10 +296,10 @@
       </div>
       <div class="split-media reveal">
         <div class="shot-frame shot-frame-sm">
-          <img src="./assets/dashboard.png" alt="博客号后台概览：文章 / 阅读 / 点赞 / 评论统计">
+          <img src="./assets/dashboard.png" alt="博客号后台概览：文章 / 阅读 / 点赞 / 评论统计" width="1280" height="800">
         </div>
         <div class="shot-frame shot-frame-float">
-          <img src="./assets/article.png" alt="微信公众号主题的文章页">
+          <img src="./assets/article.png" alt="微信公众号主题的文章页" width="420" height="860">
         </div>
       </div>
     </div>
@@ -393,6 +401,54 @@ npm run deploy</code></pre>
     </div>
   </section>
 
+  <!-- ================= 赞助招募 ================= -->
+  <section class="section section-support" id="support">
+    <div class="wrap">
+      <div class="support-panel reveal">
+        <span class="support-flag">📣 首批赞助位 · 招募中</span>
+        <h2 class="sec-title">赞助位，虚位以待</h2>
+        <p class="sec-sub">博客号免费开源，所有赞助用于服务器、域名与持续开发——机构冠名展位，个人名字上墙。想让你的品牌或名字出现在这里？加助理微信聊聊。</p>
+        <div class="support-tier">
+          <h3 class="support-tier-title">机构赞助<i>冠名展位 · 被更多写作者看见</i></h3>
+          <div class="support-grid" aria-label="机构赞助展位">
+            <div class="support-slot">
+              <span class="support-slot-icon" aria-hidden="true">🪴</span>
+              <b>虚位以待</b>
+              <i>官网首页 · 品牌露出</i>
+            </div>
+            <div class="support-slot">
+              <span class="support-slot-icon" aria-hidden="true">✨</span>
+              <b>虚位以待</b>
+              <i>广场与文档 · 联合露出</i>
+            </div>
+            <div class="support-slot">
+              <span class="support-slot-icon" aria-hidden="true">🤝</span>
+              <b>虚位以待</b>
+              <i>深度合作 · 玩法一起聊</i>
+            </div>
+          </div>
+        </div>
+        <div class="support-tier">
+          <h3 class="support-tier-title">个人赞助<i>名字 + 金额 · 如实上墙</i></h3>
+          <!-- 个人赞助鸣谢墙：一条数据 = <span class="support-backer"><b>名字</b><i>¥金额</i></span>，
+               按赞助时间往 .support-wall 里加；将来人多放不下时把该容器换成跑马灯滚动 -->
+          <div class="support-wall" aria-label="个人赞助鸣谢名单">
+            <span class="support-backer is-empty">🌱 首批鸣谢 · 虚位以待</span>
+          </div>
+          <p class="support-wall-note">按赞助时间排序，金额如实展示，可要求匿名</p>
+        </div>
+        <div class="support-contact">
+          <span class="support-contact-label">助理微信</span>
+          <span class="support-wx">
+            <code id="support-wx-id">btcxwly</code>
+            <button type="button" class="support-copy" id="support-copy">复制</button>
+          </span>
+          <span class="support-contact-note">加好友请备注「机构赞助」或「个人赞助」</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ================= 尾部 CTA ================= -->
   <section class="section final">
     <div class="wrap wrap-narrow final-inner reveal">
@@ -424,6 +480,6 @@ npm run deploy</code></pre>
   </div>
 </footer>
 
-<script src="./site.js?v=20261011h" defer></script>
+<script src="./site.js?v=20261014c" defer></script>
 </body>
 </html>

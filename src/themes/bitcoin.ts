@@ -149,7 +149,7 @@ export function post(d: PostData): string {
   <article class="bt-article">
     ${eyebrow(d.category ? `${d.category.name} · POST` : en ? 'ARTICLE' : '文章 · ARTICLE')}
     <h1 class="bt-title">${esc(p.title)}</h1>
-    <div class="bt-meta"><time>${en ? fmtDateEn(p.published_at) : fmtDate(p.published_at)}</time><i>·</i><span>${p.readingMinutes} min</span><i>·</i><span>${fmtViews(p.views, en)}</span></div>
+    <div class="bt-meta"><time>${en ? fmtDateEn(p.published_at) : fmtDate(p.published_at)}</time><i>·</i><span>${p.readingMinutes} min</span><i>·</i><span>${fmtViews(p.views, en)}</span>${p.aiGenerated ? `<i>·</i><span>${en ? 'AI-generated' : 'AI 生成'}</span>` : ''}</div>
     ${p.cover ? `<div class="bt-cover"><img src="${esc(p.cover)}" alt=""></div>` : ''}
     <div class="rich">${p.contentHtml}</div>
     ${p.locked ? paywallHtml(p.minTier, en) : ''}

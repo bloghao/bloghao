@@ -10,7 +10,7 @@
  * 种子数据是站点自己的内容，不依赖外部服务——TG/webhook 等外发钩子在 DEMO_MODE 下被禁用（src/hooks.ts）。
  */
 import { hashPassword } from './auth'
-import { DEFAULT_SETTINGS } from './db'
+import { DEFAULT_SETTINGS, invalidateSharedSettings } from './db'
 import { buildDemoPlan, DEMO_ADMIN, DEMO_RESET_CRON } from './demo-content'
 import { demoImages } from './demo-images'
 import SCHEMA_SQL from '../schema.sql'
@@ -39,6 +39,7 @@ const WIPE_TABLES = [
   'member_sessions',
   'member_points_log',
   'visit_log',
+  'bot_log',
   'users',
   'settings',
 ]
@@ -311,11 +312,24 @@ async function seedAll(env: Env): Promise<void> {
   }
   await batched(db, visitStmts, 40)
 
+  // 13b) 爬虫抓取日志（src/bots.ts bot_log）：6 列 × 15 行 = 90，同样留余量
+  const botCols = '(ts, day, name, kind, path, country)'
+  const botStmts: D1PreparedStatement[] = []
+  for (const group of chunk(plan.bots, 15)) {
+    const placeholders = group.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')
+    const binds = group.flatMap((b) => [b.ts, b.day, b.name, b.kind, b.path, b.country])
+    botStmts.push(db.prepare(`INSERT INTO bot_log ${botCols} VALUES ${placeholders}`).bind(...binds))
+  }
+  await batched(db, botStmts, 40)
+
   // 14) 记账：播种完成。此后 fetch 路径的自播种直接放行，直到下个 cron 周期重置
   await db
     .prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
     .bind(SEEDED_KEY, String(Date.now()))
     .run()
+  // 播种写了一堆 settings（认领位 / 完成位），失效 settings 共享快照——重灌后的请求
+  // 必须看到演示站的全新口径，不能拿到重灌前的旧值
+  await invalidateSharedSettings(db)
 }
 
 /** 清空 R2 桶（分页删光所有对象），随后种子图会原样重建 */

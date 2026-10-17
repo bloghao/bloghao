@@ -249,3 +249,247 @@
   margin: 0 0 8px;
 }
 .plaza-side .showcase-submit button { width: 100%; }
+
+/* ── 2.0（B25 P1/P2）：卡片墙 / 点赞 / 站点视图 / 侧栏活跃榜 ── */
+
+/* 视图切换分隔线 */
+.plaza-tab-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--line, #e5e0d8);
+  align-self: center;
+}
+
+/* 河流视图身份位改为链接（进站点视图）：浮出拉伸链接覆盖层才点得到 */
+a.plaza-card-avatar {
+  display: block;
+  position: relative;
+  z-index: 1;
+  text-decoration: none;
+}
+
+/* 卡片墙：CSS columns 双列瀑布流——无 JS 布局，ES5 无构建约束下的零成本 Masonry */
+.plaza-feed.is-wall { display: block; columns: 2; column-gap: 14px; }
+.plaza-wcard {
+  break-inside: avoid;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  margin: 0 0 14px;
+  background: #fff;
+  border: 1px solid var(--line, #e5e0d8);
+  border-radius: 14px;
+  overflow: hidden;
+  color: inherit;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.plaza-wcard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(178, 58, 41, 0.35);
+  box-shadow: var(--shadow, 0 10px 40px rgba(32, 29, 26, 0.08));
+}
+/* 图卡：16:9 封面裁切——给图卡版面优势，这是「逛的场」的主视觉 */
+.plaza-wcard-cover {
+  display: block;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--paper-2, #faf7f2);
+  border-bottom: 1px solid var(--line, #e5e0d8);
+}
+.plaza-wcard-cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* 微博卡配图：正文优先，图跟在下面（不裁 16:9，限高防竖图拉爆版面） */
+.plaza-wcard-media {
+  display: block;
+  margin: 10px 14px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line, #e5e0d8);
+  background: var(--paper-2, #faf7f2);
+}
+.plaza-wcard-media img {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+}
+.plaza-wcard-body { padding: 12px 14px 2px; }
+.plaza-wcard-link { text-decoration: none; color: inherit; display: block; }
+.plaza-wcard-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 14px;
+}
+.plaza-wcard:hover .plaza-wcard-title { color: var(--accent, #b23a29); }
+.plaza-wcard-title {
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.55;
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.plaza-wcard-summary {
+  color: var(--muted, #6b6b6b);
+  font-size: 0.88rem;
+  line-height: 1.7;
+  margin: 6px 0 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+.plaza-wcard-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding: 10px 14px 12px;
+  font-size: 0.78rem;
+  color: var(--muted, #6b6b6b);
+}
+.plaza-wcard-foot > * { position: relative; z-index: 1; }
+.plaza-wcard-site {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  text-decoration: none;
+}
+.plaza-wcard-site .plaza-site-name {
+  color: var(--accent, #b23a29);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plaza-wcard-site:hover .plaza-site-name { text-decoration: underline; }
+.plaza-wcard-foot .plaza-site-avatar {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.plaza-wcard-foot .plaza-site-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.plaza-wcard-foot .plaza-site-avatar .plaza-media-fallback { font-size: 0.62rem; font-weight: 800; }
+.plaza-wcard-date { flex: 0 0 auto; }
+
+/* 点赞（P2.1）：零赞不显示计数，♡/♥ 换心；river meta 与 wall foot 共用，都靠右收尾 */
+.plaza-like {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line, #e5e0d8);
+  background: #fff;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--muted, #6b6b6b);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.plaza-like:hover { color: var(--accent, #b23a29); border-color: rgba(178, 58, 41, 0.4); }
+.plaza-like.is-liked { color: var(--accent, #b23a29); border-color: rgba(178, 58, 41, 0.4); cursor: default; }
+.plaza-like:disabled { cursor: default; }
+.plaza-like-heart { line-height: 1; }
+.plaza-like-n { font-variant-numeric: tabular-nums; }
+
+/* 站点视图页头：返回链接 + 头像 + 站名 + 「去逛逛 ↗」大按钮（回访主入口） */
+.plaza-site-hero { margin: 0 auto; max-width: 720px; }
+.plaza-site-back {
+  display: inline-block;
+  color: var(--muted, #6b6b6b);
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+.plaza-site-back:hover { color: var(--brand, #c0392b); }
+.plaza-site-hero-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+}
+.plaza-site-hero-avatar {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  text-decoration: none;
+}
+.plaza-site-hero-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.plaza-site-hero-main { flex: 1; min-width: 0; }
+.plaza-site-hero-main h1 {
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.plaza-site-hero-main .plaza-site-hero-sub { margin: 6px 0 0; }
+.plaza-visit-btn { flex: 0 0 auto; }
+.plaza-hero .plaza-site-hero .plaza-hero-sub { color: var(--muted, #6b6b6b); }
+
+/* 侧栏：活跃榜副标题 + 新站聚光「新」标 */
+.plaza-side-sub {
+  margin: -4px 0 10px;
+  color: var(--muted, #6b6b6b);
+  font-size: 0.8rem;
+}
+.plaza-new-chip {
+  flex: 0 0 auto;
+  background: var(--accent, #b23a29);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+/* 手机：卡片墙退化为大卡流（<720px，与视图默认值判定同口径）；
+   站点页头按钮随流换行；390px 老规矩 */
+@media (max-width: 720px) {
+  .plaza-feed.is-wall { columns: 1; }
+  .plaza-site-hero-row { flex-wrap: wrap; }
+  .plaza-site-hero-main { flex: 1 1 100%; order: 3; }
+  .plaza-visit-btn { margin-left: auto; }
+}
+@media (max-width: 480px) {
+  .plaza-tabs { gap: 6px; }
+  .plaza-tab { padding: 6px 12px; font-size: 0.86rem; }
+  .plaza-wcard-title { font-size: 0.96rem; }
+  .plaza-like { padding: 2px 8px; }
+}

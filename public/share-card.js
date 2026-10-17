@@ -66,9 +66,16 @@ function collect(card) {
     avatar: avImg ? avImg.currentSrc || avImg.src : '',
     letter: avSpan ? (avSpan.textContent.trim()[0] || site[0]) : site[0],
     text: textEl ? textEl.textContent.trim() : '',
-    images: [].slice.call(card.querySelectorAll('.wb-imgs img'), 0, 9).map(function (im) {
-      return im.currentSrc || im.src
-    }),
+    images: (function () {
+      var list = [].slice.call(card.querySelectorAll('.wb-imgs img'), 0, 9).map(function (im) {
+        return im.currentSrc || im.src
+      })
+      // 视频卡（B19）：封面帧当首图，分享卡才有可画的画面（没封面帧就仍是无图卡）
+      var v = card.querySelector('.wb-video video')
+      var poster = v ? v.getAttribute('poster') || '' : ''
+      if (poster) list = [poster].concat(list)
+      return list.slice(0, 9)
+    })(),
     time: timeEl ? timeEl.textContent.trim() : '',
     host: location.host,
   }

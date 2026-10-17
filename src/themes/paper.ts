@@ -159,7 +159,7 @@ export function post(d: PostData): string {
   ${siteNav({ mode: siteMode(d.settings), memberEnabled: d.settings.membersEnabled === '1', cls: 'pp-snav', categories: d.categories, tags: d.tags, pages: d.pages, en })}
   <article class="pp-article">
     <h1 class="pp-title">${esc(p.title)}</h1>
-    <div class="pp-meta"><time>${en ? fmtDateEn(p.published_at) : fmtDate(p.published_at)}</time><span>·</span><span>${en ? `${p.readingMinutes} min read` : `${p.readingMinutes} 分钟读完`}</span><span>·</span><span>${en ? `${p.views} views` : `${p.views} 次阅读`}</span></div>
+    <div class="pp-meta"><time>${en ? fmtDateEn(p.published_at) : fmtDate(p.published_at)}</time><span>·</span><span>${en ? `${p.readingMinutes} min read` : `${p.readingMinutes} 分钟读完`}</span><span>·</span><span>${en ? `${p.views} views` : `${p.views} 次阅读`}</span>${p.aiGenerated ? `<span>·</span><span>${en ? 'AI-generated' : 'AI 生成'}</span>` : ''}</div>
     ${p.cover ? `<div class="pp-cover"><img src="${esc(p.cover)}" alt=""></div>` : ''}
     <div class="pp-body rich">${p.contentHtml}</div>
     ${p.locked ? paywallHtml(p.minTier, en) : ''}

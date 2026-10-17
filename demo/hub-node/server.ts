@@ -22,9 +22,77 @@ const PUBLIC_ROOT = path.resolve(process.env.PUBLIC_ROOT || path.resolve(__dirna
 const DB_FILE = process.env.HUB_DB || path.resolve(process.env.HUB_DATA || path.resolve(__dirname, '../data'), 'plaza.db')
 const ADMIN_TOKEN = process.env.PLAZA_ADMIN_TOKEN || ''
 
+/* 访客 IP 信任档位（与 docker-poc/server.ts 的 TRUST_PROXY 同口径、同默认）：
+ *  - 'cf'    hub 前有 Cloudflare 代理：保留 CF-Connecting-IP（CF 边缘强制写入不可伪造），
+ *            丢掉客户端自带的 X-Forwarded-For / X-Real-IP
+ *  - 'proxy' 默认。hub 在自控反代（Caddy / Nginx）后：剥掉客户端自带的 CF-Connecting-IP /
+ *            X-Real-IP，取 X-Forwarded-For 最后一跳作访客 IP（反代把真实客户端 IP 追加在末尾，
+ *            客户端伪造值只能排前面），写回 CF-Connecting-IP 供 hub 的 ipOf 读取
+ *  - 'off'   Node 直接暴露、无任何反代：只信 socket 远端地址
+ * 档位与真实部署不一致 = 可被伪造头重置按 IP 的点赞去重 / 限流桶；默认 'proxy' 对应
+ * 官方部署（Caddy 反代）。布尔简写：'1' → proxy、'0' → off。 */
+const TRUST_PROXY_RAW = (process.env.TRUST_PROXY ?? 'proxy').toLowerCase()
+const TRUST_PROXY: 'cf' | 'proxy' | 'off' =
+  TRUST_PROXY_RAW === '1'
+    ? 'proxy'
+    : TRUST_PROXY_RAW === '0'
+      ? 'off'
+      : TRUST_PROXY_RAW === 'cf' || TRUST_PROXY_RAW === 'proxy' || TRUST_PROXY_RAW === 'off'
+        ? (TRUST_PROXY_RAW as 'cf' | 'proxy' | 'off')
+        : 'proxy'
+
+/** 把可信来源的访客 IP 归一写进 cf-connecting-ip（hub 的 ipOf 读它），剥掉客户端可伪造的转发头 */
+function applyTrustProxy(headers: Headers, req: http.IncomingMessage): void {
+  if (TRUST_PROXY === 'cf') {
+    headers.delete('x-forwarded-for')
+    headers.delete('x-real-ip')
+    return
+  }
+  headers.delete('x-real-ip')
+  headers.delete('cf-connecting-ip')
+  if (TRUST_PROXY === 'proxy') {
+    const parts = (headers.get('x-forwarded-for') || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    const ip = parts.length ? parts[parts.length - 1] : (req.socket.remoteAddress || '').replace(/^::ffff:/, '')
+    headers.delete('x-forwarded-for')
+    if (ip) headers.set('cf-connecting-ip', ip)
+    return
+  }
+  // off：Node 直接暴露，只认 socket 远端（不认任何转发头）
+  headers.delete('x-forwarded-for')
+  const remote = (req.socket.remoteAddress || '').replace(/^::ffff:/, '')
+  if (remote) headers.set('cf-connecting-ip', remote)
+}
+
+/* 点赞/曝光的 IP/vid 天级哈希密钥：优先 PLAZA_HASH_SECRET；未设时自动生成一枚并落盘到
+ * 数据目录（重启不变），避免退化成「公开日期当盐」的可枚举哈希。落盘失败退进程内随机
+ * （仅日志告警）——此时重启会让当天点赞去重清空，属可接受降级。 */
+function resolveHashSecret(): string {
+  const fromEnv = (process.env.PLAZA_HASH_SECRET || '').trim()
+  if (fromEnv) return fromEnv
+  const file = path.resolve(path.dirname(DB_FILE), 'hash-secret')
+  try {
+    const existing = fs.readFileSync(file, 'utf8').trim()
+    if (/^[0-9a-f]{32,}$/.test(existing)) return existing
+  } catch {
+    /* 不存在：下面生成 */
+  }
+  const secret = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, secret, { mode: 0o600 })
+  } catch (e) {
+    console.warn('[hub] 哈希密钥无法落盘，改用进程内随机（重启后当天点赞去重会清空）', e)
+  }
+  return secret
+}
+
 const env = {
   DB: createD1(DB_FILE),
   PLAZA_ADMIN_TOKEN: ADMIN_TOKEN,
+  PLAZA_HASH_SECRET: resolveHashSecret(),
 }
 // schema 幂等（IF NOT EXISTS），启动直接刷一遍；库文件放 data/（部署时挂卷）
 await env.DB.exec(SCHEMA_SQL as string)
@@ -113,6 +181,8 @@ const server = http.createServer(async (req, res) => {
       if (Array.isArray(value)) value.forEach((v) => headers.append(key, v))
       else headers.set(key, value)
     }
+    // 访客 IP 信任归一：剥掉客户端可伪造的转发头、把可信来源写回 cf-connecting-ip
+    applyTrustProxy(headers, req)
     const hasBody = req.method !== 'GET' && req.method !== 'HEAD'
     // URL 固定拼 https：生产由 Caddy 终结 TLS，Origin 校验与绝对地址语义都以访客侧为准
     const appReq = new Request(`https://${hostHeader}${url.pathname}${url.search}`, {

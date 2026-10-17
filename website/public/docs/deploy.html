@@ -5,20 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>部署教程 - 博客号文档</title>
 <meta name="description" content="从注册 Cloudflare 到部署 Worker、绑定自定义域名、自动部署、备份与恢复，含 Docker 自托管。">
+<link rel="canonical" href="https://bloghao.com/docs/deploy.html">
+<meta property="og:url" content="https://bloghao.com/docs/deploy.html">
+<meta property="og:image" content="https://bloghao.com/assets/editor.png">
 <meta property="og:title" content="部署教程 - 博客号文档">
 <meta property="og:description" content="从注册 Cloudflare 到部署 Worker、绑定自定义域名、自动部署、备份与恢复，含 Docker 自托管。">
 <meta property="og:type" content="article">
-<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=20261012a">
-<link rel="stylesheet" href="/docs.css?v=20261012a">
-<script src="/docs/docs-search-index.js?v=20261012a"></script>
+<link rel="icon" href="/favicon.svg?v=20261014d" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261014d">
+<link rel="stylesheet" href="/docs.css?v=20261014d">
+<script src="/docs/docs-search-index.js?v=20261014d"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
     <a class="nav-logo" href="/index.html">
-      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+      <img src="/favicon.svg?v=20261014d" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
@@ -114,8 +117,11 @@ database_id = &quot;xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx&quot;</code></pre></div
 </blockquote>
 <p><code>wrangler.jsonc</code> 里的 <code>&quot;bucket_name&quot;: &quot;xwblog-images&quot;</code> 若改名请同步修改。</p>
 <h2 id="3-首次部署">3. 首次部署</h2><div class="codeblock" data-lang="bash"><pre><code>npm run deploy</code></pre></div><p>成功后 wrangler 会输出你的访问地址，例如：</p>
-<div class="codeblock"><pre><code>Published xwblog v1.0.0
-https://xwblog.&lt;你的子域&gt;.workers.dev</code></pre></div><h2 id="4-初始化管理员">4. 初始化管理员</h2><p>浏览器打开：</p>
+<div class="codeblock"><pre><code>Published xwblog v2.5.1
+https://xwblog.&lt;你的子域&gt;.workers.dev</code></pre></div><blockquote>
+<p>若你的 <code>wrangler.jsonc</code> 里设了 <code>&quot;workers_dev&quot;: false</code>（关闭 workers.dev 平行入口），部署后不会生成 workers.dev 地址——删除该行重新部署，或直接按第 6 节绑自定义域。</p>
+</blockquote>
+<h2 id="4-初始化管理员">4. 初始化管理员</h2><p>浏览器打开：</p>
 <div class="codeblock"><pre><code>https://你的域名/admin/</code></pre></div><p>首次访问会显示「创建管理员」页面：</p>
 <ol>
 <li>填用户名（2-24 位字母、数字、_ 或 -）、密码（≥ 8 位）、昵称</li>
@@ -130,7 +136,7 @@ https://xwblog.&lt;你的子域&gt;.workers.dev</code></pre></div><h2 id="4-初�
 <li><strong>站点名称 / 描述 / 页脚</strong>：出现在首页刊头、浏览器标题、RSS</li>
 <li><strong>站点链接</strong>：填写最终访问域名（本站即 <code>https://blog.xiaowuleyi.com</code>），用于 RSS 和 sitemap 里的绝对链接。绑定了自定义域名就<strong>务必填上</strong></li>
 <li><strong>站点头像 / 网站图标</strong>：都从后台上传、存进 R2 图床，改即时生效</li>
-<li><strong>外观</strong>：六套主题即点即换</li>
+<li><strong>外观</strong>：七套主题即点即换</li>
 <li><strong>评论</strong>：可开关留言、可开启「先审后展」</li>
 </ul>
 <h2 id="6-绑定自定义域名">6. 绑定自定义域名</h2><p>workers.dev 域名在国内部分地区不稳定，正式使用建议绑一个自己的域名（本站绑的就是 <code>blog.xiaowuleyi.com</code>）。<strong>前提</strong>：这个域名已托管在同一个 Cloudflare 账号下（即域名的 DNS 由 Cloudflare 管理）。</p>
@@ -154,7 +160,7 @@ git push -u origin main</code></pre></div><p>仓库已内置 <code>.github/workf
 <li><code>CLOUDFLARE_ACCOUNT_ID</code>：面板首页右侧可以看到</li>
 </ul>
 </li>
-<li>之后每次 push 到 <code>main</code>，GitHub Actions 会自动：类型检查 → 安装依赖 → 执行 schema.sql（幂等）→ <code>wrangler deploy</code>。另有内置的 <code>ci.yml</code> 与部署并行，跑类型检查 + 回归测试（<code>tests/</code> 30+ 用例），防止已修复的 bug 悄悄复发</li>
+<li>之后每次 push 到 <code>main</code>，GitHub Actions 会自动：类型检查 → 安装依赖 → 执行 schema.sql（幂等）→ <code>wrangler deploy</code>。另有内置的 <code>ci.yml</code> 与部署并行，跑类型检查 + 回归测试（<code>tests/</code> 700+ 用例），防止已修复的 bug 悄悄复发</li>
 </ol>
 <blockquote>
 <p>更省事的替代：不配任何密钥，在 Cloudflare 面板 → 你的 Worker → Settings → Git 支持（Builds）连接 GitHub 仓库，push 即自动部署（一键部署的副本默认就是这条路）。</p>
@@ -202,11 +208,15 @@ docker compose up --build -d     # 镜像约 70MB（node:26-alpine），数据�
 <td>查看图片占用量</td>
 <td>Dashboard → R2 → xwblog-images，或后台「媒体」页 / 概览页</td>
 </tr>
+<tr>
+<td><strong>整站搬家</strong>（换服务器 / 换域名 / 重新部署）</td>
+<td>后台「设置 → 整站搬家」：旧站<strong>导出整站包</strong>（含全部内容与图床图片）→ 新站登录后<strong>上传并一键还原</strong>。<strong>只允许还原到「没有内容的站」</strong>（没有未删除的文章 / 微博 / 页面；刚装好的新站请先把自带的「示例文章」与「关于我」页面删进回收站），不覆盖不合并；包里不含管理员账号与各类密钥。大站可直接把包传进 R2 再还原：<code>npx wrangler r2 object put xwblog-images/bundles/xwblog-site-2026-10-16.zip --file=./xwblog-site-2026-10-16.zip</code>。详见 <a href="guide.html">GUIDE.md</a> §19</td>
+</tr>
 </tbody></table></div>
 <h2 id="9-本地开发">9. 本地开发</h2><div class="codeblock" data-lang="bash"><pre><code>npm run db:init:local   # 初始化 .wrangler/state 下的本地 D1
 npm run dev             # http://127.0.0.1:8787（本地 D1/R2 全模拟，不花钱）
 npm run typecheck       # TypeScript 类型检查，提交前必须通过
-npm test                # 回归测试（tests/，30+ 用例），提交前必须通过
+npm test                # 回归测试（tests/，700+ 用例），提交前必须通过
 npm run smoke           # 本地冒烟：起 wrangler dev 逐路由断言 200，改 SQL 拼接/渲染后必跑</code></pre></div><p>本地与线上行为一致（同一套 Workers runtime）。上传的测试图片存放在本地模拟的 R2 里，不会占用线上额度。</p>
 <h2 id="10-常见问题">10. 常见问题</h2><p><strong>Q：一键部署时要求添加支付方式？</strong>
 A：R2 图床开通的前提——免费额度（10GB 存储）内不扣费，只是账号验证，放心添加。</p>
@@ -226,12 +236,13 @@ A：绑定一个自己的域名（第 6 步）通常即可解决，本站的 <co
 A：把后台「设置 → 站点链接」改成新域名并保存。</p>
 <p><strong>Q：想改端口/项目名？</strong>
 A：项目名改 <code>wrangler.jsonc</code> 的 <code>name</code>；本地端口 <code>npm run dev -- --port 9000</code>。</p>
-<h2 id="11-附官网bloghaocom是怎么部署的维护者备忘">11. 附：官网（bloghao.com）是怎么部署的（维护者备忘）</h2><p>博客号官网是与博客系统互相独立的纯静态站点，源码在仓库 <code>website/</code> 目录，部署在 Cloudflare <strong>Pages</strong> 项目 <code>bloghao</code>（即 bloghao.pages.dev），自定义域绑定为 <code>bloghao.com</code>：</p>
+<h2 id="11-附官网bloghaocom是怎么部署的维护者备忘">11. 附：官网（bloghao.com）是怎么部署的（维护者备忘）</h2><p>博客号官网是与博客系统互相独立的纯静态站点，源码在仓库 <code>website/</code> 目录（无构建链，改了即生效），部署在维护者自有服务器上由 Caddy 静态直出（<code>bloghao.com</code>），与 Cloudflare 上的博客 Worker 完全无关：</p>
 <ul>
-<li><strong>改动发布</strong>：修改 <code>website/public/</code> 后 push 到 GitHub，Pages 项目连着 <code>bloghao</code> 仓库（构建输出目录 <code>website/public</code>）会自动部署；也可手动 <code>cd website &amp;&amp; npx wrangler pages deploy public</code></li>
-<li><strong>「博客号目录」</strong>：数据在 <code>website/public/data/showcase.json</code>，访客通过官网入口向 <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener noreferrer">bloghao</a> 提 Issue 申请上榜，审核通过后把站点加进 JSON 即可</li>
-<li><strong>在线示例</strong>：官网指向的演示站（Worker 名 xwblog-demo，地址以部署输出为准）是引擎的另一套独立 Worker 部署，专供访客体验；作者实例 blog.xiaowuleyi.com 不作演示用</li>
-<li>官网与本博客 Worker 互不影响，部署 / 回滚都在 Workers &amp; Pages 的 <code>bloghao</code> 项目里操作</li>
+<li><strong>改动发布</strong>：修改 <code>website/public/</code> 后提交、推送，线上按静态文件方式同步部署目录即刻生效（官网纯静态、无构建步骤）</li>
+<li><strong>文档中心</strong>：<code>website/public/docs/</code> 下的 HTML 由 <code>npm run build:docs</code> 从 <code>docs/*.md</code> 与根目录 <code>CHANGELOG.md</code> 预渲染生成（生成结果直接提交，仍是零构建静态页）；改了 Markdown 文档后重跑一次 <code>npm run build:docs</code>。该命令同时会按扫描 <code>website/public</code> 的真实页面重生成 <code>sitemap.xml</code>（<strong>勿手改</strong>），<code>robots.txt</code> 为手写的源站版</li>
+<li><strong>「博客号目录」</strong>：数据在 <code>website/public/data/showcase.json</code>，访客走官网表单投稿（落盘待审），审核通过后把站点加进 JSON 即可；GitHub Issue 为兜底入口</li>
+<li><strong>在线示例</strong>：官网指向的演示站 <a href="https://demo.bloghao.com" target="_blank" rel="noopener noreferrer">https://demo.bloghao.com</a> 是引擎的另一套独立部署（DEMO_MODE 体验环境，机制见 <a href="demo.html">DEMO.md</a>），专供访客体验；作者实例 blog.xiaowuleyi.com 不作演示用</li>
+<li>官网与本博客 Worker 互不影响，改动官网不涉及任何 Cloudflare 资源</li>
 </ul>
 
     </article>
@@ -274,6 +285,6 @@ A：项目名改 <code>wrangler.jsonc</code> 的 <code>name</code>；本地端�
     </span>
   </div>
 </footer>
-<script src="/docs.js?v=20261012a" defer></script>
+<script src="/docs.js?v=20261014d" defer></script>
 </body>
 </html>

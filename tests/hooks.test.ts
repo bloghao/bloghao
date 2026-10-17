@@ -1,6 +1,21 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { bufferPostText, fireCommentCreated, firePlazaRetract, firePostPublished, fireWeiboPublished, listServerPlugins, plazaSign, renderFooterHtml } from '../src/hooks.ts'
+import {
+  bufferPostText,
+  cleanServerPluginConfig,
+  fireBackupCompleted,
+  fireCommentCreated,
+  firePlazaRetract,
+  firePostDeleted,
+  firePostPublished,
+  firePostUpdated,
+  fireWeiboDeleted,
+  fireWeiboPublished,
+  listServerPlugins,
+  pluginConfig,
+  plazaSign,
+  renderFooterHtml,
+} from '../src/hooks.ts'
 import { verifyPlazaSignature } from '../plaza/src/core.ts'
 import { DEFAULT_SETTINGS } from '../src/db.ts'
 import type { Env, SettingsMap } from '../src/types.ts'
@@ -326,4 +341,145 @@ test('firePlazaRetract：下架广播带 deleted 载荷；未配置 / 停用插�
   } finally {
     cap.restore()
   }
+})
+
+// ── 事件槽扩面（B 通道）：onPostUpdated / onPostDeleted / onWeiboDeleted / onBackupCompleted ──
+
+const OUTBOUND_URL = 'https://hooks.example/x'
+
+/** 出站 Webhook 配置行（fakeEnv rows 用） */
+function outboundRows(extra: Record<string, string> = {}): { key: string; value: string }[] {
+  return [
+    { key: 'serverPluginConfig', value: JSON.stringify({ 'outbound-webhook': { url: OUTBOUND_URL, ...extra } }) },
+    ...Object.entries(extra)
+      .filter(([k]) => k !== 'url')
+      .map(([k, v]) => ({ key: k, value: v })),
+  ]
+}
+
+test('出站 Webhook：四类新事件全通——post_updated / post_deleted / weibo_deleted / backup_completed', async () => {
+  const cap = captureFetch()
+  try {
+    const env = fakeEnv(outboundRows())
+    await firePostUpdated(env, { slug: 'hello', title: '改过的文章', via: 'admin' })
+    await firePostDeleted(env, { slug: 'hello', title: '删掉的文章', via: 'admin' })
+    await fireWeiboDeleted(env, { id: 42, via: 'admin' })
+    await fireBackupCompleted(env, { key: 'backups/xwblog-2026-10-16.json', bytes: 1234, tables: 9, at: 1760000000000 })
+    assert.equal(cap.calls.length, 4)
+    const events = cap.calls.map((c) => (JSON.parse(String(c.init?.body)) as { event: string }).event)
+    assert.deepEqual(events, ['post_updated', 'post_deleted', 'weibo_deleted', 'backup_completed'])
+    for (const c of cap.calls) {
+      assert.equal(c.url, OUTBOUND_URL)
+      const body = JSON.parse(String(c.init?.body)) as { site: string; data: Record<string, unknown> }
+      assert.equal(body.site, DEFAULT_SETTINGS.siteName)
+    }
+    const backupBody = JSON.parse(String(cap.calls[3].init?.body)) as { data: { key: string; bytes: number } }
+    assert.equal(backupBody.data.key, 'backups/xwblog-2026-10-16.json')
+    assert.equal(backupBody.data.bytes, 1234)
+  } finally {
+    cap.restore()
+  }
+})
+
+test('出站 Webhook：未配置 / 无 url / 非公网地址不外发；停用名单可关', async () => {
+  const cap = captureFetch()
+  try {
+    assert.equal(cap.calls.length, 0)
+    await firePostUpdated(fakeEnv([]), { slug: 'x', title: 'y', via: 'admin' })
+    await firePostUpdated(fakeEnv([{ key: 'serverPluginConfig', value: 'dirty{{{' }]), { slug: 'x', title: 'y', via: 'admin' })
+    await firePostUpdated(
+      fakeEnv([{ key: 'serverPluginConfig', value: JSON.stringify({ 'outbound-webhook': { url: 'http://insecure.example/x' } }) }]),
+      { slug: 'x', title: 'y', via: 'admin' }
+    )
+    await firePostUpdated(
+      fakeEnv([{ key: 'serverPluginConfig', value: JSON.stringify({ 'outbound-webhook': { url: 'https://192.168.1.1/hook' } }) }]),
+      { slug: 'x', title: 'y', via: 'admin' }
+    )
+    assert.equal(cap.calls.length, 0, '内网地址一律不发（SSRF 防线）')
+    // 停用后不外发
+    const env = fakeEnv([{ key: 'serverPluginConfig', value: JSON.stringify({ 'outbound-webhook': { url: OUTBOUND_URL } }) }, { key: 'serverPluginsDisabled', value: 'outbound-webhook' }])
+    await firePostUpdated(env, { slug: 'x', title: 'y', via: 'admin' })
+    assert.equal(cap.calls.length, 0)
+  } finally {
+    cap.restore()
+  }
+})
+
+test('出站 Webhook：events 白名单过滤 + 签名头（HMAC 与广场同步同口径，可被 verifyPlazaSignature 验证）', async () => {
+  const cap = captureFetch()
+  try {
+    const env = fakeEnv(outboundRows({ secret: 'shhh', events: 'post_published,backup_completed' }))
+    await firePostUpdated(env, { slug: 'x', title: 'y', via: 'admin' })
+    await fireBackupCompleted(env, { key: 'k.json', bytes: 1, tables: 1, at: 1 })
+    assert.equal(cap.calls.length, 1, 'events 之外的静默跳过')
+    const call = cap.calls[0]
+    const headers = new Headers(call.init?.headers)
+    const ts = headers.get('x-bloghao-timestamp') || ''
+    const sig = headers.get('x-bloghao-signature') || ''
+    assert.ok(ts && sig)
+    assert.equal(await verifyPlazaSignature('shhh', ts, sig, String(call.init?.body)), true, '签名与广场 hub 校验同口径')
+  } finally {
+    cap.restore()
+  }
+})
+
+test('出站 Webhook：事件清单写脏（含坏项）整份拒发，不放大成全事件外推（失败关闭）', async () => {
+  const cap = captureFetch()
+  try {
+    // 合法清单里混一个错拼 → 整份配置按失效处理：一个事件都不发（历史上会被当成「不过滤」全发）
+    const env = fakeEnv(outboundRows({ events: 'post_published,nope_event' }))
+    await firePostPublished(env, { slug: 'a', title: 'b', summary: '', via: 'admin' })
+    await firePostUpdated(env, { slug: 'a', title: 'b', via: 'admin' })
+    await fireBackupCompleted(env, { key: 'k', bytes: 1, tables: 1, at: 1 })
+    assert.equal(cap.calls.length, 0, '坏清单拒发，别退化成「全部放行」')
+    // 留空仍是「全部放行」（三态里的 'all' 不受影响）
+    const all = fakeEnv(outboundRows())
+    await firePostUpdated(all, { slug: 'a', title: 'b', via: 'admin' })
+    assert.equal(cap.calls.length, 1)
+  } finally {
+    cap.restore()
+  }
+})
+
+// ── 插件配置通道：pluginConfig 读取 + cleanServerPluginConfig 净化校验 ──
+
+test('pluginConfig：脏 JSON / 非对象 / 值非字符串一律当没配；正常读出字符串键值', () => {
+  assert.deepEqual(pluginConfig(settings({}), 'outbound-webhook'), {})
+  assert.deepEqual(pluginConfig(settings({ serverPluginConfig: 'dirty' }), 'outbound-webhook'), {})
+  assert.deepEqual(pluginConfig(settings({ serverPluginConfig: '[1]' }), 'outbound-webhook'), {})
+  assert.deepEqual(pluginConfig(settings({ serverPluginConfig: '{"outbound-webhook":"str"}' }), 'outbound-webhook'), {})
+  assert.deepEqual(pluginConfig(settings({ serverPluginConfig: '{"outbound-webhook":{"url":"https://x","n":1}}' }), 'outbound-webhook'), {
+    url: 'https://x',
+  })
+})
+
+test('cleanServerPluginConfig：合法配置规范化、未知插件/字段拒绝、非字符串拒绝、空命名空间清除', () => {
+  const ok = cleanServerPluginConfig(JSON.stringify({ 'outbound-webhook': { url: 'https://hooks.example/x', events: 'post_published' } }))
+  assert.ok(ok.ok)
+  assert.deepEqual(JSON.parse(ok.value), { 'outbound-webhook': { url: 'https://hooks.example/x', events: 'post_published' } })
+  // 空配置/空命名空间
+  assert.equal(cleanServerPluginConfig('')!.ok && cleanServerPluginConfig('')!.value, '')
+  const emptyNs = cleanServerPluginConfig(JSON.stringify({ 'outbound-webhook': {} }))
+  assert.ok(emptyNs.ok && emptyNs.value === '', '空对象 = 清除')
+  // 非法形态
+  assert.equal(cleanServerPluginConfig('not json').ok, false)
+  assert.equal(cleanServerPluginConfig('[]').ok, false)
+  assert.equal(cleanServerPluginConfig(JSON.stringify({ 'nope-plugin': { url: 'https://x' } })).ok, false, '未注册插件 id')
+  assert.equal(
+    cleanServerPluginConfig(JSON.stringify({ 'outbound-webhook': { nope: 'x' } })).ok,
+    false,
+    '未登记配置字段'
+  )
+  assert.equal(cleanServerPluginConfig(JSON.stringify({ 'outbound-webhook': { url: 123 } })).ok, false, '值必须字符串')
+  assert.equal(cleanServerPluginConfig(JSON.stringify({ 'outbound-webhook': { url: 'x'.repeat(501) } })).ok, false, '单值 ≤ 500')
+})
+
+test('cleanServerPluginConfig：configValidate 语义校验生效——坏 webhook 地址报错文案可读', () => {
+  const bad = cleanServerPluginConfig(JSON.stringify({ 'outbound-webhook': { url: 'ftp://x' } }))
+  assert.equal(bad.ok, false)
+  assert.ok(bad.ok === false && bad.error.includes('https'), '错误文案指明要公网 https 地址')
+  const lan = cleanServerPluginConfig(JSON.stringify({ 'outbound-webhook': { url: 'https://192.168.1.3/hook' } }))
+  assert.equal(lan.ok, false, '内网地址过不了 fetchableUrl')
+  const badEvents = cleanServerPluginConfig(JSON.stringify({ 'outbound-webhook': { url: 'https://x.example/h', events: 'nope' } }))
+  assert.equal(badEvents.ok, false)
 })

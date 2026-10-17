@@ -181,12 +181,18 @@ export interface FetchPublicResult {
 /** 抓公网资源：fetchableUrl 起点校验 + 逐跳重定向复查 + 流式大小上限。
  *  opts.hostOk 可选：域名白名单钩子（白名单代理用），每一跳（含起点）在 fetchableUrl
  *  之外追加校验——白名单域名 302 出白名单同样算越界。任何失败（非法地址、重定向越界、
- *  超限、超时、非 2xx）返回 null，调用方按抓不到处理 */
+ *  超限、超时、非 2xx）返回 null，调用方按抓不到处理。
+ *  opts.method / opts.body：非 GET（如 webhook 通知 POST）时传入，每一跳复用同一
+ *  method/body；opts.expectBody === false = 「只发不收」（不读响应体，204 / 空体也算成功，
+ *  供 fire-and-forget 的 webhook 用）。SSRF 逐跳复查口径与只读抓取完全一致 */
 export async function fetchPublicResource(
   rawUrl: string,
   opts: {
     maxBytes: number
     timeoutMs: number
+    method?: string
+    body?: string
+    expectBody?: boolean
     headers?: Record<string, string>
     maxRedirects?: number
     hostOk?: (host: string) => boolean
@@ -200,6 +206,8 @@ export async function fetchPublicResource(
     let res: Response
     try {
       res = await fetch(u, {
+        method: opts.method,
+        body: opts.body,
         headers: opts.headers,
         // 自行跟跳，每一跳重新过 fetchableUrl（公网 URL 302 到私网是经典绕过）
         redirect: 'manual',
@@ -229,6 +237,8 @@ export async function fetchPublicResource(
       continue
     }
     if (!res.ok) return null
+    // 「只发不收」：webhook 类通知不读响应体，204 / 空体也算成功
+    if (opts.expectBody === false) return { res, buf: new ArrayBuffer(0) }
     if (Number(res.headers.get('content-length') || 0) > opts.maxBytes) return null
     const buf = await readBodyLimited(res, opts.maxBytes)
     if (!buf) return null

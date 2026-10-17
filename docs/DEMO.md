@@ -15,7 +15,7 @@
 |---|---|---|
 | Worker | `xwblog`（wrangler.jsonc） | `xwblog-demo`（wrangler.demo.jsonc） |
 | D1 / R2 | 生产库与图床 | 独立的 demo 库与图床 |
-| 数据 | 真实内容 | 种子数据（54 篇文章、31 条微博、85+ 评论、演示会员、60 天访客统计），每 2 小时清库重灌 |
+| 数据 | 真实内容 | 种子数据（54 篇文章、31 条微博、82 条评论、演示会员、60 天访客统计），每 2 小时清库重灌 |
 | DEMO_MODE | 未设置（所有演示逻辑惰性） | `"1"`（播种 / 重置 / 演示守卫生效） |
 
 体验者的一切操作——发文章、传图、换主题、改设置——都只落在 demo 资源上；重置后自动恢复
@@ -83,8 +83,9 @@ npm run dev:demo
 > demo 站点块反代），租户 `tenants.json` 配 `demo.bloghao.com`；此前跑在另一台小服务器
 > （nginx 反代）的旧部署已停。上面的 Worker 形态保留作备用：`wrangler.demo.jsonc` 里的
 > D1/R2 资源尚未创建（database_id 是占位符）、routes 已注释，要切回 Worker 形态需先建
-> 资源再 `npm run deploy:demo`。同步流程：主仓库改动后本地跑
-> `scripts/sync-from-bloghao.sh` 提交推送，服务器 `git pull && docker compose up --build -d`。
+> 资源再 `npm run deploy:demo`。同步流程：主仓库改动后，在 bloghao-demo 仓库本地跑它的
+> `scripts/sync-from-bloghao.sh`（从本仓库导出快照）提交推送，服务器侧以 rsync 文件快照
+> 方式同步部署目录（线上现行形态；`git pull && docker compose up --build -d` 为该仓库最初的提法）。
 
 ## 改种子内容
 

@@ -415,6 +415,15 @@ export interface PlannedVisit {
   country: string
 }
 
+export interface PlannedBot {
+  ts: number
+  day: string
+  name: string
+  kind: string
+  path: string
+  country: string
+}
+
 export interface DemoPlan {
   posts: PlannedPost[]
   weibo: PlannedWeibo[]
@@ -425,6 +434,7 @@ export interface DemoPlan {
   tags: string[]
   settings: Record<string, string>
   visits: PlannedVisit[]
+  bots: PlannedBot[]
   members: PlannedMember[]
   admin: typeof DEMO_ADMIN
 }
@@ -562,6 +572,11 @@ export function buildDemoPlan(now: number): DemoPlan {
   })
 
   const visits = buildVisitRows(now, rng)
+  const bots = buildBotRows(
+    now,
+    rng,
+    DEMO_POSTS.filter((p) => !p.draft && !p.scheduledInHours).map((p) => ({ slug: p.slug }))
+  )
 
   return {
     posts,
@@ -573,6 +588,7 @@ export function buildDemoPlan(now: number): DemoPlan {
     tags: tagSet,
     settings: DEMO_SETTINGS,
     visits,
+    bots,
     members,
     admin: DEMO_ADMIN,
   }
@@ -674,4 +690,61 @@ export function buildVisitRows(now: number, rng: () => number, slugs?: { slug: s
     }
   }
   return rows
+}
+
+/* ---------------- 爬虫 / AI 抓取种子（src/bots.ts bot_log） ---------------- */
+
+// name/kind 与 src/bots.ts BOT_RULES 的识别名一致（演示数据要像真被这些 UA 抓过）
+// 2026-10-17：AI 拆成训练（ai）与检索引用（ai-seek）两档，两种都要有种子
+const BOT_SEEDS: [string, string, number][] = [
+  ['Google', 'se', 24],
+  ['百度', 'se', 20],
+  ['必应', 'se', 12],
+  ['字节爬虫', 'ai', 14],
+  ['GPTBot', 'ai', 8],
+  ['ClaudeBot', 'ai', 6],
+  ['OAI-SearchBot', 'ai-seek', 5],
+  ['PerplexityBot', 'ai-seek', 4],
+  ['Ahrefs', 'seo', 6],
+  ['Feedly', 'feed', 5],
+  ['Internet Archive', 'arch', 2],
+]
+
+const BOT_COUNTRY: [string, number][] = [
+  ['US', 42],
+  ['CN', 30],
+  ['IE', 8],
+  ['DE', 6],
+  ['SG', 6],
+  ['HK', 4],
+  ['NL', 4],
+]
+
+/** 最近 60 天的爬虫抓取日志：确定性生成，AI 类占比走高让演示站有「被 AI 盯上」的真实感 */
+export function buildBotRows(now: number, rng: () => number, published: { slug: string }[]): PlannedBot[] {
+  const rows: PlannedBot[] = []
+  const days = 60
+  for (let d = days - 1; d >= 0; d--) {
+    const [botName, botKind, basePv] = BOT_SEEDS[d % BOT_SEEDS.length]
+    // AI 抓取（训练 + 检索两档）随天数缓慢走高（AI 时代背景），搜索引擎平稳，其他偶发
+    const trend = botKind.startsWith('ai') ? 0.5 + 0.5 * ((days - 1 - d) / (days - 1)) : 1
+    const pv = Math.max(1, Math.round((basePv / 4) * (0.6 + 0.8 * rng()) * trend))
+    for (let i = 0; i < pv; i++) {
+      const hourBias = pickWeighted(rng, [
+        [3, 10], [6, 8], [9, 6], [11, 5], [14, 6], [17, 5], [20, 4], [22, 4],
+      ])
+      let ts = daysAgoAt(now, d, hourBias, Math.floor(rng() * 60))
+      const isToday = d === 0
+      if (isToday && ts > now - 60_000) ts = now - 3_600_000
+      const r = rng()
+      // 爬虫的路径画像：搜索引擎与 AI 都主抓文章页，部分探首页/归档，少数扫 /wp-login 等杂路径
+      const target = r < 0.62 ? '__post__' : r < 0.74 ? '/' : r < 0.82 ? '/archives' : r < 0.88 ? '/rss.xml' : r < 0.94 ? '/sitemap.xml' : '/wp-login.php'
+      const path =
+        target === '__post__'
+          ? `/post/${published[Math.floor(rng() * published.length)].slug}`
+          : (target as string)
+      rows.push({ ts, day: fmtDate(ts), name: botName, kind: botKind, path, country: pickWeighted(rng, BOT_COUNTRY) })
+    }
+  }
+  return rows.sort((a, b) => a.ts - b.ts)
 }

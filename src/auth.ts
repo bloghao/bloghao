@@ -94,6 +94,17 @@ export async function purgeExpiredSessions(db: D1Database): Promise<void> {
   await db.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(Date.now()).run()
 }
 
+/** 改密码后踢掉其他设备：保留当前会话（改密码的人自己不能被登出去），其余全部失效。
+ *  keepToken 是 Cookie 里的明文 token——落库存的是 SHA-256（tokenHash），比较前必须先哈希
+ *  （与会员侧 destroyOtherMemberSessions 同口径；拿明文直比恒不相等，会把「保留当前会话」
+ *  写成「删光全部会话」） */
+export async function destroyOtherSessions(db: D1Database, userId: number, keepToken: string): Promise<void> {
+  await db
+    .prepare('DELETE FROM sessions WHERE user_id = ? AND token <> ?')
+    .bind(userId, await tokenHash(keepToken))
+    .run()
+}
+
 /* ---------------- 会员会话（访客注册身份，与管理员 sessions 彻底分离，契约见 docs/DEVPLAN-2026-10-07.md 附录 A） ---------------- */
 
 export const MEMBER_SESSION_COOKIE = 'xw_member_session'

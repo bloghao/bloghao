@@ -164,3 +164,23 @@ export const THEMES: Record<string, ThemeModule> = {
 1. **不写固定像素宽**：容器用 `max-width + 百分比`，横滚等特殊场景在节点上加 `data-ignore-width`
 2. **行高 ≥ 字号**：`line-height` 小于 `font-size` 会让多行文字重叠
 3. **别在正文容器设 font-family**：跟随默认字体栈，各端观感一致（标题/代码可用）
+
+## 外观变量契约（B9：主题必须支持的旋钮）
+
+后台「皮肤 → 外观变量」让用户不改代码调颜色 / 字体 / 正文字号 / 圆角，机制在 `src/appearance.ts`。新主题要接入这套体系（否则用户的配置在你的主题上不生效），契约四条：
+
+1. **配色用 CSS 变量**：主色 / 正文 / 次要文字 / 页面背景 / 卡片底 / 分隔线（链接色可选）各定义一个 `:root` 变量（如 `--my-accent`），渲染走变量而不是写死的色值
+2. **正文显式字号**：`.rich` 必须显式声明 `font-size`
+3. **圆角收编两个 token**：`:root` 声明基准圆角与大圆角两级，大圆角用 calc 从基准派生（覆盖样式只重写基准一枚，两档成比例走）：
+
+   ```css
+   :root {
+     --my-radius: 8px;                                /* 卡片 / 缩略图 / 输入等主圆角 */
+     --my-radius-lg: calc(var(--my-radius) * 1.75);   /* 大面板档（示例：14px） */
+   }
+   ```
+
+   卡片、面板、正文图片、代码块等「视觉主体」的 `border-radius` 一律引用这两个变量；小纹理（2-6px 的标签、角标）与药丸（999px）、圆头像（50%）保持字面量不动——它们是主题性格，不随旋钮缩放
+4. **登记映射表**：`src/appearance.ts` 的 `THEME_APPEARANCE` 加一条（各角色的变量名 + 默认值 + `richSize` + `radius: { var, default, lgFactor }`）。这张表有**镜像守卫**（tests/appearance.test.ts 逐主题核对 CSS `:root` 实际值与 `.rich` 基线字号），主题改色 / 改圆角忘了同步，测试会红
+
+未接入也不报错——外观面板只是不列出你的主题（`appearanceMeta` 返回 null）。

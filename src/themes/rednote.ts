@@ -165,7 +165,7 @@ export function post(d: PostData): string {
       <a class="rn-follow" href="/rss.xml">${en ? 'Follow' : '关注'}</a>
     </div>
     <h1 class="rn-title">${esc(p.title)}</h1>
-    <div class="rn-meta"><time>${en ? fmtDateEn(p.published_at) : fmtDate(p.published_at)}</time><i>·</i><span>${p.readingMinutes} min</span><i>·</i><span>${en ? `${fmtViews(p.views, true)} views` : `${fmtViews(p.views)} 阅读`}</span></div>
+    <div class="rn-meta"><time>${en ? fmtDateEn(p.published_at) : fmtDate(p.published_at)}</time><i>·</i><span>${p.readingMinutes} min</span><i>·</i><span>${en ? `${fmtViews(p.views, true)} views` : `${fmtViews(p.views)} 阅读`}</span>${p.aiGenerated ? `<i>·</i><span>${en ? 'AI-generated' : 'AI 生成'}</span>` : ''}</div>
     ${p.cover ? `<div class="rn-cover"><img src="${esc(p.cover)}" alt=""></div>` : ''}
     <div class="rich">${p.contentHtml}</div>
     ${p.locked ? paywallHtml(p.minTier, en) : ''}

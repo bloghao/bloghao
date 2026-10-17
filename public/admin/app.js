@@ -24,6 +24,16 @@ let searchFocused = false
 /* 当前路由名（'editor' 等）：判断「离开编辑器」用 */
 let currentRoute = ''
 
+/* 后台列表时间范围筛选（文章 / 微博共用）：'' = 全部。客户端只传这些语义值，
+ * 真实时间 cutoff 由服务端 listRangeCutoff 按白名单计算——前端拿时间戳拼参也改变不了口径 */
+const LIST_RANGE_CHIPS = [
+  ['', '全部'],
+  ['3d', '3 天'],
+  ['1m', '1 个月'],
+  ['6m', '半年'],
+  ['1y', '1 年'],
+]
+
 /* ---------------- 工具 ---------------- */
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
@@ -321,6 +331,82 @@ async function shellView(active, contentHTML) {
 }
 
 /* ---------------- 概览 ---------------- */
+// 新手引导卡（概览页清单卡）：仅首装显示——/api/auth/setup 播种 settings.onboarding='1'，
+// 老站无此键永不出现。完成状态每次进概览实时计算不落库：站名非默认 / 头像非空 /
+// stats 微博计数 / 手册点击（onboardingManual 记账）；「跳过」与「完成引导」都是
+// PUT { onboarding:'0' }，永久消失。设置页「保存全部」body 不含这两个键，引导态不会被整表提交重置
+const ONBOARD_GUIDE_URL = 'https://bloghao.com/docs/guide.html'
+
+async function onboardSetDone(msg) {
+  try {
+    const d = await api('/admin/settings', { method: 'PUT', body: { onboarding: '0' } })
+    state.settings = d.settings
+    toast(msg)
+    navigate()
+  } catch (e) {
+    toast(e.message || '操作失败，请重试', true)
+  }
+}
+
+function onboardCardHtml(s) {
+  const st = state.settings || {}
+  if (st.onboarding !== '1') return ''
+  // 改名判定含设置页「保存全部」的兜底值「博客号」：两者都算没起名
+  const nameDone = !!st.siteName && st.siteName !== '博客号 BlogHao' && st.siteName !== '博客号'
+  const avatarDone = !!st.avatarUrl
+  const weiboDone = ((s.db && s.db.weibo) || 0) > 0
+  const manualDone = st.onboardingManual === '1'
+  const doneCount = [nameDone, avatarDone, weiboDone, manualDone].filter(Boolean).length
+  const allDone = doneCount === 4
+  const rows = [
+    `<div class="onboard-row${nameDone ? ' is-done' : ''}">
+      <span class="onboard-mark">${nameDone ? '✅' : '1'}</span>
+      <div class="onboard-main">
+        ${nameDone
+          ? `<div class="onboard-title">站点名字「${esc(st.siteName)}」已就绪</div>`
+          : `<div class="onboard-title">给站点起个名字</div>
+            <div class="onboard-sub">现在还是默认名，前台、订阅、广场都靠它认人。</div>
+            <div class="onboard-inline"><input class="input" id="onboard-name" maxlength="40" placeholder="给你的博客起个名字" value="${esc(st.siteName || '')}"><button class="btn btn-primary btn-sm" data-act="onboard-name">保存</button></div>`}
+      </div>
+    </div>`,
+    `<div class="onboard-row${avatarDone ? ' is-done' : ''}">
+      <span class="onboard-mark">${avatarDone ? '✅' : '2'}</span>
+      <div class="onboard-main">
+        <div class="onboard-title">${avatarDone ? `站点头像已就绪 <img class="onboard-thumb" src="${esc(st.avatarUrl)}" alt="">` : '换上站点头像'}</div>
+        ${avatarDone ? '' : '<div class="onboard-sub">出现在首页刊头和你的每条评论旁，发布时自动同步到广场。</div>'}
+      </div>
+      ${avatarDone ? '' : '<button class="btn btn-ghost btn-sm" data-act="onboard-avatar">上传头像</button>'}
+    </div>`,
+    `<div class="onboard-row${weiboDone ? ' is-done' : ''}">
+      <span class="onboard-mark">${weiboDone ? '✅' : '3'}</span>
+      <div class="onboard-main">
+        <div class="onboard-title">${weiboDone ? '已发过微博，保持记录 ✍️' : '发一条微博试试'}</div>
+        ${weiboDone ? '' : '<div class="onboard-sub">博客号不止长文，随手记的短内容更适合日常。</div>'}
+      </div>
+      ${weiboDone ? '' : '<a class="btn btn-ghost btn-sm" href="#/weibo">去发微博 →</a>'}
+    </div>`,
+    `<div class="onboard-row${manualDone ? ' is-done' : ''}">
+      <span class="onboard-mark">${manualDone ? '✅' : '4'}</span>
+      <div class="onboard-main">
+        <div class="onboard-title">${manualDone ? '使用手册已打开' : '看一眼使用手册'}</div>
+        ${manualDone ? '' : '<div class="onboard-sub">后台导览、写作流程、设置逐项说明，都在里面。</div>'}
+      </div>
+      ${manualDone ? '' : `<a class="btn btn-ghost btn-sm" href="${ONBOARD_GUIDE_URL}" target="_blank" rel="noopener" data-act="onboard-manual">打开手册 ↗</a>`}
+    </div>`,
+  ].join('')
+  return `<div class="panel onboard">
+    <div class="onboard-head">
+      <div>
+        <div class="onboard-hi">${allDone ? '🎉 全部就绪！' : '👋 欢迎使用博客号'}</div>
+        <div class="onboard-sub">${allDone ? '删掉那篇欢迎文章，写你自己的第一篇吧。' : '花一分钟做完这几步，让博客更像「你的」——做完或不想做，随时可跳过。'}</div>
+      </div>
+      ${allDone ? '<button class="btn btn-primary btn-sm" data-act="onboard-finish">完成引导</button>' : `<span class="chip chip-gray">已完成 ${doneCount}/4</span>`}
+    </div>
+    <div class="onboard-rows">${rows}</div>
+    <div class="onboard-foot"><button class="onboard-skip" data-act="onboard-skip" type="button">跳过引导，不再显示</button></div>
+  </div>`
+}
+
 async function viewHome() {
   let s
   try {
@@ -344,12 +430,24 @@ async function viewHome() {
       </div>`
     )
     .join('')
+  // 收录守卫：整站 noindex / 闭站会把本域名整体切出搜索引擎与 AI 的索引面——
+  // 概览页常驻提醒，防手滑开了长期不自知（演示站本就刻意 noindex，不提示）
+  const crawlWarn = (() => {
+    if (!s.crawl || s.crawl.demo) return ''
+    const items = []
+    if (s.crawl.closed) items.push('<b>站点处于闭站状态</b>：访客只能看到闭站页，搜索引擎与 AI 都抓不到内容')
+    if (s.crawl.noindex) items.push('<b>全站 noindex 开着</b>：本域名已被搜索引擎与 AI 排除（页面 noindex + robots.txt 整站 Disallow）')
+    if (!items.length) return ''
+    return `<div style="background:var(--warn,#b45309);color:#fff;font-size:13px;line-height:1.75;padding:10px 16px;border-radius:10px;margin-bottom:14px;">⚠️ ${items.join('；')}。<a href="#/settings" style="color:#fff;text-decoration:underline;">设置 → 站点</a> 里可关闭。</div>`
+  })()
   await shellView(
     'home',
     `<div class="page-head">
       <div><div class="page-title">概览</div><div class="page-sub">小院今天的情况</div></div>
       <a class="btn btn-primary" href="#/editor/new">✍️ 写文章</a>
     </div>
+    ${crawlWarn}
+    ${onboardCardHtml(s)}
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-label">已发布文章</div><div class="stat-value">${s.posts}</div></div>
       <div class="stat-card"><div class="stat-label">总阅读</div><div class="stat-value">${s.views}</div></div>
@@ -368,7 +466,7 @@ async function viewHome() {
       </div>
     </div>
     <div class="panel">
-      <div class="panel-head"><span>系统</span><a class="btn btn-ghost btn-sm" href="#/settings">设置 →</a></div>
+      <div class="panel-head"><span>系统</span><span style="display:flex;gap:8px;"><button class="btn btn-ghost btn-sm" data-act="purge-cache">清理缓存</button><a class="btn btn-ghost btn-sm" href="#/settings">设置 →</a></span></div>
       <div class="panel-body" style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
         <div><div class="stat-value" style="font-size:20px;">${s.db.weibo}<small>条微博</small></div></div>
         <div><div class="stat-value" style="font-size:20px;">${s.db.comments}<small>条评论</small></div></div>
@@ -378,6 +476,68 @@ async function viewHome() {
       </div>
     </div>`
   )
+  // 一键清理页面缓存（src/pagecache.ts）：换 epoch 让旧边缘副本整代作废，访客即刻看到最新页面
+  const purgeBtn = $app.querySelector('[data-act=purge-cache]')
+  if (purgeBtn) purgeBtn.addEventListener('click', async () => {
+    purgeBtn.disabled = true
+    try {
+      await api('/admin/cache/purge', { method: 'POST' })
+      toast('页面缓存已清理，访客即刻看到最新页面')
+    } catch (e) {
+      toast(e.message || '清理失败，请重试', true)
+    } finally {
+      purgeBtn.disabled = false
+    }
+  })
+  // 新手引导卡事件：改名/头像写完 navigate() 重渲染重算；手册是 target=_blank 原生开新页
+  // （浏览器行为，无弹窗拦截问题），点击后异步记账；跳过/完成共用 onboardSetDone
+  const obName = $app.querySelector('[data-act=onboard-name]')
+  if (obName) obName.addEventListener('click', async () => {
+    const input = document.getElementById('onboard-name')
+    const v = input ? input.value.trim() : ''
+    if (!v) return toast('先给站点起个名字吧', true)
+    obName.disabled = true
+    try {
+      const d = await api('/admin/settings', { method: 'PUT', body: { siteName: v } })
+      state.settings = d.settings
+      toast('站点名字已保存 ✅')
+      navigate()
+    } catch (e) {
+      toast(e.message || '保存失败，请重试', true)
+      obName.disabled = false
+    }
+  })
+  const obAvatar = $app.querySelector('[data-act=onboard-avatar]')
+  if (obAvatar) obAvatar.addEventListener('click', () => {
+    pickFiles('image/jpeg,image/png,image/webp,image/gif', false, async (files) => {
+      if (!files[0]) return
+      obAvatar.disabled = true
+      try {
+        const d = await uploadFile(await compressImage(files[0]))
+        const r = await api('/admin/settings', { method: 'PUT', body: { avatarUrl: d.url } })
+        state.settings = r.settings
+        toast('站点头像已更新 ✅')
+        navigate()
+      } catch (e) {
+        toast(e.message || '上传失败，请重试', true)
+        obAvatar.disabled = false
+      }
+    })
+  })
+  const obManual = $app.querySelector('[data-act=onboard-manual]')
+  if (obManual) obManual.addEventListener('click', async () => {
+    if (!state.settings || state.settings.onboardingManual === '1') return
+    try {
+      const d = await api('/admin/settings', { method: 'PUT', body: { onboardingManual: '1' } })
+      state.settings = d.settings
+    } catch { /* 手册记账失败不打扰用户，下次点击再记 */ }
+  })
+  const obSkip = $app.querySelector('[data-act=onboard-skip]')
+  if (obSkip) obSkip.addEventListener('click', async () => {
+    if (await confirmBox('确定跳过新手引导吗？跳过后不再显示。')) await onboardSetDone('已跳过新手引导')
+  })
+  const obFinish = $app.querySelector('[data-act=onboard-finish]')
+  if (obFinish) obFinish.addEventListener('click', () => onboardSetDone('引导完成，开始写作吧 🎉'))
 }
 
 /* ---------------- 访客统计（#/stats，数据来自 /api/admin/visits，见 src/stats.ts） ---------------- */
@@ -386,28 +546,33 @@ const BR_NAME = { wechat: '微信', chrome: 'Chrome', edge: 'Edge', firefox: 'Fi
 const CC_NAME = {
   CN: '中国大陆', HK: '中国香港', MO: '中国澳门', TW: '中国台湾', US: '美国', JP: '日本', KR: '韩国',
   SG: '新加坡', MY: '马来西亚', TH: '泰国', VN: '越南', GB: '英国', DE: '德国', FR: '法国', CA: '加拿大',
-  AU: '澳大利亚', RU: '俄罗斯', IN: '印度', NL: '荷兰', BR: '巴西',
+  AU: '澳大利亚', RU: '俄罗斯', IN: '印度', NL: '荷兰', BR: '巴西', IE: '爱尔兰',
 }
 const STATS_DAYS = [7, 30, 90]
+/* 爬虫分类（src/bots.ts BOT_KIND_NAME 的前端镜像：ai=训练 / ai-seek=检索引用 / se / feed / seo / arch） */
+const BOT_KIND_CN = { ai: 'AI 训练抓取', 'ai-seek': 'AI 检索引用', se: '搜索引擎', feed: '订阅器', seo: 'SEO 工具', arch: '网页存档' }
+const BOT_KIND_CLS = { ai: 'bk-ai', 'ai-seek': 'bk-aiseek', se: 'bk-se', feed: 'bk-feed', seo: 'bk-seo', arch: 'bk-arch' }
+const AI_SEEK_COLOR = '#5b4bb0'
 
 /** 横条排行（来源 / 设备 / 浏览器 / 国家） */
-function hbarRows(items, nameFn) {
-  if (!items.length) return '<div class="empty-box">暂无数据</div>'
-  const max = Math.max(...items.map((x) => x.pv), 1)
+function hbarRows(items, nameFn, valueFn) {
+  if (!items.length) return '<div class="empty-box empty-sm">暂无数据</div>'
+  const max = Math.max(...items.map((x) => (valueFn ? valueFn(x) : x.pv)), 1)
   return items
-    .map(
-      (x) => `<div class="hbar-row">
+    .map((x) => {
+      const v = valueFn ? valueFn(x) : x.pv
+      return `<div class="hbar-row">
         <span class="hbar-name" title="${esc(nameFn(x))}">${esc(nameFn(x))}</span>
-        <span class="hbar-track"><span class="hbar-fill" style="width:${Math.max(2, Math.round((x.pv / max) * 100))}%"></span></span>
-        <span class="hbar-num">${x.pv}</span>
+        <span class="hbar-track"><span class="hbar-fill" style="width:${Math.max(2, Math.round((v / max) * 100))}%"></span></span>
+        <span class="hbar-num">${v}</span>
       </div>`
-    )
+    })
     .join('')
 }
 
 /** 每日趋势：PV 柱 + UV 折线，自绘 SVG（零依赖），悬停整列出数值 */
 function trendChart(series) {
-  const W = 720, H = 210, padL = 40, padR = 8, padT = 12, padB = 24
+  const W = 720, H = 200, padL = 36, padR = 8, padT = 12, padB = 22
   const n = series.length
   if (!n) return ''
   const iw = W - padL - padR
@@ -428,16 +593,16 @@ function trendChart(series) {
     if (i % tickEvery === 0 || i === n - 1) {
       // 最后一个刻度右对齐贴边，放大字号后中锚文字会溢出 viewBox 被裁
       if (i === n - 1) {
-        marks += `<text x="${W - padR}" y="${H - 6}" text-anchor="end" class="chart-tick">${esc(d.day.slice(5))}</text>`
+        marks += `<text x="${W - padR}" y="${H - 5}" text-anchor="end" class="chart-tick">${esc(d.day.slice(5))}</text>`
       } else {
-        marks += `<text x="${(x + step / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="chart-tick">${esc(d.day.slice(5))}</text>`
+        marks += `<text x="${(x + step / 2).toFixed(1)}" y="${H - 5}" text-anchor="middle" class="chart-tick">${esc(d.day.slice(5))}</text>`
       }
     }
   })
   let grid = ''
   for (let g = 0; g <= 3; g++) {
     const y = padT + (ih * g) / 3
-    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${padL - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end" class="chart-tick">${Math.round((maxV * (3 - g)) / 3)}</text>`
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${padL - 5}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" class="chart-tick">${Math.round((maxV * (3 - g)) / 3)}</text>`
   }
   const hovers = series
     .map((d, i) => {
@@ -450,7 +615,7 @@ function trendChart(series) {
 
 /** 今日 24 小时分布（北京时间） */
 function hourChart(hourly) {
-  const W = 720, H = 150, padL = 40, padR = 8, padT = 10, padB = 22
+  const W = 720, H = 140, padL = 36, padR = 8, padT = 10, padB = 20
   const iw = W - padL - padR
   const ih = H - padT - padB
   const maxV = Math.max(...hourly.map((x) => x.pv), 5)
@@ -466,14 +631,94 @@ function hourChart(hourly) {
     marks += `<rect x="${x.toFixed(1)}" y="${padT}" width="${step.toFixed(1)}" height="${ih}" fill="transparent"><title>${d.h}:00–${d.h + 1}:00：${d.pv} 次浏览</title></rect>`
   })
   for (const hh of [0, 6, 12, 18]) {
-    marks += `<text x="${(padL + hh * step + step / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="chart-tick">${hh}时</text>`
+    marks += `<text x="${(padL + hh * step + step / 2).toFixed(1)}" y="${H - 5}" text-anchor="middle" class="chart-tick">${hh}时</text>`
   }
   let grid = ''
   for (let g = 0; g <= 2; g++) {
     const y = padT + (ih * g) / 2
-    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${padL - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end" class="chart-tick">${Math.round((maxV * (2 - g)) / 2)}</text>`
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${padL - 5}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" class="chart-tick">${Math.round((maxV * (2 - g)) / 2)}</text>`
   }
   return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="今日小时分布">${grid}${marks}</svg>`
+}
+
+/** 爬虫抓取趋势（按天柱状）：与 hourChart 同构，自底向上叠三层——其他爬虫 / AI 检索引用 / AI 训练 */
+function botChart(series) {
+  const W = 720, H = 140, padL = 36, padR = 8, padT = 10, padB = 20
+  const n = series.length
+  if (!n) return ''
+  const iw = W - padL - padR
+  const ih = H - padT - padB
+  const maxV = Math.max(...series.map((d) => d.pv), 5)
+  const step = iw / n
+  const barW = Math.max(1, Math.min(step * 0.6, 24))
+  const tickEvery = Math.ceil(n / 6)
+  let marks = ''
+  series.forEach((d, i) => {
+    const x = padL + i * step
+    if (d.pv > 0) {
+      const h = Math.max(1, (d.pv / maxV) * ih)
+      const seg = (v) => Math.max(0, Math.min(h, (v / maxV) * ih))
+      const hTrain = seg(d.ai || 0)
+      const hSeek = seg(d.aiSeek || 0)
+      const hOther = Math.max(0, h - hTrain - hSeek)
+      const bx = (x + (step - barW) / 2).toFixed(1)
+      let y = padT + ih // 自底向上堆叠
+      if (hOther > 0) {
+        y -= hOther
+        marks += `<rect x="${bx}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${hOther.toFixed(1)}" rx="1.5" fill="var(--sub)" opacity="0.45"/>`
+      }
+      if (hSeek > 0) {
+        y -= hSeek
+        marks += `<rect x="${bx}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${hSeek.toFixed(1)}" fill="${AI_SEEK_COLOR}" opacity="0.85"/>`
+      }
+      if (hTrain > 0) {
+        y -= hTrain
+        marks += `<rect x="${bx}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${hTrain.toFixed(1)}" rx="1.5" fill="var(--accent)" opacity="0.85"/>`
+      }
+    }
+    if (i % tickEvery === 0 || i === n - 1) {
+      if (i === n - 1) {
+        marks += `<text x="${W - padR}" y="${H - 5}" text-anchor="end" class="chart-tick">${esc(d.day.slice(5))}</text>`
+      } else {
+        marks += `<text x="${(x + step / 2).toFixed(1)}" y="${H - 5}" text-anchor="middle" class="chart-tick">${esc(d.day.slice(5))}</text>`
+      }
+    }
+  })
+  let grid = ''
+  for (let g = 0; g <= 2; g++) {
+    const y = padT + (ih * g) / 2
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${padL - 5}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" class="chart-tick">${Math.round((maxV * (2 - g)) / 2)}</text>`
+  }
+  const hovers = series
+    .map((d, i) => {
+      const x = padL + i * step
+      const seek = d.aiSeek || 0
+      const other = Math.max(0, d.pv - (d.ai || 0) - seek)
+      return `<rect x="${x.toFixed(1)}" y="${padT}" width="${step.toFixed(1)}" height="${ih}" fill="transparent"><title>${d.day}：共 ${d.pv}（AI 训练 ${d.ai || 0} · AI 检索引用 ${seek} · 其他 ${other}）</title></rect>`
+    })
+    .join('')
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="爬虫抓取趋势">${grid}${marks}${hovers}</svg>`
+}
+
+/** 最近抓取流水行：爬虫徽章 + 路径 + 相对时间 */
+function botTime(ts) {
+  const diff = Date.now() - ts
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3_600_000) return Math.floor(diff / 60_000) + ' 分钟前'
+  if (diff < 86_400_000) return Math.floor(diff / 3_600_000) + ' 小时前'
+  return Math.floor(diff / 86_400_000) + ' 天前'
+}
+
+function botLatestRows(latest) {
+  return latest
+    .map(
+      (b) => `<div class="bot-feed-row">
+        <span class="bot-chip ${BOT_KIND_CLS[b.kind] || ''}" title="${esc(BOT_KIND_CN[b.kind] || b.kind)}">${esc(b.name)}</span>
+        <span class="bot-feed-path" title="${esc(b.path)}">${esc(b.path)}</span>
+        <span class="bot-feed-time">${botTime(b.ts)}</span>
+      </div>`
+    )
+    .join('')
 }
 
 async function viewStats() {
@@ -503,10 +748,58 @@ async function viewStats() {
   const trendBody = hasData
     ? `<div class="chart-legend"><span><i class="lg-bar"></i>浏览量</span><span><i class="lg-line"></i>访客数</span></div>${trendChart(s.series)}`
     : '<div class="empty-box">还没有访客数据。功能上线后有人访问就会出现，也可以先自己逛一逛。</div>'
+
+  /* 爬虫 / AI 抓取维度（src/bots.ts，服务端按 UA 识别；爬虫不执行 JS 进不了访客统计） */
+  const b = s.bot || { total: 0, todayTotal: 0, byKind: [], byBot: [], topPaths: [], series: [], latest: [] }
+  const botKinds = b.byKind
+    .map(
+      (k) => `<span class="bot-kind-pill ${BOT_KIND_CLS[k.name] || ''}">${esc(BOT_KIND_CN[k.name] || k.name)}<b>${k.pv}</b></span>`
+    )
+    .join('')
+  const botChartBody = b.total
+    ? `<div class="chart-legend"><span><i class="lg-bar lg-ai"></i>AI 训练抓取</span><span><i class="lg-bar lg-aiseek"></i>AI 检索引用</span><span><i class="lg-bar lg-se"></i>其他爬虫</span></div>${botChart(b.series)}`
+    : '<div class="empty-box empty-sm">还没有识别到爬虫。抓取记录由服务端自动生成（爬虫不执行 JS，与上面的访客数据互不影响）。</div>'
+  const botPanel = `
+    <div class="panel" id="bot-panel">
+      <div class="panel-head"><span>AI 与爬虫抓取</span><span class="panel-head-sub">近 ${days} 天 · 按浏览器 UA 识别，仅服务端可见的抓取</span></div>
+      <div class="panel-body">
+        ${
+          b.total
+            ? `<div class="bot-headline">
+                <span class="bot-total">${b.total}</span>
+                <span class="bot-total-sub">次抓取<b>${b.todayTotal ? `，今天 ${b.todayTotal}` : ''}</b></span>
+              </div>
+              <div class="bot-kinds">${botKinds}</div>
+              ${botChartBody}
+              <div class="bot-cols">
+                <div>
+                  <div class="bot-col-title">谁在抓</div>
+                  ${hbarRows(
+                    b.byBot,
+                    (x) => x.name,
+                    (x) => x.pv
+                  )}
+                </div>
+                <div>
+                  <div class="bot-col-title">被抓的页面</div>
+                  ${hbarRows(
+                    b.topPaths,
+                    (x) => x.path,
+                    (x) => x.pv
+                  )}
+                </div>
+              </div>
+              <div class="bot-col-title bot-feed-title">最近抓取</div>
+              ${botLatestRows(b.latest)}`
+            : botChartBody
+        }
+      </div>
+    </div>`
+
   await shellView(
     'stats',
     `<div class="page-head">
-      <div><div class="page-title">统计</div><div class="page-sub">访客都在看什么、从哪里来（数据来自前台页面访问，后台自身不计入）</div></div>
+      <div><div class="page-title">统计</div><div class="page-sub">访客都在看什么、从哪里来；AI 与搜索引擎在抓什么（后台自身不计入）</div></div>
     </div>
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-label">浏览量（${days} 天）</div><div class="stat-value">${s.pv}</div></div>
@@ -518,13 +811,20 @@ async function viewStats() {
       <div class="panel-head"><span>访问趋势</span><div class="tabs">${tabs}</div></div>
       <div class="panel-body">${trendBody}</div>
     </div>
-    <div class="panel">
-      <div class="panel-head"><span>今日小时分布</span><span class="panel-head-sub">北京时间</span></div>
-      <div class="panel-body">${s.todayPv ? hourChart(s.hourly) : '<div class="empty-box">今天还没有访问</div>'}</div>
+    ${botPanel}
+    <div class="stats-duo">
+      <div class="panel">
+        <div class="panel-head"><span>今日小时分布</span><span class="panel-head-sub">北京时间</span></div>
+        <div class="panel-body">${s.todayPv ? hourChart(s.hourly) : '<div class="empty-box empty-sm">今天还没有访问</div>'}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span>访客设备</span></div>
+        <div class="panel-body">${hbarRows(s.devices, (x) => DEV_NAME[x.name] || x.name || '未知')}</div>
+      </div>
     </div>
     <div class="panel">
       <div class="panel-head"><span>受欢迎的页面</span><span class="panel-head-sub">近 ${days} 天 · 点标题可打开页面</span></div>
-      <div class="panel-body">${pages || '<div class="empty-box">暂无数据</div>'}</div>
+      <div class="panel-body">${pages || '<div class="empty-box empty-sm">暂无数据</div>'}</div>
     </div>
     <div class="stats-duo">
       <div class="panel">
@@ -532,19 +832,13 @@ async function viewStats() {
         <div class="panel-body">${hbarRows(s.topRefs, (x) => x.ref)}</div>
       </div>
       <div class="panel">
-        <div class="panel-head"><span>访客设备</span></div>
-        <div class="panel-body">${hbarRows(s.devices, (x) => DEV_NAME[x.name] || x.name || '未知')}</div>
-      </div>
-    </div>
-    <div class="stats-duo">
-      <div class="panel">
         <div class="panel-head"><span>浏览器</span></div>
         <div class="panel-body">${hbarRows(s.browsers, (x) => BR_NAME[x.name] || x.name || '未知')}</div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><span>国家 / 地区</span></div>
-        <div class="panel-body">${hbarRows(s.countries, (x) => CC_NAME[x.name] || x.name)}</div>
-      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><span>国家 / 地区</span></div>
+      <div class="panel-body">${hbarRows(s.countries, (x) => CC_NAME[x.name] || x.name)}</div>
     </div>`
   )
   $app.querySelectorAll('.tab[data-days]').forEach((t) =>
@@ -563,10 +857,11 @@ async function viewPosts() {
   const status = q.get('status') || 'all'
   const page = parseInt(q.get('page') || '1', 10)
   const kw = q.get('q') || ''
+  const range = q.get('range') || ''
 
   let d
   try {
-    d = await api(`/admin/posts?status=${status}&page=${page}&q=${encodeURIComponent(kw)}`)
+    d = await api(`/admin/posts?status=${status}&page=${page}&q=${encodeURIComponent(kw)}${range ? `&range=${encodeURIComponent(range)}` : ''}`)
   } catch (e) {
     return handleApiErr(e)
   }
@@ -623,6 +918,9 @@ async function viewPosts() {
           )
           .join('')}
       </div>
+      <div class="tabs">
+        ${LIST_RANGE_CHIPS.map(([v, label]) => `<button class="tab${v === range ? ' is-active' : ''}" data-range="${v}" type="button">${label}</button>`).join('')}
+      </div>
       <input class="input" id="search-input" placeholder="搜索标题 / 正文…" value="${esc(kw)}">
     </div>
     <div class="panel">${rows || '<div class="empty-box">没有找到文章</div>'}</div>
@@ -630,10 +928,12 @@ async function viewPosts() {
   )
 
   const nav = (patch) => {
-    const p = new URLSearchParams({ status, page: String(page), ...(kw ? { q: kw } : {}), ...patch })
+    const p = new URLSearchParams({ status, page: String(page), ...(kw ? { q: kw } : {}), ...(range ? { range } : {}), ...patch })
+    if (!p.get('range')) p.delete('range') // 选回「全部」时把 range 从地址里摘掉，URL 保持干净
     location.hash = '#/posts?' + p.toString()
   }
   $app.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => nav({ status: b.dataset.tab, page: 1 })))
+  $app.querySelectorAll('[data-range]').forEach((b) => b.addEventListener('click', () => nav({ range: b.dataset.range, page: 1 })))
   $app.querySelectorAll('[data-vtab="cats"]').forEach((b) =>
     b.addEventListener('click', () => (location.hash = '#/posts?view=cats'))
   )
@@ -702,9 +1002,10 @@ const WB_MAX_CHARS = 5000
 async function viewWeibo() {
   const q = new URLSearchParams(location.hash.split('?')[1] || '')
   const page = parseInt(q.get('page') || '1', 10)
+  const range = q.get('range') || ''
   let d
   try {
-    d = await api(`/admin/weibo?page=${page}`)
+    d = await api(`/admin/weibo?page=${page}${range ? `&range=${encodeURIComponent(range)}` : ''}`)
   } catch (e) {
     return handleApiErr(e)
   }
@@ -716,12 +1017,16 @@ async function viewWeibo() {
     toast('所编辑的微博不在本页，已切回新建')
   }
   const images = wbEditing ? [...wbEditing.images] : []
+  // 单视频（B19）：编辑态回填，保存时显式回传（null = 清除；缺键 = 服务端保留原值）
+  let wbVideo = wbEditing?.video ? { ...wbEditing.video } : null
+  let wbVideoMeta = ''
   const rows = d.items
     .map(
       (w) => `<div class="wb-row" data-id="${w.id}">
       <div class="wb-row-main">
         <div class="wb-row-text">${w.content ? esc(w.content) : '<span class="dim">（无文字）</span>'}</div>
         ${w.imageList.length ? `<div class="wb-row-thumbs">${w.imageList.map((u) => `<img src="${esc(u)}" loading="lazy" alt="">`).join('')}</div>` : ''}
+        ${w.videoView ? `<div class="wb-row-thumbs">${videoThumbHtml(w.videoView)}</div>` : ''}
         <div class="wb-row-meta">
           ${w.status === 'published' ? '<span class="chip chip-green">已发布</span>' : '<span class="chip chip-gray">草稿</span>'}
           ${w.pinned ? '<span class="chip chip-warn">置顶</span>' : ''}
@@ -748,12 +1053,18 @@ async function viewWeibo() {
   await shellView(
     'weibo',
     `<div class="page-head"><div><div class="page-title">微博</div><div class="page-sub">随手记：短文字 + 图片，不用起标题</div></div></div>
+    <div class="toolbar">
+      <div class="tabs">
+        ${LIST_RANGE_CHIPS.map(([v, label]) => `<button class="tab${v === range ? ' is-active' : ''}" data-range="${v}" type="button">${label}</button>`).join('')}
+      </div>
+    </div>
     <div class="panel wb-composer">
       <textarea class="textarea wb-input" id="wb-content" maxlength="${WB_MAX_CHARS}" placeholder="有什么新鲜事？">${esc(wbEditing?.content || '')}</textarea>
-      <div class="wb-hint">支持 ⌘/Ctrl+V 粘贴截图、把图片拖进来，或点下方「加图」；正文里写 #话题 即可归类并高亮，如 #晚餐日记</div>
+      <div class="wb-hint">支持 ⌘/Ctrl+V 粘贴截图或视频、把文件拖进来，或点下方「加图」；正文里写 #话题 即可归类并高亮，如 #晚餐日记</div>
       <div class="wb-imgs" id="wb-imgs"></div>
+      <div class="wb-imgs" id="wb-video-box"></div>
       <div class="wb-composer-foot">
-        <button class="btn btn-ghost btn-sm" id="wb-add-img" type="button">${I.image} 加图（${images.length}/${WB_MAX_IMAGES}）</button>
+        <button class="btn btn-ghost btn-sm" id="wb-add-img" type="button" title="图片 / 视频，一条微博最多 1 个视频">${I.image} 加图（${images.length}/${WB_MAX_IMAGES}）</button>
         <button class="btn btn-ghost btn-sm" id="wb-emoji" type="button">😊 表情</button>
         <span class="wb-count" id="wb-count">${(wbEditing?.content || '').length} / ${WB_MAX_CHARS}</span>
         <span class="spacer"></span>
@@ -801,6 +1112,73 @@ async function viewWeibo() {
     addImgBtn.innerHTML = `${I.image} 加图（${images.length}/${WB_MAX_IMAGES}）`
   }
 
+  /** 视频预览（单视频，B19）：复用图片格容器（.wb-imgs:empty 自动隐藏） */
+  function renderVideo() {
+    const box = document.getElementById('wb-video-box')
+    box.innerHTML = wbVideo
+      ? `<span class="wb-tile wb-tile--video" title="${esc(wbVideoMeta)}"><video src="${esc(wbVideo.url)}"${
+          wbVideo.poster ? ` poster="${esc(wbVideo.poster)}"` : ''
+        } muted playsinline preload="metadata"></video><button class="wb-tile-del" data-video-del type="button" title="移除">×</button></span>`
+      : ''
+    box.querySelector('[data-video-del]')?.addEventListener('click', () => {
+      wbVideo = null
+      wbVideoMeta = ''
+      renderVideo()
+    })
+  }
+
+  /** 加视频：类型 / 体积前置校验 + 上传进度 + 封面帧（best-effort），与前台发布器同一套口径 */
+  async function addVideoFile(file) {
+    if (wbVideo) return toast('一条微博只能带一个视频，先移除当前视频', true)
+    if (!isVideoFile(file)) return toast('只支持 MP4 / WebM 视频', true)
+    if (file.size > VIDEO_MAX_BYTES) return toast(`视频不能超过 25MB，当前 ${fmtSize(file.size)}`, true)
+    const label = addImgBtn.innerHTML
+    wbUploading++
+    addImgBtn.disabled = true
+    try {
+      const prep = await prepareVideo(file)
+      if (prep.error) return toast('只支持 MP4 / WebM 视频', true)
+      const up = await uploadFile(prep.file, (p) => (addImgBtn.textContent = `上传视频 ${p}%`))
+      wbVideo = { url: up.url, poster: '', w: 0, h: 0 }
+      wbVideoMeta = fmtSize(file.size)
+      renderVideo()
+      // HEVC（iPhone 默认的高效格式）只在部分浏览器能放：如实提示，让站长自己决定要不要换格式
+      if (prep.hevc) toast('HEVC 高效格式：iPhone / Mac 正常，部分 Windows 浏览器放不出来（想更稳就用剪辑 App 导出 MP4）')
+      // 封面帧慢一步补传：拿不到就保持无封面（视频照常可播），不阻塞保存
+      const shot = await grabVideoPoster(prep.file)
+      if (shot && wbVideo && wbVideo.url === up.url) {
+        try {
+          const poster = await uploadFile(new File([shot.blob], 'poster.jpg', { type: 'image/jpeg' }), null)
+          if (wbVideo && wbVideo.url === up.url) {
+            wbVideo.poster = poster.url
+            if (!wbVideo.w) {
+              wbVideo.w = shot.w
+              wbVideo.h = shot.h
+            }
+            renderVideo()
+          }
+        } catch (e) {
+          /* 封面帧失败不算错误：卡片退化成无封面 */
+        }
+      }
+    } catch (e) {
+      toast(e.message, true)
+    } finally {
+      wbUploading--
+      addImgBtn.innerHTML = label
+      renderVideo()
+    }
+  }
+
+  /** 粘贴 / 拖拽统一入口：视频走单视频通道，其余按图片处理（同一次操作可各收一份） */
+  async function addMediaFiles(files) {
+    const list = [...(files || [])]
+    const vid = list.find((f) => isVideoFile(f))
+    if (vid) await addVideoFile(vid)
+    const rest = list.filter((f) => f !== vid)
+    if (rest.length) await addImageFiles(rest)
+  }
+
   /** 加图统一入口：文件选择 / 粘贴 / 拖拽共用，自动过滤非图片并尊重 9 图上限 */
   let wbUploading = 0 // 在途上传计数：发布/存草稿前必须归零（同前台发布器 cpUploading 口径），防半截图发出
   async function addImageFiles(fileList) {
@@ -832,7 +1210,9 @@ async function viewWeibo() {
   }
 
   function pickImages() {
-    pickFiles('image/jpeg,image/png,image/webp,image/gif', true, (files) => addImageFiles(files))
+    // 图片与视频共用一个入口（站长 2026-10-13 拍板）：accept 里必须写 video/*（枚举具体类型会让
+    // iOS 图库筛掉 iPhone 拍的 .mov），选完由 addMediaFiles 分流——视频只取第一个，其余按图片走
+    pickFiles(`image/jpeg,image/png,image/webp,image/gif,${VIDEO_ACCEPT}`, true, (files) => addMediaFiles(files))
   }
 
   // 粘贴图片：光标在发布器内 ⌘/Ctrl+V 即上传（纯文本粘贴不受影响）
@@ -840,7 +1220,7 @@ async function viewWeibo() {
     const files = [...(e.clipboardData?.files || [])]
     if (!files.length) return
     e.preventDefault()
-    await addImageFiles(files)
+    await addMediaFiles(files)
   })
 
   // 拖拽图片到发布器（拖文本进输入框仍是默认行为）
@@ -855,24 +1235,24 @@ async function viewWeibo() {
     if (!files.length) return
     e.preventDefault()
     composer.classList.remove('is-dragover')
-    await addImageFiles(files)
+    await addMediaFiles(files)
   })
 
   async function saveWeibo(status) {
     const content = contentEl.value.trim()
-    if (!content && !images.length) return toast('写点什么，或者配张图吧', true)
-    // 二道防线：上传未完就点发布，微博会以缺图状态发出（图片还在闭包里推）
-    if (wbUploading > 0) return toast('还有图片在上传中，稍等一下', true)
+    if (!content && !images.length && !wbVideo) return toast('写点什么，或者配张图 / 加段视频吧', true)
+    // 二道防线：上传未完就点发布，微博会以缺媒体状态发出（文件还在闭包里推）
+    if (wbUploading > 0) return toast('还有图片/视频在上传中，稍等一下', true)
     // 请求期间禁用全部按钮：连击会重复发微博
     const btns = ['wb-save', 'wb-publish', 'wb-draft'].map((id) => document.getElementById(id)).filter(Boolean)
     btns.forEach((b) => (b.disabled = true))
     try {
       if (wbEditing) {
-        await api(`/admin/weibo/${wbEditing.id}`, { method: 'PUT', body: { content, images, status: wbEditing.status } })
+        await api(`/admin/weibo/${wbEditing.id}`, { method: 'PUT', body: { content, images, video: wbVideo, status: wbEditing.status } })
         wbEditing = null
         toast('已保存')
       } else {
-        await api('/admin/weibo', { method: 'POST', body: { content, images, status } })
+        await api('/admin/weibo', { method: 'POST', body: { content, images, video: wbVideo, status } })
         toast(status === 'published' ? '已发布 🎉' : '草稿已保存')
       }
       navigate() // 操作后重渲染当前路由（经 navigate 守卫，用户已切页时不拽回）
@@ -885,6 +1265,7 @@ async function viewWeibo() {
   }
 
   renderImgs()
+  renderVideo()
   if (wbEditing) window.scrollTo({ top: 0 })
   contentEl.addEventListener('input', () => (countEl.textContent = `${contentEl.value.length} / ${WB_MAX_CHARS}`))
   addImgBtn.addEventListener('click', pickImages)
@@ -898,14 +1279,18 @@ async function viewWeibo() {
 
   const prev = document.getElementById('pg-prev')
   const next = document.getElementById('pg-next')
-  if (prev) prev.addEventListener('click', () => (location.hash = `#/weibo?page=${page - 1}`))
-  if (next) next.addEventListener('click', () => (location.hash = `#/weibo?page=${page + 1}`))
+  const wbHash = (p) => `#/weibo?page=${p}${range ? `&range=${encodeURIComponent(range)}` : ''}`
+  if (prev) prev.addEventListener('click', () => (location.hash = wbHash(page - 1)))
+  if (next) next.addEventListener('click', () => (location.hash = wbHash(page + 1)))
+  $app.querySelectorAll('[data-range]').forEach((b) =>
+    b.addEventListener('click', () => (location.hash = b.dataset.range ? `#/weibo?page=1&range=${encodeURIComponent(b.dataset.range)}` : '#/weibo?page=1'))
+  )
 
   $app.querySelectorAll('.wb-row').forEach((row) => {
     const id = Number(row.dataset.id)
     const w = d.items.find((x) => String(x.id) === String(id))
     row.querySelector('[data-act=edit]').addEventListener('click', () => {
-      wbEditing = { id: w.id, content: w.content, images: [...w.imageList], status: w.status }
+      wbEditing = { id: w.id, content: w.content, images: [...w.imageList], video: w.videoView || null, status: w.status }
       navigate() // 操作后重渲染当前路由（经 navigate 守卫，用户已切页时不拽回）
     })
     row.querySelector('[data-act=pin]')?.addEventListener('click', async () => {
@@ -1206,6 +1591,7 @@ async function viewPostTaxonomy() {
       <div class="cat-main">
         <span class="cat-name">${esc(c.name)}</span>
         <span class="cat-slug">/category/${esc(c.slug)} · ${c.post_count ?? 0} 篇</span>
+        ${c.description ? `<span class="cat-slug">${esc(String(c.description).slice(0, 80))}</span>` : ''}
       </div>
       <div class="post-ops">
         <button class="btn btn-ghost btn-sm" data-act="edit">编辑</button>
@@ -1313,6 +1699,7 @@ async function viewPostTaxonomy() {
         <div class="modal-body">
           <label class="auth-field"><label>名称</label><input class="input" id="cat-edit-name" value="${esc(cat.name)}" maxlength="20"></label>
           <label class="auth-field" style="margin-top:10px;"><label>链接标识（字母 / 数字 / 中文 / 短横线）</label><input class="input" id="cat-edit-slug" value="${esc(cat.slug)}"></label>
+          <label class="auth-field" style="margin-top:10px;"><label>分类描述（可选，一行说明：显示在分类页页头，也作为该页的搜索引擎摘要）</label><textarea class="textarea" id="cat-edit-desc" rows="2" maxlength="300" placeholder="这个分类收些什么">${esc(cat.description || '')}</textarea></label>
         </div>
         <div class="modal-foot"><button class="btn" data-close>取消</button><button class="btn btn-primary" id="cat-edit-save">保存</button></div>`)
       m.mask.querySelector('#cat-edit-save').addEventListener('click', async () => {
@@ -1324,6 +1711,7 @@ async function viewPostTaxonomy() {
             body: {
               name: m.mask.querySelector('#cat-edit-name').value.trim(),
               slug: m.mask.querySelector('#cat-edit-slug').value.trim(),
+              description: m.mask.querySelector('#cat-edit-desc').value.trim(),
             },
           })
           toast('已保存')
@@ -1726,6 +2114,7 @@ async function viewComments() {
           ${Number(cm.is_admin) ? '<span class="chip chip-green">作者</span>' : ''}
           ${cm.status === 'pending' ? '<span class="chip chip-warn">待审核</span>' : '<span class="chip chip-green">已展示</span>'}
           <span class="chip chip-gray">${typeChip}</span>
+          ${cm.ip_region ? `<span class="chip chip-gray">${esc(cm.ip_region)}</span>` : ''}
           ${target}
           ${cm.parent_nickname ? `<span class="chip chip-gray">回复 @${esc(cm.parent_nickname)}</span>` : ''}
           <span style="color:var(--sub);font-size:12px;">${fmtDateTime(cm.created_at)}</span>
@@ -2202,6 +2591,35 @@ async function fetchCatalog() {
   return null
 }
 
+/* 外观实时预览（B9 v2）：按主题 meta 的变量名生成一张假文章卡，
+ * 覆盖变量声明在 #ap-preview 盒上（作用域干净），子元素用 var(..., 默认值) 引用——
+ * 主题不支持的角色退 --apv-none 空变量名落到兜底色，与 appearanceHeadStyle 的按主题过滤同语义 */
+function apPreviewHtml(ap) {
+  const ref = (key, fb) => {
+    const r = ap.roles.find((x) => x.key === key)
+    return r ? `var(${r.vars[0]}, ${r.default})` : `var(--apv-none, ${fb})`
+  }
+  const accent = ref('accent', '#b23a29')
+  const link = ap.roles.find((x) => x.key === 'link') ? ref('link', '#576b95') : accent
+  const cardBg = ref('card', '#ffffff')
+  const line = ref('line', '#e5e0d8')
+  const rv = ap.radius || { var: '--apv-none', default: 10, lgFactor: 1.6 }
+  return `
+  <div class="ap-preview-wrap">
+    <style id="ap-preview-style"></style>
+    <div class="ap-preview" id="ap-preview">
+      <div class="apv-card" style="background:${cardBg};border:1px solid ${line};border-radius:calc(var(${rv.var}, ${rv.default}px) * ${rv.lgFactor})">
+        <span class="apv-tag" style="color:${accent};background:color-mix(in srgb, ${accent} 10%, transparent)">随笔</span>
+        <h4 class="apv-title" style="color:${ref('ink', '#333333')}">把日子过成自己喜欢的样子</h4>
+        <p class="apv-text" style="color:${ref('ink', '#333333')}">这是一段正文示例文字，用来预览字体、字号与颜色搭配的实际观感——改动上面的任何一项都会立刻反映在这张卡片上。</p>
+        <div class="apv-meta" style="color:${ref('sub', '#999999')}">2026-10-16 · 阅读 128</div>
+        <a class="apv-link" style="color:${link}" href="javascript:void(0)">阅读全文 →</a>
+        <div class="apv-img" style="border-radius:var(${rv.var}, ${rv.default}px);background:color-mix(in srgb, ${accent} 14%, ${cardBg})"></div>
+      </div>
+    </div>
+  </div>`
+}
+
 async function viewAppearance() {
   const q = new URLSearchParams(location.hash.split('?')[1] || '')
   const tab = q.get('tab') === 'market' ? 'market' : 'mine'
@@ -2232,6 +2650,22 @@ async function viewAppearance() {
     })
     .join('') || '<div class="empty-box">市场目录暂时空着，更多皮肤敬请期待</div>'
 
+  // 皮肤包（B8）：市场目录内联数据，一键应用 = PUT appearance + customCss 两键，
+  // CSS 由服务端样式安检门（src/skinpack.ts）净化后才进页面
+  const skinCards =
+    (catalog?.skins || [])
+      .map((s) => {
+        const p = s.pack && typeof s.pack === 'object' ? s.pack : null
+        if (!p) return ''
+        const colors = Array.isArray(s.colors) ? s.colors.slice(0, 5) : []
+        return `<div class="theme-card skin-card" data-skin="${esc(s.id || '')}">
+      <div class="skin-swatches">${colors.map((c) => `<i style="background:${esc(String(c))}"></i>`).join('')}</div>
+      <div class="theme-meta"><div class="theme-name"><span>${esc(s.name || s.id || '未命名')}</span></div><div class="theme-desc">${esc(s.description || '')}</div></div>
+      <div class="skin-ops"><button class="btn btn-sm sk-apply" type="button" data-skin="${esc(s.id || '')}">应用皮肤包</button></div>
+    </div>`
+      })
+      .join('') || '<div class="empty-box">市场暂时没有皮肤包</div>'
+
   // 外观变量（B9 · 内测）：按当前皮肤的能力出表单——主题不支持的角色（如 minimal 无主色）不出现
   const curTheme = list.find((t) => t.id === state.settings.theme) || null
   const ap = curTheme && curTheme.appearance
@@ -2261,7 +2695,7 @@ async function viewAppearance() {
     <div class="panel" style="padding:20px;margin-top:16px;" id="ap-panel">
       <div class="form-section" style="margin-bottom:0;">
         <h3>外观变量 <span class="mk-badge">内测</span></h3>
-        <div class="sec-desc">不改代码微调当前皮肤「${esc(curTheme.name)}」的颜色、字体与正文字号，保存后全站即时生效、可随时恢复默认；圆角等更多变量在后续版本开放。只列出当前皮肤支持的项目，换皮肤后请回到这里重调</div>
+        <div class="sec-desc">不改代码微调当前皮肤「${esc(curTheme.name)}」的颜色、字体、正文字号与圆角，保存后全站即时生效、可随时恢复默认；只列出当前皮肤支持的项目，换皮肤后请回到这里重调</div>
         <div class="ap-grid">${apRows}</div>
         <div class="form-row">
           <div class="form-item"><label>正文字体</label>
@@ -2273,8 +2707,10 @@ async function viewAppearance() {
           </div>
           <div class="form-item"><label>自定义字体栈（逗号分隔，选「自定义」时生效）</label><input class="input" id="ap-font-custom" value="${esc(customFont)}" placeholder='"HarmonyOS Sans", sans-serif'></div>
           <div class="form-item"><label>正文字号 px（主题默认 ${ap.richSize}，留空跟随主题）</label><input class="input" type="number" id="ap-size" min="14" max="22" step="0.5" value="${typeof picks.fontSize === 'number' && picks.fontSize ? picks.fontSize : ''}"></div>
+          <div class="form-item"><label>圆角 px（主题默认 ${ap.radius ? ap.radius.default : '-'}，留空跟随主题；0 = 直角风格）</label><input class="input" type="number" id="ap-radius" min="0" max="24" step="1" value="${typeof picks.radius === 'number' ? picks.radius : ''}"></div>
         </div>
-        <div class="switch-sub" style="margin-bottom:12px;">取色器初始显示主题默认值；与默认相同的项保存后不会产生任何覆盖样式</div>
+        ${apPreviewHtml(ap)}
+        <div class="switch-sub" style="margin-bottom:12px;">取色器初始显示主题默认值；与默认相同的项保存后不会产生任何覆盖样式；预览即所见，点「保存外观」后全站生效</div>
         <div class="ap-ops">
           <button class="btn" id="btn-ap-save" type="button">保存外观</button>
           <button class="btn btn-ghost" id="btn-ap-reset" type="button">全部恢复默认</button>
@@ -2284,6 +2720,25 @@ async function viewAppearance() {
     </div>`
   }
 
+  // 皮肤包 & 自定义 CSS（B8）：customCss 过服务端样式安检门后进每页 <style data-custom-css>
+  const cssVal = typeof state.settings.customCss === 'string' ? state.settings.customCss : ''
+  const cssPanel = `
+    <div class="panel" style="padding:20px;margin-top:16px;" id="sk-panel">
+      <div class="form-section" style="margin-bottom:0;">
+        <h3>皮肤包与自定义 CSS</h3>
+        <div class="sec-desc">市场里的一键配色就是皮肤包——粘贴包 JSON 也能导入；自定义 CSS 追加在主题样式之后全站生效（服务端净化：@import、脚本类内容、外链非 https 资源不允许，url() 只收 https 与站内地址）</div>
+        <div class="form-item"><label>导入皮肤包（粘贴包 JSON）</label>
+          <textarea class="input" id="sk-pack" rows="3" placeholder='{"name":"苔原","appearance":{"accent":"#3d7a5f","radius":12},"css":""}'></textarea></div>
+        <div class="form-item"><label>自定义 CSS（留空 = 不启用；皮肤包自带的 CSS 会填到这里）</label>
+          <textarea class="input" id="sk-css" rows="6" placeholder='.rich img { border-radius: 8px; }'>${esc(cssVal)}</textarea></div>
+        <div class="ap-ops">
+          <button class="btn" id="btn-sk-apply" type="button">应用皮肤包</button>
+          <button class="btn" id="btn-sk-css" type="button">保存自定义 CSS</button>
+          <button class="btn btn-ghost" id="btn-sk-clear" type="button">清空自定义 CSS</button>
+        </div>
+      </div>
+    </div>`
+
   await shellView(
     'appearance',
     `<div class="page-head"><div><div class="page-title">皮肤</div><div class="page-sub">给博客换一身好看的衣服，选中即刻生效</div></div>
@@ -2292,9 +2747,36 @@ async function viewAppearance() {
       <a class="tab${tab === 'mine' ? ' is-active' : ''}" href="#/appearance">我的皮肤</a>
       <a class="tab${tab === 'market' ? ' is-active' : ''}" href="#/appearance?tab=market">皮肤市场</a>
     </div></div>
-    ${tab === 'mine' ? `<div class="panel" style="padding:20px;"><div class="settings-grid" id="theme-grid">${mine}</div></div>${apPanel}` : `<div class="panel" style="padding:20px;"><div class="settings-grid">${market}</div></div>`}`
+    ${tab === 'mine' ? `<div class="panel" style="padding:20px;"><div class="settings-grid" id="theme-grid">${mine}</div></div>${apPanel}${cssPanel}` : `<div class="panel" style="padding:20px;"><div class="settings-grid">${market}</div></div><div class="panel" style="padding:20px;margin-top:16px;"><h3 style="margin-bottom:12px;">皮肤包</h3><div class="settings-grid">${skinCards}</div></div>`}`
   )
 
+  // 皮肤包应用（市场卡与粘贴导入共用）：外观参数与自定义 CSS 一起写，二次确认防误覆盖
+  const applySkinPack = async (appearance, css, label) => {
+    const ok = await confirmBox(`应用皮肤包「${label}」将覆盖当前的外观变量与自定义 CSS，确定继续？`)
+    if (!ok) return
+    try {
+      const d = await api('/admin/settings', { method: 'PUT', body: { appearance, customCss: css } })
+      state.settings = d.settings
+      toast(`皮肤包「${label}」已应用，全站即时生效`)
+      navigate()
+    } catch (e) {
+      handleApiErr(e)
+    }
+  }
+  if (tab === 'market') {
+    $app.querySelectorAll('.sk-apply').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const s = (catalog?.skins || []).find((x) => (x.id || '') === btn.getAttribute('data-skin'))
+        const p = s && s.pack && typeof s.pack === 'object' ? s.pack : null
+        if (!p) return toast('皮肤包数据缺失', false)
+        const appearance =
+          p.appearance && typeof p.appearance === 'object' && !Array.isArray(p.appearance) ? JSON.stringify(p.appearance) : ''
+        if (!appearance) return toast('该皮肤包没有外观参数，无法应用', false)
+        applySkinPack(appearance, typeof p.css === 'string' ? p.css : '', (s.name || s.id || '未命名').toString())
+      })
+    )
+    return
+  }
   if (tab !== 'mine') return
   // 点击卡片立即启用：乐观高亮，保存失败回退并提示
   let applying = false
@@ -2321,6 +2803,38 @@ async function viewAppearance() {
   )
 
   if (!ap) return
+  // 实时预览：面板任一输入变化 → 重算覆盖变量投到假卡片（#ap-preview-style 由 apPreviewHtml 预置）
+  const apvStyle = document.getElementById('ap-preview-style')
+  if (apvStyle) {
+    const renderApPreview = () => {
+      const lines = []
+      const rootVars = []
+      document.querySelectorAll('#ap-panel .ap-color').forEach((inp) => {
+        const key = inp.getAttribute('data-role')
+        const role = ap.roles.find((x) => x.key === key)
+        const v = (inp.value || '').toLowerCase()
+        if (role && v && v !== role.default) rootVars.push(`${role.vars[0]}:${v}`)
+      })
+      const rad = parseFloat(document.getElementById('ap-radius').value)
+      if (ap.radius && Number.isFinite(rad)) {
+        const r = Math.round(Math.min(24, Math.max(0, rad)))
+        if (r !== ap.radius.default) rootVars.push(`${ap.radius.var}:${r}px`)
+      }
+      if (rootVars.length) lines.push(`#ap-preview{${rootVars.join(';')}}`)
+      const sel = document.getElementById('ap-font-select')
+      const custom = (document.getElementById('ap-font-custom').value || '').trim()
+      const preset = sel && sel.value ? ap.fontPresets.find((p) => p.id === sel.value) : null
+      const stack = sel && sel.value === 'custom' ? custom : preset ? preset.stack : ''
+      if (stack) lines.push(`#ap-preview{font-family:${stack}}`)
+      const size = parseFloat(document.getElementById('ap-size').value)
+      lines.push(`#ap-preview .apv-text{font-size:${Number.isFinite(size) && size ? size : ap.richSize}px}`)
+      apvStyle.textContent = lines.join('')
+    }
+    document.querySelectorAll('#ap-panel .ap-color, #ap-size, #ap-radius, #ap-font-custom').forEach((el) => el.addEventListener('input', renderApPreview))
+    const fontSel = document.getElementById('ap-font-select')
+    if (fontSel) fontSel.addEventListener('change', renderApPreview)
+    renderApPreview()
+  }
   const saveAppearance = async (payload, okMsg) => {
     const saveBtn = document.getElementById('btn-ap-save')
     const resetBtn = document.getElementById('btn-ap-reset')
@@ -2350,10 +2864,61 @@ async function viewAppearance() {
       obj.font = sel.value === 'custom' ? custom : sel.value
       const size = parseFloat(document.getElementById('ap-size').value)
       obj.fontSize = Number.isFinite(size) ? size : 0
+      // 圆角留空 = 省键清除（0 是合法的直角值，与 fontSize 的 0=清除语义不同）
+      const radRaw = (document.getElementById('ap-radius').value || '').trim()
+      if (radRaw !== '') {
+        const r = parseFloat(radRaw)
+        if (Number.isFinite(r)) obj.radius = Math.round(Math.min(24, Math.max(0, r)))
+      }
       saveAppearance(JSON.stringify(obj), '外观已保存，全站即时生效')
     })
   const btnReset = document.getElementById('btn-ap-reset')
   if (btnReset) btnReset.addEventListener('click', () => saveAppearance('', '已恢复主题默认外观'))
+
+  // 自定义 CSS 保存 / 清空（清空同步清掉输入框，所见即所存）
+  const saveCustomCss = async (css, okMsg) => {
+    const btn = document.getElementById('btn-sk-css')
+    const clearBtn = document.getElementById('btn-sk-clear')
+    if (btn) btn.disabled = true
+    if (clearBtn) clearBtn.disabled = true
+    try {
+      const d = await api('/admin/settings', { method: 'PUT', body: { customCss: css } })
+      state.settings = d.settings
+      toast(okMsg)
+    } catch (e) {
+      handleApiErr(e)
+    } finally {
+      if (btn) btn.disabled = false
+      if (clearBtn) clearBtn.disabled = false
+    }
+  }
+  const btnCss = document.getElementById('btn-sk-css')
+  if (btnCss)
+    btnCss.addEventListener('click', () => saveCustomCss(document.getElementById('sk-css').value, '自定义 CSS 已保存，全站即时生效'))
+  const btnClearCss = document.getElementById('btn-sk-clear')
+  if (btnClearCss)
+    btnClearCss.addEventListener('click', () => {
+      document.getElementById('sk-css').value = ''
+      saveCustomCss('', '自定义 CSS 已清空')
+    })
+  // 粘贴导入皮肤包：与市场应用同路（服务端逐键净化，非法 400）
+  const btnApply = document.getElementById('btn-sk-apply')
+  if (btnApply)
+    btnApply.addEventListener('click', () => {
+      let pack = null
+      try {
+        pack = JSON.parse(document.getElementById('sk-pack').value)
+      } catch {
+        return toast('皮肤包不是合法的 JSON', false)
+      }
+      if (!pack || typeof pack !== 'object' || Array.isArray(pack)) return toast('皮肤包格式不正确', false)
+      const appearance =
+        pack.appearance && typeof pack.appearance === 'object' && !Array.isArray(pack.appearance)
+          ? JSON.stringify(pack.appearance)
+          : ''
+      if (!appearance) return toast('皮肤包缺少外观参数（appearance）', false)
+      applySkinPack(appearance, typeof pack.css === 'string' ? pack.css : '', String(pack.name || '导入的皮肤包'))
+    })
 }
 
 /* ---------------- 插件 ---------------- */
@@ -2406,6 +2971,16 @@ async function viewPlugins() {
   const market = (catalog?.plugins || [])
     .map((p) => {
       const has = installed.some((x) => x.id === p.id)
+      // 市场条目带 src（插件文件直链）= 可远程安装；否则只是跳转展示卡
+      if (p.src)
+        return `<div class="pl-row">
+      <span class="pl-ico">${esc((p.name || p.id).charAt(0).toUpperCase())}</span>
+      <div class="pl-main">
+        <div class="pl-name">${esc(p.name || p.id)}</div>
+        <div class="pl-desc">${esc(p.description || '查看介绍与安装说明')}</div>
+      </div>
+      <button class="btn btn-sm" data-mkt-install="${esc(p.id)}" data-src="${esc(safeHttpUrl(p.src))}">安装</button>
+    </div>`
       return `<a class="pl-row mk-row" href="${esc(safeHttpUrl(p.link))}" target="_blank" rel="noopener">
       <span class="pl-ico">${esc((p.name || p.id).charAt(0).toUpperCase())}</span>
       <div class="pl-main">
@@ -2417,17 +2992,55 @@ async function viewPlugins() {
     })
     .join('') || '<div class="empty-box">市场目录暂时空着，更多插件敬请期待</div>'
 
+  // 远程插件（B8）：从市场条目或任意 https 地址安装，文件落站内 R2 随编辑器加载
+  let remoteInstalled = []
+  if (tab === 'market') {
+    try {
+      const r = await api('/admin/plugins/installed')
+      if (Array.isArray(r.plugins)) remoteInstalled = r.plugins
+    } catch {
+      /* 拉取失败不影响页面 */
+    }
+  }
+  const remoteRows =
+    remoteInstalled
+      .map(
+        (p) => `<div class="pl-row">
+      <span class="pl-ico">${esc(String(p.id || '?').charAt(0).toUpperCase())}</span>
+      <div class="pl-main">
+        <div class="pl-name">${esc(p.id)}<span class="pl-ver">${p.bytes ? `${Math.max(1, Math.round(p.bytes / 1024))} KB` : ''}</span></div>
+        <div class="pl-desc">来源 ${esc(p.url || '未知')}</div>
+      </div>
+      <button class="btn btn-sm" data-uninstall="${esc(p.id)}">卸载</button>
+    </div>`
+      )
+      .join('') || '<div class="empty-box">还没有远程插件——粘贴插件文件的 https 地址即可安装</div>'
+
+  // 插件配置现值（settings.serverPluginConfig = { 插件id: { 字段键: 值 } }，脏 JSON 当没配）
+  const parseSrvCfg = () => {
+    try {
+      const v = JSON.parse(state.settings.serverPluginConfig || '{}')
+      return v && typeof v === 'object' && !Array.isArray(v) ? v : {}
+    } catch {
+      return {}
+    }
+  }
   const serverRows = serverPlugins
-    .map(
-      (p) => `<div class="pl-row">
+    .map((p) => {
+      const fields = Array.isArray(p.configFields) ? p.configFields : []
+      const cfgBtn = fields.length ? `<button class="btn btn-sm" type="button" data-srv-cfg="${esc(p.id)}">配置</button>` : ''
+      // 广场数据卡（B25 P2.3）：站长看见广场带来的量，是回访广场最强的理由
+      const statsBtn = p.id === 'plaza-sync' ? `<button class="btn btn-sm" type="button" data-srv-stats="${esc(p.id)}" title="广场带来的曝光 / 点击 / 点赞">数据</button>` : ''
+      return `<div class="pl-row">
       <span class="pl-ico">${esc((p.title || p.id).charAt(0).toUpperCase())}</span>
       <div class="pl-main">
         <div class="pl-name">${esc(p.title || p.id)}${p.version ? `<span class="pl-ver">v${esc(p.version)}</span>` : ''}</div>
         <div class="pl-desc">${esc(p.description || '暂无介绍')}${p.author ? ` · ${esc(p.author)}` : ''}</div>
       </div>
+      ${statsBtn}${cfgBtn}
       <label class="switch"><input type="checkbox" data-srv-id="${esc(p.id)}" ${srvOff.has(p.id) ? '' : 'checked'}><span class="track"></span></label>
     </div>`
-    )
+    })
     .join('')
 
   await shellView(
@@ -2444,16 +3057,63 @@ async function viewPlugins() {
       <div class="panel-body" id="pl-list">${rows}</div>
     </div>
     <div class="panel">
-      <div class="panel-head">服务端插件<span class="panel-head-sub">随内核运行 · 配置在「设置 → 服务端插件」· 开发见 docs/PLUGINS.md</span></div>
+      <div class="panel-head">服务端插件<span class="panel-head-sub">随内核运行 · 带「配置」按钮的插件点开即填 · 开发见 docs/PLUGINS.md</span></div>
       <div class="panel-body" id="srv-pl-list">${serverRows}</div>
     </div>`
         : `<div class="panel">
       <div class="panel-head">插件市场<span class="panel-head-sub">持续收录中 · 自己动手见 docs/PLUGINS.md</span></div>
       <div class="panel-body">${market}</div>
+    </div>
+    <div class="panel" style="margin-top:16px;">
+      <div class="panel-head">远程插件<span class="panel-head-sub">从 https 地址安装，文件落站内 · 停用/卸载后下次打开编辑器生效</span></div>
+      <div class="panel-body">
+        <div class="pl-row" style="gap:10px;">
+          <input class="input" id="remote-url" placeholder="https://example.com/my-plugin.js" style="flex:1;min-width:200px;">
+          <button class="btn" id="btn-remote-install" type="button">安装</button>
+        </div>
+        ${remoteRows}
+      </div>
     </div>`
     }`
   )
 
+  if (tab === 'market') {
+    const installPlugin = async (url, id) => {
+      try {
+        const d = await api('/admin/plugins/install', { method: 'POST', body: id ? { url, id } : { url } })
+        toast(`插件「${d.id}」已安装，打开或刷新编辑器生效`)
+        navigate()
+      } catch (e) {
+        handleApiErr(e)
+      }
+    }
+    const btnInstall = document.getElementById('btn-remote-install')
+    if (btnInstall)
+      btnInstall.addEventListener('click', () => {
+        const url = (document.getElementById('remote-url').value || '').trim()
+        if (!url) return toast('请先填插件文件的 https 地址', false)
+        installPlugin(url, '')
+      })
+    $app.querySelectorAll('[data-mkt-install]').forEach((btn) =>
+      btn.addEventListener('click', () => installPlugin(btn.getAttribute('data-src') || '', btn.getAttribute('data-mkt-install') || ''))
+    )
+    $app.querySelectorAll('[data-uninstall]').forEach((btn) =>
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-uninstall')
+        if (!(await confirmBox(`卸载插件「${id}」？文件将从站内删除，已打开的编辑器刷新后不再加载。`))) return
+        btn.disabled = true
+        try {
+          await api('/admin/plugins/uninstall', { method: 'POST', body: { id } })
+          toast('插件已卸载')
+          navigate()
+        } catch (e) {
+          btn.disabled = false
+          handleApiErr(e)
+        }
+      })
+    )
+    return
+  }
   if (tab !== 'installed') return
   $app.querySelectorAll('#pl-list input[type=checkbox]').forEach((cb) =>
     cb.addEventListener('change', async () => {
@@ -2495,6 +3155,95 @@ async function viewPlugins() {
       } finally {
         cb.disabled = false
       }
+    })
+  )
+
+  // 服务端插件配置弹窗：按 configFields 渲染表单，保存合并进 serverPluginConfig（服务端
+  // cleanServerPluginConfig 净化 + configValidate 语义校验，非法 400 直接展示）
+  $app.querySelectorAll('[data-srv-cfg]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const p = serverPlugins.find((x) => x.id === btn.getAttribute('data-srv-cfg'))
+      if (!p || !Array.isArray(p.configFields) || !p.configFields.length) return
+      const cur = parseSrvCfg()[p.id] || {}
+      const fieldsHtml = p.configFields
+        .map((f) => {
+          const val = typeof cur[f.key] === 'string' ? cur[f.key] : ''
+          const input =
+            f.type === 'textarea'
+              ? `<textarea class="input" rows="4" data-cfg-key="${esc(f.key)}" placeholder="${esc(f.placeholder || '')}">${esc(val)}</textarea>`
+              : `<input class="input" type="text" data-cfg-key="${esc(f.key)}" value="${esc(val)}" placeholder="${esc(f.placeholder || '')}">`
+          return `<div class="form-item" style="margin-bottom:12px;"><label>${esc(f.label)}</label>${input}${
+            f.help ? `<div class="switch-sub" style="margin-top:4px;">${esc(f.help)}</div>` : ''
+          }</div>`
+        })
+        .join('')
+      const m = modal(
+        `<div class="modal-head"><span>配置 — ${esc(p.title)}</span><button class="modal-close" data-close>×</button></div>
+        <div class="modal-body" style="padding:16px 20px;max-height:60vh;overflow-y:auto;">${fieldsHtml}</div>
+        <div class="modal-foot"><button class="btn" data-act="cancel">取消</button><button class="btn btn-primary" data-act="save">保存配置</button></div>`
+      )
+      m.mask.querySelector('[data-act=cancel]').addEventListener('click', m.close)
+      m.mask.querySelector('[data-act=save]').addEventListener('click', async (ev) => {
+        const saveBtn = ev.currentTarget
+        saveBtn.disabled = true
+        const cfg = {}
+        m.mask.querySelectorAll('[data-cfg-key]').forEach((el) => {
+          cfg[el.getAttribute('data-cfg-key')] = el.value
+        })
+        const all = parseSrvCfg()
+        all[p.id] = cfg
+        try {
+          const d = await api('/admin/settings', { method: 'PUT', body: { serverPluginConfig: JSON.stringify(all) } })
+          state.settings = d.settings
+          m.close()
+          toast('插件配置已保存，立即生效')
+        } catch (e) {
+          saveBtn.disabled = false
+          handleApiErr(e)
+        }
+      })
+    })
+  )
+
+  // 广场数据卡（B25 P2.3）：代理端点 /admin/plaza-stats 拿本站曝光 / 点击 / 点赞与近 7 日趋势
+  $app.querySelectorAll('[data-srv-stats]').forEach((btn) =>
+    btn.addEventListener('click', async () => {
+      btn.disabled = true
+      let d
+      try {
+        d = await api('/admin/plaza-stats')
+      } catch (e) {
+        btn.disabled = false
+        return handleApiErr(e)
+      }
+      btn.disabled = false
+      const t = d.totals || {}
+      const days = Array.isArray(d.days) ? d.days : []
+      const dayRows = days
+        .map(
+          (x) =>
+            `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;padding:6px 4px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums;">
+          <span>${esc(x.day || '')}</span><span>${x.views - 0}</span><span>${x.clicks - 0}</span><span>${x.likes - 0}</span></div>`
+        )
+        .join('')
+      const m = modal(
+        `<div class="modal-head"><span>广场数据 — ${esc((d.site && d.site.name) || '')}</span><button class="modal-close" data-close>×</button></div>
+        <div class="modal-body" style="padding:16px 20px;max-height:60vh;overflow-y:auto;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
+            <div class="stat-card"><div class="stat-label">广场曝光</div><div class="stat-value">${t.views - 0}</div></div>
+            <div class="stat-card"><div class="stat-label">带回点击</div><div class="stat-value">${t.clicks - 0}</div></div>
+            <div class="stat-card"><div class="stat-label">收到点赞</div><div class="stat-value">${t.likes - 0}</div></div>
+          </div>
+          ${
+            dayRows
+              ? `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;padding:0 4px 6px;font-size:12px;color:var(--sub);"><span>日期</span><span>曝光</span><span>点击</span><span>点赞</span></div>${dayRows}
+          <p class="switch-sub" style="margin-top:10px;">曝光 / 点击自广场 2.0 上线起计数（近 7 日逐日），点赞为累计值；「来自广场」的回访在你的统计页看来源域名。</p>`
+              : '<p class="switch-sub">暂无逐日数据——广场页有人逛起来就会出现。已收录条数：' + (d.items - 0) + ' 条。</p>'
+          }
+        </div>
+        <div class="modal-foot"><button class="btn" data-act="close">关闭</button></div>`
+      )
+      m.mask.querySelector('[data-act=close]').addEventListener('click', m.close)
     })
   )
 }
@@ -2582,6 +3331,30 @@ async function viewSettings() {
     </div>
 
     <div class="panel" style="padding:20px;">
+      <div class="form-section"><h3>SEO 与统计</h3><div class="sec-desc">搜索引擎验证、第三方统计脚本与 robots.txt 追加规则；三项都可留空</div>
+        <div class="form-item">
+          <label>站点验证标签（一行一个，直接粘贴站长平台给的 meta 标签；支持 Google / Bing / 百度 / 搜狗 / 360 / Yandex 等验证字段）</label>
+          <textarea class="textarea" id="st-verifyMetas" rows="3" placeholder="&lt;meta name=&quot;google-site-verification&quot; content=&quot;xxxx&quot;&gt;">${esc(s.verifyMetas || '')}</textarea>
+        </div>
+        <div class="form-item">
+          <label>统计脚本（第三方统计的 script 标签或脚本地址，仅 https；Umami / Plausible / CF Web Analytics / 51la 这类「地址 + data-* 配置」的都能用，需要内联配置代码的 GA4 / GTM 不支持）</label>
+          <textarea class="textarea" id="st-analyticsScript" rows="2" placeholder="&lt;script defer src=&quot;https://…/script.js&quot; data-website-id=&quot;…&quot;&gt;&lt;/script&gt;">${esc(s.analyticsScript || '')}</textarea>
+        </div>
+        <div class="form-item">
+          <label>robots.txt 追加段（附在内置规则之后：额外 Sitemap、屏蔽目录等；演示站固定整站 Disallow，不看这段）</label>
+          <textarea class="textarea" id="st-robotsExtra" rows="3" placeholder="Disallow: /drafts/">${esc(s.robotsExtra || '')}</textarea>
+        </div>
+        <div class="form-item">
+          <label>AI 抓取策略（声明「AI 能不能抓、抓了能不能拿去训练」，写进 robots.txt；同时输出 Content-signal 声明。不影响搜索引擎收录——那由「全站 noindex」控制）</label>
+          <div class="sec-desc" style="margin:-2px 0 8px;">保存后可在 <a href="/robots.txt" target="_blank" rel="noopener">/robots.txt</a> 自检；robots 是「表达偏好」的君子协定，真正拦截需托管平台的 AI 爬虫管控</div>
+          <label class="mode-row"><input type="radio" name="st-aiPolicy" value="allow"><span class="mode-text"><b>全部允许（默认）</b><i>不额外声明，一切 AI 爬虫照常抓取，与历史行为一致</i></span></label>
+          <label class="mode-row"><input type="radio" name="st-aiPolicy" value="seek"><span class="mode-text"><b>只许检索引用，不许训练（推荐）</b><i>放行 OAI-SearchBot / PerplexityBot / Claude 检索 等「回答里带来源链接、替你引流」的爬虫，拒绝 GPTBot / CCBot / Bytespider 等训练类，并声明 ai-train=no</i></span></label>
+          <label class="mode-row"><input type="radio" name="st-aiPolicy" value="deny"><span class="mode-text"><b>全部拒绝</b><i>所有 AI 爬虫（训练 + 检索）一律拒绝，并声明 ai-input=no、ai-train=no</i></span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="padding:20px;">
       <div class="form-section"><h3>语言版本（英文测试版 English 0.1）</h3><div class="sec-desc">前台界面语言：文章与微博正文保持原文，仅界面文案切换。英文版渲染出现异常时会自动回退中文版，并在后台顶部提醒；重新开启即重置异常状态</div>
         <label class="mode-row"><input type="radio" name="st-edition" value="zh"><span class="mode-text"><b>中文（默认）</b><i>前台保持中文界面</i></span></label>
         <label class="mode-row"><input type="radio" name="st-edition" value="en"><span class="mode-text"><b>English 0.1（英文测试版）</b><i>前台界面切换为英文并在页面顶部公示测试版横幅；测试期间搜索引擎不收录（noindex），出问题自动回退中文版</i></span></label>
@@ -2611,8 +3384,16 @@ async function viewSettings() {
           <div><div class="switch-label">留言先审后展</div><div class="switch-sub">开启后新留言需在「评论」里手动通过</div></div>
           <label class="switch"><input type="checkbox" id="st-moderateComments" ${s.moderateComments === '1' ? 'checked' : ''}><span class="track"></span></label>
         </div>
+        <div class="switch-row">
+          <div><div class="switch-label">展示评论 IP 属地</div><div class="switch-sub">开启后文章 / 留言板 / 微博的评论区显示发言者 IP 属地（国内到省、国外到国家）。属地随新评论采集，开启前的旧评论不回填；自托管部署（无 Cloudflare 地理数据）不显示</div></div>
+          <label class="switch"><input type="checkbox" id="st-showCommentRegion" ${s.showCommentRegion === '1' ? 'checked' : ''}><span class="track"></span></label>
+        </div>
         <div class="form-item" style="max-width:180px;"><label>每页文章数</label><input class="input" id="st-postsPerPage" type="number" min="1" max="50" value="${esc(s.postsPerPage)}"></div>
+        <div class="form-item" style="max-width:220px;"><label>内容可见范围</label><select class="input" id="st-contentVisibleRange">${[['', '全部可见'], ['3d', '最近 3 天可见'], ['1m', '最近 1 个月可见'], ['6m', '最近半年可见'], ['1y', '最近 1 年可见']]
+          .map(([v, label]) => `<option value="${v}"${(s.contentVisibleRange || '') === v ? ' selected' : ''}>${label}</option>`)
+          .join('')}</select></div>
       </div>
+      <div class="switch-sub" style="margin:-4px 0 0;">类似朋友圈「几天可见」：窗口外的文章与微博对访客（游客和会员）不可见——列表不出现、直链打不开、搜索搜不到、RSS 与 sitemap 不包含，后台管理、备份与导出不受影响；窗口内访客仍可用前台的时间范围条再缩小。默认全部可见，改完保存立即生效</div>
     </div>
 
     <div class="panel" style="padding:20px;">
@@ -2641,7 +3422,7 @@ async function viewSettings() {
 
     <div class="stab-pane" data-pane="advance" hidden>
     <div class="panel" style="padding:20px;">
-      <div class="form-section"><h3>站点状态</h3><div class="sec-desc">特殊时刻的全站开关：两个都是可逆的，随时保存随时恢复</div>
+      <div class="form-section"><h3>站点状态</h3><div class="sec-desc">特殊时刻的全站开关：都是可逆的，随时保存随时恢复</div>
         <div class="switch-row">
           <div><div class="switch-label">灰度模式</div><div class="switch-sub">全站去色显示（黑白），用于哀悼、纪念等特殊时刻；后台不受影响</div></div>
           <label class="switch"><input type="checkbox" id="st-siteGrayscale" ${s.siteGrayscale === '1' ? 'checked' : ''}><span class="track"></span></label>
@@ -2651,6 +3432,10 @@ async function viewSettings() {
           <label class="switch"><input type="checkbox" id="st-siteClosed" ${s.siteClosed === '1' ? 'checked' : ''} ${state.demo ? 'disabled' : ''}><span class="track"></span></label>
         </div>
         <div class="form-item"><label>闭站公告（展示在闭站页，支持换行；留空使用默认文案）</label><textarea class="textarea" id="st-siteClosedMessage" rows="3" maxlength="1000" placeholder="本站暂时关闭，请稍后再来。" ${state.demo ? 'disabled' : ''}>${esc(s.siteClosedMessage || '')}</textarea></div>
+        <div class="switch-row">
+          <div><div class="switch-label">禁止搜索引擎收录（noindex）</div><div class="switch-sub">开启后全站页面加 noindex 标记、robots.txt 整站禁止抓取：页面照常可访问，只是不再被搜索引擎收录。适合空白模板站、镜像站或临时预览实例；正式运营的博客不要开</div></div>
+          <label class="switch"><input type="checkbox" id="st-siteNoindex" ${s.siteNoindex === '1' ? 'checked' : ''}><span class="track"></span></label>
+        </div>
       </div>
     </div>
 
@@ -2747,6 +3532,30 @@ async function viewSettings() {
         <div class="fav-row">
           <a class="btn" href="/api/admin/export/markdown" download>导出 Markdown 包</a>
           <a class="btn" href="/api/admin/export/wxr" download>导出 WordPress WXR</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="padding:20px;">
+      <div class="form-section"><h3>整站搬家</h3><div class="sec-desc">把整站原样打成一个包带走：全部文章 / 微博 / 页面 / 评论 / 会员 / 分类标签 / 友链 / 图床图片。<b>只允许还原到「没有内容的站」</b>（没有未删除的文章 / 微博 / 页面；刚装好的新站请先把自带的「示例文章」与「关于我」页面删进回收站，或直接用下面的「清空本站内容」），<b>不会覆盖、不会合并</b>；包与系统版本不匹配会明确报错，不猜。包里不含管理员账号与各类密钥（新站自己登录、自己填）。换服务器 / 换域名 / 重新部署时用它。</div>
+        <div class="fav-row">
+          <a class="btn" href="/api/admin/bundle/export" download>导出整站包</a>
+          <span class="sec-desc">含全部图片，包可能较大，生成需要等一会儿</span>
+        </div>
+        <div class="fav-row" style="margin-top:14px;">
+          <button class="btn" id="btn-bundle-upload" type="button">上传整站包</button>
+          <span class="sec-desc" id="bundle-upload-status">支持 .zip（本系统导出的包）；大站也可以用 wrangler 直接传</span>
+        </div>
+        <div class="fav-row">
+          <select class="input" id="bundle-pick" style="max-width:420px;"></select>
+          <button class="btn btn-primary" id="btn-bundle-import" type="button">开始还原</button>
+          <button class="btn" id="btn-bundle-delete" type="button">删除此包</button>
+        </div>
+        <div class="sec-desc" id="bundle-import-state" style="margin-top:10px;">…</div>
+        <div class="sec-desc" id="bundle-progress"></div>
+        <div class="fav-row" style="margin-top:14px;">
+          <button class="btn btn-danger" id="btn-site-reset" type="button">清空本站内容</button>
+          <span class="sec-desc">把本站变回「没有内容的空站」：清空全部文章 / 微博 / 页面 / 评论 / 会员等内容 <b>+ 图床里的图片文件</b>，保留站点设置、管理员账号与各类密钥（已上传的整站包也不会被误删）。<b>不可撤销</b>（不是进回收站）。还原前需要清空时用它；想留底请先「导出整站包」。</span>
         </div>
       </div>
     </div>
@@ -2871,6 +3680,10 @@ async function viewSettings() {
   const savedEdition = s.edition === 'en' ? 'en' : 'zh'
   document.querySelector(`input[name="st-edition"][value="${savedEdition}"]`).checked = true
 
+  // AI 抓取策略单选回填（三档白名单，脏值兜底为默认档 allow；键见 src/db.ts / src/seo.ts）
+  const savedAiPolicy = ['seek', 'deny'].includes(s.aiPolicy) ? s.aiPolicy : 'allow'
+  document.querySelector(`input[name="st-aiPolicy"][value="${savedAiPolicy}"]`).checked = true
+
   document.getElementById('btn-save').addEventListener('click', async (e) => {
     const g = (id) => document.getElementById(id)
     const btn = e.currentTarget
@@ -2888,7 +3701,9 @@ async function viewSettings() {
       edition: (document.querySelector('input[name="st-edition"]:checked') || { value: 'zh' }).value,
       allowComments: g('st-allowComments').checked ? '1' : '0',
       moderateComments: g('st-moderateComments').checked ? '1' : '0',
+      showCommentRegion: g('st-showCommentRegion').checked ? '1' : '0',
       postsPerPage: g('st-postsPerPage').value || '10',
+      contentVisibleRange: g('st-contentVisibleRange').value,
       membersEnabled: g('st-membersEnabled').checked ? '1' : '0',
       rankTopN: g('st-rankTopN').value || '10',
       turnstileSiteKey: g('st-turnstileSiteKey').value.trim(),
@@ -2896,6 +3711,7 @@ async function viewSettings() {
       siteGrayscale: g('st-siteGrayscale').checked ? '1' : '0',
       siteClosed: g('st-siteClosed').checked ? '1' : '0',
       siteClosedMessage: g('st-siteClosedMessage').value.trim(),
+      siteNoindex: g('st-siteNoindex').checked ? '1' : '0',
       telegramBotToken: g('st-telegramBotToken').value.trim(),
       telegramAllowFrom: g('st-telegramAllowFrom').value.trim(),
       tgChannelChatId: g('st-tgChannelChatId').value.trim(),
@@ -2909,6 +3725,10 @@ async function viewSettings() {
       rssFullText: g('st-rssFullText').checked ? '1' : '0',
       backupEnabled: g('st-backupEnabled').checked ? '1' : '0',
       statsEnabled: g('st-statsEnabled').checked ? '1' : '0',
+      verifyMetas: g('st-verifyMetas').value.trim(),
+      analyticsScript: g('st-analyticsScript').value.trim(),
+      robotsExtra: g('st-robotsExtra').value,
+      aiPolicy: (document.querySelector('input[name="st-aiPolicy"]:checked') || { value: 'allow' }).value,
     }
     // 关站是全站 503 的大动作：开启瞬间必须明确确认（取消时不动按钮状态）
     if (body.siteClosed === '1' && !wasClosed) {
@@ -3035,6 +3855,203 @@ async function viewSettings() {
     btn.disabled = false
     btn.textContent = '立即备份'
   })
+
+  /* ---- 整站搬家（B26）：一键导出整站包 / 一键还原到空站 ----
+   * 还原是「分步驱动」：start 拿到步骤清单（每张表的分片 + 每批图片），前端循环 step——
+   * 每步一次小请求（避免一个超大请求打爆 isolate，也让中途失败可以整轮重来）；finish 收尾。
+   * 契约：只还原到「没有内容的站」（未删除的文章 / 微博 / 页面为空；新站先删示例文章与关于我页），
+   * 永不覆盖 / 合并；版本不匹配由服务端明确报错。 */
+  function bundleStateText(st) {
+    if (!st || st.state === 'idle') return '还没有导入过。导入只允许还原到「没有内容的站」——刚装好的新站请先把自带的示例文章与「关于我」页面删除（进回收站即可），或直接点下面的「清空本站内容」，再点「开始还原」。'
+    const at = st.at ? fmtDateTime(st.at) : ''
+    if (st.state === 'running') return `上次导入没跑完（${at}）——再点「开始还原」即可，还原是「从头重来」语义。`
+    if (st.state === 'failed') return `上次导入失败（${at}）：${st.error || '未知原因'}——修好后再点「开始还原」会从头重来。`
+    return `上次导入已完成（${at}）。`
+  }
+
+  function renderBundleList(data) {
+    const stEl = document.getElementById('bundle-import-state')
+    if (stEl) stEl.textContent = bundleStateText(data.import)
+    const sel = document.getElementById('bundle-pick')
+    if (!sel) return
+    const list = data.bundles || []
+    if (!list.length) {
+      sel.innerHTML = '<option value="">（还没有上传过整站包）</option>'
+      return
+    }
+    sel.innerHTML = list
+      .map(
+        (b) =>
+          `<option value="${esc(b.key)}">${esc(b.key.replace(/^bundles\//, ''))} · ${fmtSize(b.size)}${b.uploaded ? ' · ' + esc(fmtDateTime(b.uploaded)) : ''}</option>`
+      )
+      .join('')
+  }
+
+  async function refreshBundleList() {
+    renderBundleList(await api('/admin/bundle/list'))
+  }
+
+  /** 整站包上传：原始 body 直传（服务端流式落 R2，不缓冲），走 XHR 才有上传进度 */
+  function uploadBundleFile(file, onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', '/api/admin/bundle/upload')
+      xhr.setRequestHeader('Content-Type', 'application/zip')
+      xhr.responseType = 'json'
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+      xhr.onload = () => {
+        const d = xhr.response || {}
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(d)
+          return
+        }
+        // 与 api() / uploadFile() 的会话过期兜底同口径
+        if (xhr.status === 401 && state.user) {
+          state.user = null
+          authView('login')
+          toast('登录已过期，请重新登录', true)
+        }
+        reject(new Error(d.error || '上传失败'))
+      }
+      xhr.onerror = () => reject(new Error('上传失败（网络错误）'))
+      xhr.send(file)
+    })
+  }
+
+  document.getElementById('btn-bundle-upload').addEventListener('click', () => {
+    pickFiles('application/zip,.zip', false, async (files) => {
+      const file = files && files[0]
+      if (!file) return
+      const btn = document.getElementById('btn-bundle-upload')
+      const statusEl = document.getElementById('bundle-upload-status')
+      btn.disabled = true
+      try {
+        const d = await uploadBundleFile(file, (p) => {
+          statusEl.textContent = `上传中… ${p}%`
+        })
+        statusEl.textContent = `已上传：${fmtSize(d.size || 0)}`
+        toast('整站包已上传 ✅')
+        await refreshBundleList()
+        const sel = document.getElementById('bundle-pick')
+        if (sel && d.key) sel.value = d.key
+      } catch (e) {
+        statusEl.textContent = '上传失败'
+        toast(e.message, true)
+      }
+      btn.disabled = false
+    })
+  })
+
+  document.getElementById('btn-bundle-delete').addEventListener('click', async () => {
+    const sel = document.getElementById('bundle-pick')
+    const key = sel && sel.value
+    if (!key) {
+      toast('先选一个包', true)
+      return
+    }
+    if (!(await confirmBox('确定删除这个整站包吗？删除后要重新上传才能再导入。'))) return
+    const btn = document.getElementById('btn-bundle-delete')
+    btn.disabled = true
+    try {
+      await api('/admin/bundle/delete', { method: 'POST', body: { key } })
+      toast('已删除')
+      await refreshBundleList()
+    } catch (e) {
+      toast(e.message, true)
+    }
+    btn.disabled = false
+  })
+
+  document.getElementById('btn-bundle-import').addEventListener('click', async () => {
+    const sel = document.getElementById('bundle-pick')
+    const key = sel && sel.value
+    if (!key) {
+      toast('先上传并选一个整站包', true)
+      return
+    }
+    if (
+      !(await confirmBox(
+        '还原会用包里的内容重建本站：只允许还原到「没有内容的站」（未删除的文章 / 微博 / 页面为空；刚装好的新站请先删掉示例文章与「关于我」页面）。开始后本站现有内容会被清空（含回收站），不做覆盖、不做合并。确定开始吗？'
+      ))
+    )
+      return
+    const btn = document.getElementById('btn-bundle-import')
+    const prog = document.getElementById('bundle-progress')
+    btn.disabled = true
+    btn.textContent = '还原中…'
+    try {
+      const start = await api('/admin/bundle/import/start', { method: 'POST', body: { key } })
+      const steps = (start.plan && start.plan.steps) || []
+      let rows = 0
+      let images = 0
+      for (let i = 0; i < steps.length; i++) {
+        const s = steps[i]
+        const r = await api('/admin/bundle/import/step', { method: 'POST', body: { key, unit: s.unit, cursor: s.cursor } })
+        rows += r.rows || 0
+        images += r.images || 0
+        prog.textContent = `正在还原：第 ${i + 1}/${steps.length} 步 · 已写入 ${rows} 行数据 / ${images} 张图片`
+      }
+      await api('/admin/bundle/import/finish', { method: 'POST', body: { key } })
+      prog.textContent = `还原完成：${rows} 行数据 · ${images} 张图片（前台页面缓存已清理）。`
+      toast('整站还原完成 ✅')
+      await refreshBundleList()
+    } catch (e) {
+      prog.textContent = '还原失败：' + e.message + '（再点「开始还原」会从头重来）'
+      toast(e.message, true)
+      await refreshBundleList().catch(() => {})
+    }
+    btn.disabled = false
+    btn.textContent = '开始还原'
+  })
+
+  /* 「清空本站内容」：不可撤销的清库操作，走「输入确认语」的强确认（服务端硬校验同一句话，
+   * 这里的输入框只是引导）。清内容 + 图床图片，保留设置 / 管理员账号 / 密钥 / 已上传的整站包
+   * ——与服务端 resetSiteContent 同口径。 */
+  const RESET_PHRASE = '清空本站' // 镜像 src/sitebundle.ts 的 RESET_CONFIRM_PHRASE（真正的闸在服务端）
+  document.getElementById('btn-site-reset').addEventListener('click', () => {
+    const m = modal(`<div class="modal-head"><span>清空本站内容</span><button class="modal-close" data-close type="button" aria-label="关闭">×</button></div>
+      <div class="modal-body">
+        <p style="margin:0 0 10px;">这会把本站<b>全部内容彻底清空</b>：文章 / 微博 / 独立页面 / 评论 / 分类标签 / 友链 / 会员与积分记录，以及<b>图床里的图片文件</b>（含微博视频）。<b>不可撤销</b>（不是移入回收站，没有 30 天可恢复）。</p>
+        <p style="margin:0 0 10px;">会<b>保留</b>：站点设置、管理员账号与登录密码、各类密钥，以及<b>已上传的整站包</b>（R2 的 <code>bundles/</code>，清空不会误删你要用来还原的包）。<b>站点头像与管理员头像的图片也会保留</b>（它们跟着设置 / 账号一起留着）。</p>
+        <p style="margin:0 0 6px;">确定要继续，请在下面原样输入 <code>${esc(RESET_PHRASE)}</code>：</p>
+        <input class="input" id="site-reset-confirm" style="width:100%;" autocomplete="off" placeholder="${esc(RESET_PHRASE)}">
+        <div class="sec-desc" style="margin-top:8px;">想留底的话，先取消、点上面的「导出整站包」。</div>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close type="button">取消</button><button class="btn btn-danger" id="site-reset-go" type="button" disabled>确认清空</button></div>`)
+    const input = m.mask.querySelector('#site-reset-confirm')
+    const go = m.mask.querySelector('#site-reset-go')
+    input.addEventListener('input', () => {
+      go.disabled = input.value.trim() !== RESET_PHRASE
+    })
+    input.addEventListener('keydown', (e) => {
+      // 中文输入法组词回车不算提交（全站同口径）
+      if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229 && !go.disabled) go.click()
+    })
+    go.addEventListener('click', async () => {
+      go.disabled = true
+      go.textContent = '清空中…'
+      try {
+        const r = await api('/admin/site/reset', { method: 'POST', body: { confirm: input.value.trim() } })
+        m.close()
+        const parts = [`${r.total || 0} 行数据`]
+        if (r.images) parts.push(`${r.images} 个图床文件`)
+        const tail = r.imagesDone === false ? '（图片清理没跑完，剩下的需在 R2 里自行清理）' : ''
+        toast(`本站内容已清空：${parts.join(' / ')} ✅${tail}`)
+        const prog = document.getElementById('bundle-progress')
+        if (prog) prog.textContent = ''
+        await refreshBundleList().catch(() => {})
+      } catch (e) {
+        toast(e.message, true)
+        go.disabled = false
+        go.textContent = '确认清空'
+      }
+    })
+  })
+
+  // 演示站该区不可用（服务端 404），静默即可；api() 只在 401 时弹 toast，这里再兜一层
+  refreshBundleList().catch(() => {})
 }
 
 /* ---------------- 上传（带进度） ----------------
@@ -3042,6 +4059,124 @@ async function viewSettings() {
  * 已与编辑器策略漂移——现共用一份实现）：JPEG/PNG/WebP 超 150KB 或最长边超 2000px 时先降尺寸再编码，
  * 优先转 WebP（质量 0.75，透明不丢），旧浏览器回退 JPEG/PNG（0.82）；GIF 动图会压丢帧，原样直传；
  * 产物不比原图小用原图；失败回退原文件。 */
+
+/* ---------------- 微博视频工具（B19）：体积上限与 src/store.ts MAX_UPLOAD_BYTES 同口径 ---------------- */
+const VIDEO_MAX_BYTES = 25 * 1024 * 1024
+// accept 用 video/*：iOS 的「照片图库」选择器按 accept 过滤，只列 video/mp4 会把 iPhone 拍的
+// .mov 视频整批筛掉（图库里一个视频都不显示）；真正的格式把关在 prepareVideo 里做
+const VIDEO_ACCEPT = 'video/*'
+const VIDEO_EXT_RE = /\.(mp4|webm|mov)$/i
+/** 选中的文件按视频处理（真正的格式判定在 prepareVideo）；少数安卓浏览器 file.type 为空，按扩展名兜底 */
+const isVideoFile = (f) => !!f && (/^video\//i.test(f.type || '') || (!f.type && VIDEO_EXT_RE.test(f.name || '')))
+
+/**
+ * ISO-BMFF 容器归一化：iPhone 拍的是 .mov（ftyp 主品牌 'qt  '），结构本就是 ISO-BMFF，
+ * 但浏览器与「只收 mp4/webm」的上传端点都不认 QuickTime 容器。这里原地把 ftyp 里的 'qt  '
+ * 改写成 'isom'（标准 mp4 品牌）：H.264 / AAC 的 iPhone 视频改完即全平台可放。
+ * 改了返回 true；没找到 ftyp 或品牌不是 qt 返回 false。
+ */
+function patchFtypBrand(head) {
+  let at = -1
+  for (let i = 0; i + 8 <= head.length; i++) {
+    if (head[i] === 0x66 && head[i + 1] === 0x74 && head[i + 2] === 0x79 && head[i + 3] === 0x70) {
+      at = i // 'ftyp'
+      break
+    }
+  }
+  if (at < 4) return false
+  const size = (head[at - 4] << 24) | (head[at - 3] << 16) | (head[at - 2] << 8) | head[at - 1]
+  const end = size > 16 && size <= head.length ? at - 4 + size : head.length
+  let patched = false
+  for (let j = at + 4; j + 4 <= end; j += 4) {
+    // 品牌位按 4 字节对齐：'qt  ' 与 'qt' 两种写法都认
+    if (head[j] === 0x71 && head[j + 1] === 0x74 && (head[j + 2] === 0x20 || head[j + 3] === 0x20)) {
+      head[j] = 0x69 // i
+      head[j + 1] = 0x73 // s
+      head[j + 2] = 0x6f // o
+      head[j + 3] = 0x6d // m
+      patched = true
+    }
+  }
+  return patched
+}
+
+/** 粗略探测有没有 HEVC（'hvc1' / 'hev1' 样本描述）：moov 在头或在尾，前后各扫 1MB 就够 */
+async function detectHevc(file) {
+  const MAX = 1024 * 1024
+  const parts = [file.slice(0, Math.min(MAX, file.size))]
+  if (file.size > MAX) parts.push(file.slice(Math.max(0, file.size - MAX)))
+  for (const p of parts) {
+    const b = new Uint8Array(await p.arrayBuffer())
+    for (let j = 0; j + 4 <= b.length; j++) {
+      if (
+        (b[j] === 0x68 && b[j + 1] === 0x76 && b[j + 2] === 0x63 && b[j + 3] === 0x31) ||
+        (b[j] === 0x68 && b[j + 1] === 0x65 && b[j + 2] === 0x76 && b[j + 3] === 0x31)
+      )
+        return true
+    }
+  }
+  return false
+}
+
+/** 上传前的视频整理：mp4 / webm 原样；ISO-BMFF 的 .mov 改写成 mp4；其余格式回 error */
+async function prepareVideo(file) {
+  if (/^video\/(mp4|webm)$/i.test(file.type || '') || (!file.type && /\.(mp4|webm)$/i.test(file.name || '')))
+    return { file, hevc: false }
+  const head = new Uint8Array(await file.slice(0, 64).arrayBuffer())
+  if (!patchFtypBrand(head)) return { error: true }
+  const name = (file.name || 'video').replace(/\.[^.]+$/, '') + '.mp4'
+  return { file: new File([head, file.slice(64)], name, { type: 'video/mp4' }), hevc: await detectHevc(file) }
+}
+/** 抽视频第一帧当封面帧（最长边压到 1280 省体积）：失败 / 超时 resolve(null)，卡片退化成无封面 */
+function grabVideoPoster(file) {
+  return new Promise((resolve) => {
+    let settled = false
+    let url = ''
+    const finish = (shot) => {
+      if (settled) return
+      settled = true
+      try {
+        URL.revokeObjectURL(url)
+      } catch (e) {
+        /* 忽略 */
+      }
+      resolve(shot)
+    }
+    try {
+      url = URL.createObjectURL(file)
+    } catch (e) {
+      return finish(null)
+    }
+    const v = document.createElement('video')
+    v.preload = 'auto'
+    v.muted = true
+    v.setAttribute('playsinline', '')
+    v.addEventListener('loadeddata', () => {
+      try {
+        const sw = v.videoWidth || 0
+        const sh = v.videoHeight || 0
+        if (!sw || !sh) return finish(null)
+        const scale = Math.min(1, 1280 / Math.max(sw, sh))
+        const cv = document.createElement('canvas')
+        cv.width = Math.max(1, Math.round(sw * scale))
+        cv.height = Math.max(1, Math.round(sh * scale))
+        cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height)
+        cv.toBlob((blob) => finish(blob ? { blob, w: sw, h: sh } : null), 'image/jpeg', 0.82)
+      } catch (e) {
+        finish(null)
+      }
+    })
+    v.addEventListener('error', () => finish(null))
+    setTimeout(() => finish(null), 10000)
+    v.src = url
+  })
+}
+
+/** 列表行里的视频缩略（与图片缩略同尺寸，播放器控件不出现） */
+function videoThumbHtml(v) {
+  const poster = v.poster ? ` poster="${esc(v.poster)}"` : ''
+  return `<video src="${esc(v.url)}"${poster} muted playsinline preload="metadata"></video>`
+}
 
 function uploadFile(file, onProgress) {
   return new Promise((resolve, reject) => {

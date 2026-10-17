@@ -29,6 +29,7 @@
 - `nickname` ≤ 24 字，`content` ≤ 1000 字，均为纯文本存储
 - **作者回复（楼中楼）**：登录管理员携带 `parentId`（被回复的评论 id）即以作者身份回复，免昵称、免限流、绕过「关闭留言」开关、直接展示并带「作者」徽标；未登录携带 `parentId` 一律 403
 - 响应 `{ok:true}` 或 `{ok:true, pending:true}`（先审后展开启时，前端据此刻意不刷新）
+- **IP 属地**：写库瞬间定格 `request.cf` 快照到 `comments.ip_region`（采集无条件，与 `ip` 同类内部数据；Workers 无 cf / 未知值得空串）。展示走 settings `showCommentRegion` 门控（默认关）——开启后评论区渲染属地标签（国内到省、国外到国家，src/ipregion.ts 单点映射），表单提示「发布后将显示 IP 属地」；关闭时公开面连字段都不出。开启前的旧评论不回填
 
 ### POST /api/public/like/:slug
 Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计数不会为负。
@@ -40,7 +41,7 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 留言板留言（`/guestbook` 页）。Body 与规则同 `POST /api/public/comments`（`nickname` / `content` / 蜜罐 `link` / 限流 / 审核），无 `slug`；管理员带 `parentId` 即以作者身份回复（楼中楼）。存储上留言板留言是 `post_id = 0 AND weibo_id = 0` 的评论。响应 `{ok, pending?}`。
 
 ### GET /api/public/weibo/:id/comments
-微博的已展示评论（平铺 ASC，最多 200 条），元素含 `id/parent_id/is_admin/nickname/content/created_at`；前端按 `parent_id` 组装楼中楼。响应 `{comments, allowComments, adminAvatar}`——`adminAvatar` 是站点头像（settings.avatarUrl，可为空串），前端给 `is_admin` 评论的作者头像位用，与会员 `member_avatar` 同一展示位。
+微博的已展示评论（平铺 ASC，最多 200 条），元素含 `id/parent_id/is_admin/nickname/content/created_at`；前端按 `parent_id` 组装楼中楼。响应 `{comments, allowComments, adminAvatar}`——`adminAvatar` 是站点头像（settings.avatarUrl，可为空串），前端给 `is_admin` 评论的作者头像位用，与会员 `member_avatar` 同一展示位。settings `showCommentRegion` 开启时元素多 `ip_region`（**服务端已换算好的属地标签**，如「广东」「美国」，无快照为空串）；关闭时该键整体不出现（门控在 SELECT，不只是前端藏）。
 
 ### POST /api/public/weibo/:id/comments
 微博评论。规则同 `POST /api/public/comments`（蜜罐 / 限流 / 审核 / 管理员 `parentId` 回复），`nickname`/`content` 约束一致。
@@ -65,7 +66,7 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 
 - 服务端清洗：`p` 必须以 `/` 开头（剥控制字符，截 300），`r` 只留域名，`v` 只放行 `[A-Za-z0-9_-]`，`t` 截 200；路径不合法直接静默丢弃
 - 设备 / 浏览器族由服务端按 User-Agent 解析，国家取 `CF-IPCountry`；不存 IP 与原始 UA
-- 同 IP 10 分钟限 120 次；设置 `statsEnabled=0` 时接口返回 `{ok:true}` 但不入库
+- 同 IP 10 分钟限 30 次；设置 `statsEnabled=0` 时接口返回 `{ok:true}` 但不入库
 - 始终返回 `{"ok":true}`（失败静默，不打扰页面）
 
 ### POST /api/member/register
@@ -127,7 +128,7 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 ## 管理接口（需登录）
 
 ### GET /api/admin/stats
-概览统计：`{posts, views, likes, drafts, pendingComments, pendingLinks, uploads:{count,bytes}, recent:[…]}`
+概览统计：`{version, posts, views, likes, drafts, pendingComments, pendingLinks, uploads:{count,bytes}, db:{weibo,pages,comments,members}, backup:{enabled,at,bytes}, recent:[…]}`（`version` 是系统版本，仅此管理面出口）
 
 ### GET /api/admin/visits?days=30
 访客统计聚合（后台「统计」页），`days` 1-365 默认 30（含今天共 N 天，北京时间）。响应：
@@ -146,6 +147,21 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 ```
 
 `series` 按天补零；UV 为去重匿名访客号（`COUNT(DISTINCT vid)`）；数据表 `visit_log` 保留 180 天、不进备份。
+
+响应额外携带 `bot` 键——爬虫 / AI 抓取维度（`src/bots.ts`，服务端按 User-Agent 识别，爬虫不执行 JS 进不了上面的访客统计）：
+
+```json
+{
+  "total": 0, "todayTotal": 0,
+  "byKind":   [{ "name": "ai", "pv": 0 }],
+  "byBot":    [{ "name": "GPTBot", "kind": "ai", "pv": 0, "activeDays": 1 }],
+  "topPaths": [{ "path": "/post/hello", "pv": 0 }],
+  "series":   [{ "day": "2026-10-01", "pv": 0, "ai": 0, "se": 0 }],
+  "latest":   [{ "ts": 0, "name": "Google", "kind": "se", "path": "/" }]
+}
+```
+
+`byKind.name` 是类别编号：`ai`（AI 抓取）/ `se`（搜索引擎）/ `feed`（订阅器）/ `seo`（SEO 工具）/ `arch`（网页存档）。数据表 `bot_log` 与 `visit_log` 同隐私口径（不存 IP / UA 原文，只存识别名 / 类别 / 路径 / 国家码），同 180 天保留、不进备份；识别命中才落库，浏览器流量与爬虫记录天然互斥。
 
 ### 文章
 | 方法 | 路径 | 说明 |
@@ -173,19 +189,23 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
   "publishAt": 1791121500000,
   "pinned": false,
   "slug": "留空自动生成，可自定义",
-  "password": "访问密码，可空"
+  "minTier": "all | member | coffee | top",
+  "password": "访问密码，可空",
+  "aiGenerated": false
 }
 ```
 
-约束：title ≤ 150 字；content ≤ 1MB；tags ≤ 8 个、每个 ≤ 20 字；cover 必须以 `/` 或 `http(s)://` 开头；`categoryId` 为 null/空表示未分类，不存在分类 id 时被忽略；`password` ≤ 64 位。`status:"scheduled"` 时 `publishAt` 为毫秒时间戳（到点由每分钟 Cron 翻成 published 并把 `published_at` 设为该时刻，同时推 Telegram；转 published/draft 时 `publishAt` 自动清空）。
+约束：title ≤ 150 字；content ≤ 1MB；tags ≤ 8 个、每个 ≤ 20 字；cover 必须以 `/` 或 `http(s)://` 开头；`categoryId` 为 null/空表示未分类，不存在分类 id 时被忽略；`password` ≤ 64 位；`minTier` 是会员可见档位（`all` 公开默认 / `member` 登录会员 / `coffee` 咖啡 / `top` 顶级，脏值归一为 `all`）；`aiGenerated` 是「AI 生成」自愿申报（`true` = 文章页日期行显示 AI 生成标识，对应《人工智能生成合成内容标识办法》显式标识口径，缺省不显示）。`status:"scheduled"` 时 `publishAt` 为毫秒时间戳（到点由每分钟 Cron 翻成 published 并把 `published_at` 设为该时刻，同时推 Telegram；转 published/draft 时 `publishAt` 自动清空）。
+
+**部分更新（PUT）**：`minTier` / `aiGenerated` 与其余键同为「缺键即保留」语义——只发 `{status}` 的列表页状态切换不会误清档位与 AI 标注。
 
 **访问密码（文章加密码）**：`password` 缺键 = 保持现状（自动保存安全），非空 = 设置 / 更换（服务端 PBKDF2 单向哈希落库，明文与哈希都不回显），空串 = 解除加密。响应里只有 `hasPassword` 布尔，`password_hash` 永不出现。加密文章的前台行为（机制见 `src/protect.ts`）：文章页在密码验证通过前只渲染密码表单（正文、评论区、自动摘要、JSON-LD 描述一概不出，管理员登录除外）；解锁走表单 `POST /post/:slug/unlock`（`application/x-www-form-urlencoded`，Body `password=…`，非 JSON API）——成功 303 回文章页并签发 HttpOnly 解锁 Cookie `bloghao_pp`（HMAC key 即该文 password_hash，30 天有效、改密即失效），失败 303 回 `?pwerr=1`，限流触发 303 回 `?pwerr=slow`（每 IP 每文 10 次 / 10 分钟）。防泄漏口径：RSS 不出该文 `content:encoded` 全文；关键词搜索不命中加密文章；`/random` 不进加密文章。
 
 ### 微博（随手记）
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/api/admin/weibo?status=all\|published\|draft&page=1&limit=20` | 列表（置顶优先；元素附 `imageList`、`topicList`、`commentCount`） |
-| GET | `/api/admin/weibo/:id` | 单条原稿（前台卡片「编辑」的数据源，附 `imageList`、`topicList`） |
+| GET | `/api/admin/weibo?status=all\|published\|draft&page=1&limit=20` | 列表（置顶优先；元素附 `imageList`、`topicList`、`videoView`、`commentCount`） |
+| GET | `/api/admin/weibo/:id` | 单条原稿（前台卡片「编辑」的数据源，附 `imageList`、`topicList`、`videoView`） |
 | POST | `/api/admin/weibo` | 新建（发布或存草稿） |
 | PUT | `/api/admin/weibo/:id` | 更新（转回草稿会自动取消置顶） |
 | POST | `/api/admin/weibo/:id/pin` | Body `{pinned:true/false}` |
@@ -197,11 +217,20 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 {
   "content": "文字内容，可含 #话题",
   "images": ["/images/u/202610/xxx.jpg"],
+  "video": { "url": "/images/u/202610/xxx.mp4", "poster": "/images/u/202610/xxx-poster.jpg", "w": 1280, "h": 720 },
   "status": "published | draft"
 }
 ```
 
-约束：`content` ≤ 5000 字；`images` ≤ 9 张、只接受站内 `/images/` 与 `http(s)` 外链；`content` 与 `images` 不能同时为空；**话题不接受直传**——服务端从正文 `#话题`（兼容成对 `#话题#` 与 `#层级/标签`）自动提取；置顶最多 3 条，草稿不能置顶。
+约束：`content` ≤ 5000 字；`images` ≤ 9 张、只接受站内 `/images/` 与 `http(s)` 外链；`content` / `images` / `video` 不能同时为空；**话题不接受直传**——服务端从正文 `#话题`（兼容成对 `#话题#` 与 `#层级/标签`）自动提取；置顶最多 3 条，草稿不能置顶。
+
+微博视频（B19，选填，**一条微博最多 1 个**）：
+
+- `video.url` 必填：站内 `/images/` 或 `http(s)` 外链（其余 scheme 整体 400）；建议经 `POST /admin/upload` 上传 mp4 / webm 后再落库（≤25MB，服务端只认文件魔数，不信任 Content-Type）
+- `video.poster` 封面帧（选填，同白名单口径，非法当没填）；`video.w` / `video.h` 原始宽高（选填，渲染期按它写占位比例，非数字或越界归 0）
+- **缺键即保留**：PUT 不带 `video` 键时原值不动（后台列表「发布 / 下架」、前台旧编辑器等只发 content+images+status 的调用点不会把视频静默清掉）；显式传 `null` 或空串 = 清除
+- 出参里 `video` 是原始 JSON 字符串（与 `images` / `topics` 同口径），解析后的对象在 `videoView`（`{url, poster, w, h}`，无视频 = `null`）
+- 防泄漏口径：视频文件不进 RSS，也不随插件同步出站——发布事件 payload 的 `video` 只带 `{url, poster}`，广场同步与 `GET /api/public/weibo` 取封面帧当缩略图
 
 ### 友情链接
 | 方法 | 路径 | 说明 |
@@ -227,11 +256,11 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/api/admin/categories` | 列表（附 `post_count` 文章计数） |
-| POST | `/api/admin/categories` | Body `{name, slug?, sort?}`；slug 留空用名称，支持字母/数字/中文/短横线 |
-| PUT | `/api/admin/categories/:id` | 编辑（名称与 slug 均不可重复） |
+| POST | `/api/admin/categories` | Body `{name, slug?, sort?, description?}`；slug 留空用名称，支持字母/数字/中文/短横线 |
+| PUT | `/api/admin/categories/:id` | 编辑（名称与 slug 均不可重复）；`description` 缺键即保留 |
 | DELETE | `/api/admin/categories/:id` | 删除（关联文章变为未分类，文章不受影响） |
 
-`name` ≤ 20 字。单分类模型：一篇文章最多属于一个分类（`post_categories.post_id` 为主键）。
+`name` ≤ 20 字，`description` ≤ 300 字（可选：渲染在 `/category/:slug` 页头并作为该页 meta description，缺省回退站点描述）。单分类模型：一篇文章最多属于一个分类（`post_categories.post_id` 为主键）。
 
 ### 独立页面
 | 方法 | 路径 | 说明 |
@@ -284,11 +313,25 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 ### 设置 / 账号 / 工具
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET / PUT | `/api/admin/settings` | 可写键：`siteName, siteDescription, siteUrl, footerText, avatarUrl, faviconUrl, ogImageDefault, theme, allowComments, moderateComments, notifyNewComment, rssFullText, backupEnabled, postsPerPage, about（legacy，已由「页面」承载）, pluginsDisabled, siteGrayscale, siteClosed, siteClosedMessage, membersEnabled（会员体系总开关）, rankTopN（/rank 展示条数 1-50）, externalToken, telegramBotToken, telegramAllowFrom, telegramWebhookSecret`；`theme` 必须是已注册主题 id；`avatarUrl`/`faviconUrl`/`ogImageDefault` 只接受站内 `/images/` 与 `http(s)` 外链；`pluginsDisabled` 为逗号分隔的插件 manifest id（仅字母/数字/`_`/`-`）；`siteGrayscale`/`siteClosed` 为 `1`/`0` 开关（闭站时公开页面与公开 API 一律 503，白名单见 src/closed.ts，已登录管理员不受影响）；`siteClosedMessage` ≤1000 字；`externalToken`/`telegramBotToken`/`telegramWebhookSecret` 为敏感项，GET 与 PUT 的响应一律打码（`••••••••`），明文只在生成时返回一次，PUT 收到打码占位符视为保持原值 |
+| GET / PUT | `/api/admin/settings` | 可写键：`siteName, siteDescription, siteUrl（http(s) scheme 校验，非法整体 400；留空 = 回退当前访问域名）, siteMode（blog-weibo/weibo-blog/blog/weibo 四选一，脏值回退默认）, footerText, avatarUrl, faviconUrl, ogImageDefault, theme, allowComments, moderateComments, showCommentRegion（评论 IP 属地展示开关，默认 0；采集无条件，见 /api/public/comments）, notifyNewComment, rssFullText, backupEnabled, postsPerPage, about（legacy，已由「页面」承载）, pluginsDisabled, serverPluginsDisabled（服务端插件停用名单）, serverPluginConfig（服务端插件配置 JSON：{插件id:{字段:值}}，顶层键必须是注册插件、字段键必须在其 configFields 登记内、值字符串 ≤ 500，插件 configValidate 语义校验不过整体 400）, appearance（主题外观变量 JSON，非法整体 400）, customCss（皮肤包自定义 CSS，样式安检门净化：@import 与脚本类内容拒绝、url() 只收 https 与站内相对或 data:image|font、花括号配平、≤ 8000 字符，非法整体 400）, siteGrayscale, siteClosed, siteClosedMessage, siteNoindex（全站 noindex 开关）, membersEnabled（会员体系总开关）, onboarding/onboardingManual（新手引导记账位：`onboarding` 由 `/api/auth/setup` 首装成功时播种 `'1'`，后台概览页据此显示引导清单卡，置 `'0'` 即完成/跳过且不再显示；`onboardingManual` 记录「使用手册」已打开；设置页「保存全部」不含这两键）, rankTopN（/rank 展示条数 1-50）, turnstileSiteKey/turnstileSecret（注册人机验证，两键成对启用否则整体 400）, edition（zh/en，重新开启 en 即重置回退状态）, tgChannelChatId, commentWebhookUrl（公网 http(s) 校验）, footerHtmlCode（≤5000 字，管理员信任级 HTML）, bufferAccessToken/bufferChannelId（微博同步 Buffer）, plazaEndpoint（公网 https 校验）/plazaToken（广场同步）, externalToken, telegramBotToken, telegramAllowFrom, telegramWebhookSecret, verifyMetas（站点验证 meta：一行一个 meta 标签，name 走白名单、取值形态受限，非法整体 400）, analyticsScript（统计脚本：https 脚本地址或 script 片段，内联脚本体与白名单外属性拒绝）, robotsExtra（robots.txt 追加段，剥控制字符、限 2000 字符）, aiPolicy（AI 抓取策略三档：`allow` 默认 / `seek` 只许检索引用不许训练 / `deny` 全部拒绝；写进 robots.txt 的 AI 声明段 + `Content-signal` 行，**默认档输出与历史逐字节一致**；三值白名单脏值整体 400，渲染端 `readAiPolicy` 脏值兜底当 allow）`；`theme` 必须是已注册主题 id；`avatarUrl`/`faviconUrl`/`ogImageDefault` 只接受站内 `/images/` 与 `http(s)` 外链；`pluginsDisabled`/`serverPluginsDisabled` 为逗号分隔的插件 id（仅字母/数字/`_`/`-`）；`siteGrayscale`/`siteClosed`/`siteNoindex`/布尔开关为 `1`/`0`（闭站时公开页面与公开 API 一律 503，白名单见 src/closed.ts，已登录管理员不受影响）；`siteClosedMessage` ≤1000 字；`externalToken`/`telegramBotToken`/`telegramWebhookSecret`/`commentWebhookUrl`/`bufferAccessToken`/`plazaToken`/`turnstileSecret` 为敏感项，GET 与 PUT 的响应一律打码（`••••••••`），明文只在生成时返回一次，PUT 收到打码占位符视为保持原值；`verifyMetas` / `analyticsScript` 存库为结构化 JSON，GET 与 PUT 响应回显成「可粘贴形态」（与提交格式同形，可原样改回再存），渲染时按结构化值重放——统计脚本域自动进 CSP（`script-src` + `connect-src`），验证 meta 与预取声明（Speculation Rules）注入 head；`robotsExtra` 附在内置 robots 段之后（`GET /robots.txt`，演示站与全站 noindex 固定整站 Disallow） |
 | PUT | `/api/admin/password` | Body `{oldPassword, newPassword}`（8-64 位） |
 | POST | `/api/admin/tools/md` | Body `{md}` → `{html}`，Markdown 渲染 |
 | POST | `/api/admin/tools/linkmeta` | Body `{url}` → `{meta:{title, description, image, siteName}}`，编辑器「网址卡片」抓取目标页 og 元数据；只抓 http(s) 公网地址（私有网段/非常规端口拒绝，限长限时），抓不到时字段为空（前端用域名占位组卡）。限频 10 次/分钟/IP |
 | POST | `/api/admin/tools/sanitize` | Body `{html}` → `{html}`，白名单净化（粘贴用） |
+| POST | `/api/admin/cache/purge` | 一键清理页面边缘缓存：换 settings `pageCacheEpoch` 让旧副本整代作废（浏览器侧响应不变）；后台「概览 → 系统」按钮消费 |
+
+### 插件（编辑器插件远程安装 + 服务端插件，B8）
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/admin/server-plugins` | 服务端插件元数据清单 `{plugins:[{id,title,description,version,author,configFields}]}`（后台「插件」页渲染与配置弹窗用，处理函数不出） |
+| GET | `/api/admin/plugins/installed` | 远程安装的编辑器插件登记表 `{plugins:[{id,url,at,bytes}]}` |
+| POST | `/api/admin/plugins/install` | Body `{url, id?}`：抓取 https 插件文件（统一出网防线，≤ 256KB、须调用 registerPlugin）→ 落 R2 `plugins/<id>.js` → 登记 settings.pluginsInstalled；id 缺省从地址文件名推导（白名单 `[A-Za-z0-9_-]`）。限频 5 次/分钟/IP，演示站 404 |
+| POST | `/api/admin/plugins/uninstall` | Body `{id}`：删 R2 文件并撤登记（编辑器刷新后不再加载），演示站 404 |
+| GET | `/plugins/installed.json` | （Worker 路由，管理员会话）远程插件清单 `[{id, at}]`，编辑器据此加载 `/plugin-files/<id>`；未登录 404 |
+| GET | `/plugin-files/:id` | （Worker 路由，管理员会话）下发已安装插件文件（`application/javascript` + nosniff + no-store）；未登录 / 未安装 404 |
+| GET | `/api/admin/plaza-stats` | 广场数据卡（后台「插件 → 广场同步 → 数据」）：服务端以 `settings.plazaToken` + `plazaEndpoint`（留空 = 官方 hub）代理请求 hub `/api/site-stats`，Token 不进浏览器网络面板；未配 Token 或 hub 出错回 502，演示站 404 |
+
+服务端插件配置经 `PUT /api/admin/settings` 的 `serverPluginConfig` 键写入（见上表可写键），事件槽清单见 docs/PLUGINS.md。
 
 ### 采集（公众号文章）
 | 方法 | 路径 | 说明 |
@@ -310,11 +353,28 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 | GET | `/api/admin/export/markdown` | 下载 Markdown 包 zip：`posts/*.md`（YAML front-matter 含 title/slug/date/status/tags/category/cover/summary，正文 HTML→MD）、`weibo.md`、`pages/*.md`、`images/…`（正文/封面/微博引用的站内图，从 R2 流式打包）、`manifest.json`（含 missingImages 清单）。未被引用的图床文件不打包 |
 | GET | `/api/admin/export/wxr` | 下载 WordPress WXR 1.2 单文件：文章（HTML 正文、publish/draft 状态、分类与标签），供 WordPress / emlog 导入器使用；微博不进 WXR |
 
+### 整站包（B26：一键导出整站 / 一键还原到空站）
+
+与上面三条导出路的分工：Markdown 包 / WXR 是「带走文章去别家系统」，整站包是「原样搬家」（换服务器 / 换域名 / 重新部署同一系统，数据无损）；备份只导出不导入。包 = `manifest.json` + `tables/<表>.<片>.json` + `images/<key>`，单包 ≤2GB，落在 R2 `bundles/`（**不在 /images 公开白名单**，只有登录管理员能操作）。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/admin/bundle/export` | 流式下载整站包 zip（`xwblog-site-<北京日期>.zip`）。含 12 张业务表（`BUNDLE_TABLES`，**不含 users**）+ 图床全部图片；`settings` 按键排除密钥类（`SECRET_SETTINGS`）与实例态键（`siteUrl`/`pageCacheEpoch`/`lastBackup*`/`bundleImport`）。全局窗口 2 次/10 分钟（全表 + 全量图片） |
+| POST | `/api/admin/bundle/upload` | 上传整站包（**原始 body 直传**，服务端流式落 R2 不缓冲）→ `{ok, key, size}`。走 100MB 入站体积档位；按 IP 3 次/10 分钟 |
+| GET | `/api/admin/bundle/list` | `{bundles:[{key,size,uploaded}], import:{state,key,at,error}}`——包列表（按上传时间倒序，最多 100 条）与当前导入状态（`idle`/`running`/`failed`/`done`） |
+| POST | `/api/admin/bundle/import/start` | 导入第一步：解析包 → 校验格式版本 → **校验空站** → 清空目标表（`settings` 除外）→ 置 `running`，返回 `{ok, plan:{key,bytes,manifest,steps:[{unit,cursor}]}}`。**非空站 400**（`posts`/`weibo`/`pages` 三表的**未删除**行数须全为 0，即 `deleted_at IS NULL`；软删进回收站的不算内容，报错会说明「还有几篇文章 / 几条微博 / 几个页面」；上次导入失败留下的 `failed` 残留允许重试 = 重来）；包里出现当前没有的表/列（降版）400 并报出差异；包不完整 400；按 IP 3 次/10 分钟 |
+| POST | `/api/admin/bundle/import/step` | 导入一步（`{key, unit, cursor}`）：一张表的一个分片，或一批 50 张图片。**必须先 start**（会话 `running` 且 key 对得上，否则 400）；失败记 `failed`（只把 `running` 标失败）。全局窗口 2000 次/10 分钟 |
+| POST | `/api/admin/bundle/import/finish` | 收尾：置 `done` + 清页缓存。同样要求会话 `running` 且 key 匹配 |
+| POST | `/api/admin/bundle/delete` | 删除一个整站包（导入成功后**不自动删**，用户可能还要在别的实例再导一次）。key 必须带 `bundles/` 前缀且无穿越字符 |
+| POST | `/api/admin/site/reset` | **清空本站内容**（`{confirm}`，必须原样等于 `RESET_CONFIRM_PHRASE = '清空本站'` 否则 400）→ `{ok, cleared:{表:行数}, total, images, imagesDone}`。清 `BUNDLE_CLEAR_TABLES` 11 张业务表（与导入 `start` **同一份常量**，含回收站残留）+ **图床图片**（删的集合 = `collectBundleImageKeys` 与整站包会打包的图同一份口径，**减去**被保留表引用的图 = 站点头像 / 管理员头像），**保留** `settings`/`users`/会话/已上传的整站包（`bundles/`），并把记账位 `bundleImport` 归 `idle`；清完即通过空站守卫可直接导入。**硬删不可撤销**（图片删除是 best-effort，未跑完时 `imagesDone:false`）；演示站 404、按 IP 3 次/10 分钟 |
+
+契约三条（写死的行为，非设置项）：① **只还原到「没有内容的站」**——永不覆盖、永不合并（不做 id/slug 冲突处理）；「没有内容」= `posts`/`weibo`/`pages` 三表没有**未删除**的行（软删进回收站的不算），全新装好的站要先把自带的「示例文章」与「关于我」页面删进回收站，或调 `POST /api/admin/site/reset` 一键清空（导入会清空全站含回收站）；② **只装内容不装实例身份**——不含管理员账号与会话、不含各类密钥（新站自己登录、自己填）；③ **版本不匹配一律拒绝不猜**——包比系统新（降版）报错并列出差异，系统比包新（升版）缺的列按默认值补。导入时 `posts.content` / `pages.content` 过 `sanitizeHtml`（其余字段沿用应用自身信任模型）。演示站全部端点 404，闭站时随全局中间件 503。用法见 [GUIDE.md](GUIDE.md) §19，机制与防线见 AGENTS.md「整站包」节
+
 ### GET /api/meta/themes
-已注册主题列表 `{themes:[{id,name,description,colors}]}`，`colors` 为后台皮肤卡预览色板（`[背景, 强调条, 卡面, 卡面2, 卡面3]`，未设置时为 `null`）。
+已注册主题列表 `{themes:[{id,name,description,colors,appearance}]}`，`colors` 为后台皮肤卡预览色板（`[背景, 强调条, 卡面, 卡面2, 卡面3]`，未设置时为 `null`）；`appearance` 是该主题支持的外观变量元信息（角色/默认值/变量名清单/字号基线/圆角旋钮 `{var,default,lgFactor}`/字体预设，B9；后台实时预览用变量名构造同款覆盖样式）。
 
 ### GET /api/admin/members?page=1&q=
-会员列表（后台「会员」页数据源）：`{items:[{id, username, email, tier, points, status, created_at, last_login_at}], total, page, totalPages}`；`q` 模糊匹配用户名 / 邮箱，20 条/页。
+会员列表（后台「会员」页数据源）：`{items:[{id, username, email, display_name, avatar, tier, points, status, created_at, updated_at, last_login_at}], total, page, totalPages}`（不含 password_hash/salt）；`q` 模糊匹配用户名 / 邮箱，20 条/页。
 
 ### PUT /api/admin/members/:id
 改档位 / 封禁，**缺键即保留**（只传要改的键）：`{ "tier": "normal|coffee|top" }` 或 `{ "status": "active|banned" }` → `{ok:true}`；`status:"banned"` 同时清空该会员全部会话（即刻踢下线），历史评论保留。会员不存在 404。

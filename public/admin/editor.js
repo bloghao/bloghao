@@ -291,12 +291,42 @@ async function loadPlugins(ctx, disabledIds) {
   } catch {
     /* 没有插件清单也完全不影响使用 */
   }
+  // 远程安装的插件（后台「插件」页从市场/URL 安装，落 R2 下发）：与 manifest 插件同一套
+  // 加载 / 停用 / 补注册机制。404（未登录或一台也没装）静默跳过
+  try {
+    const ir = await fetch('/plugins/installed.json', { credentials: 'same-origin' })
+    if (ir.ok) {
+      const il = await ir.json()
+      if (Array.isArray(il)) {
+        for (const entry of il) {
+          const rid = entry && typeof entry === 'object' ? entry.id : entry
+          if (typeof rid !== 'string' || !rid || off.has(rid) || (activeIds && activeIds.has(rid))) continue
+          if (activeIds) activeIds.add(rid)
+          try {
+            await import('/plugin-files/' + encodeURIComponent(rid))
+          } catch (e) {
+            console.warn('远程插件加载失败：', rid, e)
+          }
+        }
+      }
+    }
+  } catch {
+    /* 没有远程插件也完全不影响使用 */
+  }
   // 首次挂载后 import 恒命中缓存，模块不会再执行 registerPlugin——已加载过的定义从 pluginDefs 补回。
-  // 只补 manifest 仍在列且未停用的（activeIds），下线/停用的插件按钮才不会跨挂载残留
+  // 只补 manifest 仍在列且未停用的（activeIds），下线/停用的插件按钮才不会跨挂载残留；
+  // 补注册视为一次新的挂载，onMount 一并触发（与 registerPluginDef 同语义）
   if (activeIds) {
     for (const [name, def] of pluginDefs) {
       if (!activeIds.has(name) || plugins.includes(def)) continue
       plugins.push(def)
+      if (typeof def.onMount === 'function') {
+        try {
+          Promise.resolve(def.onMount(ctx)).catch((err) => console.warn('插件 onMount 出错', err))
+        } catch (err) {
+          console.warn('插件 onMount 出错', err)
+        }
+      }
     }
   }
   renderPluginButtons(ctx)
@@ -538,6 +568,7 @@ export async function mountEditor(root, postId, opts = {}) {
     og_image: '',
     minTier: 'all',
     hasPassword: false,
+    ai_generated: 0,
   }
   if (postId) {
     const d = await api(`/admin/posts/${postId}`)
@@ -550,6 +581,8 @@ export async function mountEditor(root, postId, opts = {}) {
   let dirty = false
   let saveTimer = null
   let savedRange = null
+  // 插件快捷键的 keydown 监听（插件 ctx 区赋值；cleanupEditor 摘除）
+  let onPluginKeys = null
   // markDirty 每次自增：保存完成时若期间又有新输入（seq 变了），不能把 dirty 清掉，
   // 否则飞行中的保存会「吞掉」新输入的已保存状态
   let dirtySeq = 0
@@ -634,7 +667,7 @@ export async function mountEditor(root, postId, opts = {}) {
       <select class="input" id="ed-category">
         <option value="">未分类</option>
       </select>
-      <div style="font-size:12px;color:var(--sub);margin-top:6px;">在后台「分类」里维护</div>
+      <div style="font-size:12px;color:var(--sub);margin-top:6px;">在后台「文章 → 分类标签」里维护</div>
 
       <div class="drawer-title">谁能看</div>
       <select class="input" id="ed-min-tier">
@@ -671,6 +704,10 @@ export async function mountEditor(root, postId, opts = {}) {
       <div id="ed-schedule-picker" style="display:none;">
         <input class="input" type="datetime-local" id="ed-publish-at" step="60">
         <div style="font-size:12px;color:var(--sub);margin-top:6px;">北京时间，精确到分钟；到点后 1 分钟内自动发布</div>
+      </div>
+      <div class="switch-row">
+        <div><div class="switch-label">AI 生成</div><div class="switch-sub">自愿申报：本文由 AI 生成或 AI 深度参与创作，勾选后文章页显示标注</div></div>
+        <label class="switch"><input type="checkbox" id="ed-ai" ${post.ai_generated ? 'checked' : ''}><span class="track"></span></label>
       </div>
 
       <div class="drawer-title">分享卡图</div>
@@ -918,6 +955,7 @@ export async function mountEditor(root, postId, opts = {}) {
       categoryId: catVal ? Number(catVal) : null,
       pinned: document.getElementById('ed-pinned').checked,
       minTier: document.getElementById('ed-min-tier').value,
+      aiGenerated: document.getElementById('ed-ai').checked ? 1 : 0,
       slug: document.getElementById('ed-slug').value.trim(),
       status: post.status,
       publishAt: post.publish_at,
@@ -2151,6 +2189,7 @@ export async function mountEditor(root, postId, opts = {}) {
     document.removeEventListener('selectionchange', onSelectionChange)
     document.removeEventListener('keydown', onFocusKeydown)
     window.removeEventListener('beforeunload', beforeUnload)
+    if (onPluginKeys) editor.removeEventListener('keydown', onPluginKeys)
     // 挂起的自动保存与本地备份定时器一并取消：路由已切走，定时器再触发只会打在已卸载的 DOM 上
     clearTimeout(saveTimer)
     clearTimeout(draftTimer)
@@ -2610,6 +2649,47 @@ export async function mountEditor(root, postId, opts = {}) {
   catSelect.addEventListener('change', markDirty)
 
   /* ---------- 插件 ctx & 加载 ---------- */
+  // 插件快捷键（API 1.1）：统一注册到 editor 的一个 keydown 监听上分发。
+  // 组合键必须带修饰键（mod/ctrl/cmd/meta——纯字母键在写作编辑器里会抢输入），
+  // mod 在 Mac 映射 Cmd、其他平台 Ctrl；IME 组词回车不触发
+  const pluginShortcuts = []
+  const registerShortcut = (combo, handler) => {
+    const keys = String(combo || '')
+      .toLowerCase()
+      .split('+')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (typeof handler !== 'function') return
+    const mod = keys.some((k) => ['mod', 'ctrl', 'cmd', 'meta'].includes(k))
+    if (!mod) return
+    const key = keys
+      .filter((k) => !['mod', 'ctrl', 'cmd', 'meta', 'shift', 'alt', 'option'].includes(k))
+      .pop()
+    if (!key || key.length > 16) return
+    if (pluginShortcuts.some((s) => s.key === key && s.shift === keys.includes('shift') && s.alt === keys.includes('alt'))) return
+    pluginShortcuts.push({ key, shift: keys.includes('shift'), alt: keys.includes('alt') || keys.includes('option'), handler })
+  }
+  onPluginKeys = (e) => {
+    if (!pluginShortcuts.length || e.isComposing || e.keyCode === 229) return
+    const mac = /mac/i.test(navigator.platform || '')
+    const modPressed = mac ? e.metaKey || e.ctrlKey : e.ctrlKey
+    if (!modPressed) return
+    for (const sc of pluginShortcuts) {
+      if (sc.shift !== e.shiftKey || sc.alt !== e.altKey) continue
+      if (String(e.key || '').toLowerCase() !== sc.key) continue
+      e.preventDefault()
+      e.stopPropagation()
+      saveSelection()
+      try {
+        sc.handler(pluginCtx)
+      } catch (err) {
+        console.warn('插件快捷键执行出错', err)
+      }
+      return
+    }
+  }
+  editor.addEventListener('keydown', onPluginKeys)
+
   const pluginCtx = {
     insertHTML,
     getHTML: () => editor.innerHTML,
@@ -2624,16 +2704,57 @@ export async function mountEditor(root, postId, opts = {}) {
       markDirty()
     },
     notify: (m) => toast(String(m || '')),
+    // 选区读写（API 1.1）：只认编辑器内的选区，编辑器外选中文本一律返回空
+    getSelectionText: () => {
+      const sel = window.getSelection()
+      return sel && sel.rangeCount && editor.contains(sel.anchorNode) ? sel.toString() : ''
+    },
+    getSelectionHTML: () => {
+      const sel = window.getSelection()
+      if (!sel || !sel.rangeCount || !editor.contains(sel.anchorNode)) return ''
+      const wrap = document.createElement('div')
+      wrap.appendChild(sel.getRangeAt(0).cloneContents())
+      return wrap.innerHTML
+    },
+    replaceSelection: (html) => {
+      editor.focus()
+      restoreSelection()
+      const sel = window.getSelection()
+      if (!sel || !sel.rangeCount || !editor.contains(sel.anchorNode)) {
+        insertHTML(html) // 无有效选区 = 退化为光标处插入
+        return
+      }
+      const r = sel.getRangeAt(0)
+      r.deleteContents()
+      const tpl = document.createElement('template')
+      tpl.innerHTML = String(html || '')
+      r.insertNode(tpl.content)
+      r.collapse(false)
+      sel.removeAllRanges()
+      sel.addRange(r)
+      markDirty()
+      updateCount()
+    },
+    registerShortcut,
+  }
+  // 注册与重挂载补注册共用：新增定义时触发一次 onMount（插件用它做初始化，如拉数据、注样式）
+  const registerPluginDef = (p) => {
+    if (!(p && p.name && typeof p.onClick === 'function')) return
+    const isNew = !plugins.includes(p)
+    pluginDefs.set(p.name, p)
+    if (isNew) plugins.push(p)
+    if (isNew && typeof p.onMount === 'function') {
+      try {
+        Promise.resolve(p.onMount(pluginCtx)).catch((err) => console.warn('插件 onMount 出错', err))
+      } catch (err) {
+        console.warn('插件 onMount 出错', err)
+      }
+    }
+    renderPluginButtons(pluginCtx)
   }
   window.BlogHao = {
-    version: '1.0',
-    registerPlugin(p) {
-      if (p && p.name && typeof p.onClick === 'function') {
-        pluginDefs.set(p.name, p)
-        if (!plugins.includes(p)) plugins.push(p)
-      }
-      renderPluginButtons(pluginCtx)
-    },
+    version: '1.1',
+    registerPlugin: registerPluginDef,
     ...pluginCtx,
   }
   // opts.disabledPlugins：后台「插件」页停用的 manifest id 列表（app.js 从 settings 解析传入）

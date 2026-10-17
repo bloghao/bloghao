@@ -135,7 +135,7 @@ export function post(d: PostData): string {
     <a class="md-logo" href="/"><span class="md-logo-dot"></span>${esc(tr(en, d.settings.siteName))}</a>
   </header>
   <article class="md-article">
-    <div class="md-crumb"><time>${en ? fmtDateEn(p.published_at) : fmtDate(p.published_at)}</time><span>·</span><span>${en ? `${p.readingMinutes} min` : `${p.readingMinutes} 分钟`}</span><span>·</span><span>${en ? `${p.views} views` : `${p.views} 阅读`}</span></div>
+    <div class="md-crumb"><time>${en ? fmtDateEn(p.published_at) : fmtDate(p.published_at)}</time><span>·</span><span>${en ? `${p.readingMinutes} min` : `${p.readingMinutes} 分钟`}</span><span>·</span><span>${en ? `${p.views} views` : `${p.views} 阅读`}</span>${p.aiGenerated ? `<span>·</span><span>${en ? 'AI-generated' : 'AI 生成'}</span>` : ''}</div>
     <h1 class="md-title">${esc(p.title)}</h1>
     ${p.cover ? `<div class="md-cover"><img src="${esc(p.cover)}" alt=""></div>` : ''}
     <div class="rich">${p.contentHtml}</div>

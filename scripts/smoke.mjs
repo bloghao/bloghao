@@ -73,10 +73,22 @@ async function startDevServer() {
   throw new Error('wrangler dev 启动超时')
 }
 
+/** 页面缓存旁路（src/pagecache.ts）：冒烟大量「写完立即匿名重读同一 URL」的断言，
+ *  会撞上 5 分钟边缘缓存的旧副本。对页面与订阅源/公开 API 白名单路由的
+ *  GET 自动追加 _smoke 时间戳——SSR 渲染路径与不带参数完全一致，只是绕开边缘层 */
+const PAGE_BYPASS_RE = /^(\/|\/tag\/[^\/?]+|\/category\/[^\/?]+|\/post\/[^\/?]+|\/page\/[^\/?]+|\/about|\/archives|\/guestbook|\/weibo|\/links|\/member|\/rank|\/search|\/rss\.xml|\/feed\.json|\/sitemap\.xml|\/api\/public\/weibo|\/api\/public\/posts)$/
+function bypassUrl(url) {
+  if (url.includes('?')) return url
+  const q = url.indexOf('#')
+  const path = q >= 0 ? url.slice(0, q) : url
+  const tail = q >= 0 ? url.slice(q) : ''
+  return PAGE_BYPASS_RE.test(path) ? `${path}?_smoke=${Date.now()}${tail}` : url
+}
+
 async function check(method, url, expectStatus, expectBody, opts = {}) {
-  const label = `${method} ${url}${expectBody ? '（含内容断言）' : ''}${opts.notContains ? '（不含断言）' : ''}`
+  const label = `${method} ${url}${expectBody ? '（含内容断言）' : ''}${opts.notContains ? '（不含断言）' : ''}${opts.expectHeaders ? '（响应头断言）' : ''}`
   try {
-    const res = await fetch(`http://127.0.0.1:${PORT}${url}`, {
+    const res = await fetch(`http://127.0.0.1:${PORT}${bypassUrl(url)}`, {
       method,
       headers: opts.headers,
       body: opts.body,
@@ -91,6 +103,17 @@ async function check(method, url, expectStatus, expectBody, opts = {}) {
     if (bodyOk && opts.notContains) {
       bodyOk = !text.includes(opts.notContains)
       if (!bodyOk) console.error(`  ✗ ${label}：响应中不应出现「${opts.notContains}」`)
+    }
+    if (bodyOk && opts.expectHeaders) {
+      // 响应头包含断言（public/_headers 的后台防嵌套头等）：值取 includes 口径，
+      // 防 CSP 这类多指令头因追加指令而整体比对失败
+      for (const [name, want] of Object.entries(opts.expectHeaders)) {
+        const got = res.headers.get(name) || ''
+        if (!got.toLowerCase().includes(String(want).toLowerCase())) {
+          console.error(`  ✗ ${label}：响应头 ${name} 期望含「${want}」，实际「${got || '(缺失)'}」`)
+          bodyOk = false
+        }
+      }
     }
     if (res.status !== expectStatus) {
       console.error(`  ✗ ${label}：期望 ${expectStatus}，实际 ${res.status}`)
@@ -118,6 +141,34 @@ try {
     '写入冒烟夹具（幂等）'
   )
   await startDevServer()
+
+  console.log('\n▸ 页面缓存端到端（src/pagecache.ts）')
+  const probeBase = `http://127.0.0.1:${PORT}`
+  /** 同 URL 连打两次：第一次回源填充（waitUntil 回填），第二次断言 X-Page-Cache 头。
+   *  expectHeader=null 断言「不进缓存键、两次都回源」（未知参数旁路） */
+  const cacheProbe = async (path, expectHeader) => {
+    const label = `缓存探针 ${path} → 第二次 X-Page-Cache: ${expectHeader ?? '（无，回源旁路）'}`
+    try {
+      await fetch(`${probeBase}${path}`, { signal: AbortSignal.timeout(15_000) })
+      await new Promise((r) => setTimeout(r, 300))
+      const res = await fetch(`${probeBase}${path}`, { signal: AbortSignal.timeout(15_000) })
+      const got = res.headers.get('x-page-cache') ?? null
+      if (got !== expectHeader) {
+        console.error(`  ✗ ${label}：实际 ${got}`)
+        results.push([label, false])
+        return
+      }
+      console.log(`  ✓ ${label}`)
+      results.push([label, true])
+    } catch (e) {
+      console.error(`  ✗ ${label}：${e.message}`)
+      results.push([label, false])
+    }
+  }
+  await cacheProbe('/archives', 'hit') // 公开页：第二次命中边缘层
+  await cacheProbe('/api/public/weibo?limit=5', 'hit') // 公开只读 API 同口径（广场 hub pull 源）
+  await cacheProbe('/rss.xml', 'hit') // 订阅源同口径（爬虫订阅器高频）
+  await cacheProbe('/weibo?_smoke=probe', null) // 未知参数不进缓存键：两次都回源
 
   console.log('\n▸ 路由断言')
   await check('GET', '/', 200)
@@ -171,7 +222,12 @@ try {
   await check('GET', '/og-default.png', 200)
   await check('GET', '/', 200, 'twitter:card')
   await check('GET', '/', 200, 'og:image')
-  await check('GET', '/admin/', 200)
+  // 后台防嵌套响应头（public/_headers）：XFO 与 CSP frame-ancestors 双写——meta CSP 装不下
+  // frame-ancestors，只能在响应头层；冒烟同时守「_headers 在 wrangler dev 下确实生效」
+  await check('GET', '/admin/', 200, undefined, {
+    expectHeaders: { 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "frame-ancestors 'none'" },
+  })
+  await check('GET', '/_headers', 404) // 配置文件本身不对外服务（与 Cloudflare 行为一致）
   // 皮肤/插件市场：编辑器插件清单与市场目录是后台「插件 / 皮肤」页的数据源，必须可访问且是合法 JSON
   await check('GET', '/plugins/manifest.json', 200, 'hello-sign')
   await check('GET', '/market/catalog.json', 200, 'themes')
@@ -232,6 +288,36 @@ try {
   ])
   console.log(`  ${loginRes.status === 200 && cookie.startsWith('bloghao_session=') ? '✓' : '✗'} 闭站链路：登录夹具管理员（status ${loginRes.status}）`)
 
+  // ── 上传体积预检链路（2026-10-13 修复回归）──
+  // 真 bug：预检的豁免路径写成 '/admin/upload'，而实际路径是 /api/admin/upload（api 挂在 /api 下），
+  // 永不匹配 → 上传端点一直按 2MB 普通限额预检：超过 2MB 的视频 / 大图 / 开放接口配图直接 413，
+  // 前端只看到「上传失败」。此前没有 >2MB 请求体的用例，所以一路潜伏到线上（站长 20MB 视频失败暴露）。
+  console.log('\n▸ 上传体积预检链路')
+  {
+    const upCookie = { headers: { Cookie: cookie } }
+    // 3MB 合成 mp4：服务端只认文件魔数（前 4 字节长度 + 'ftyp' + 'isom' 主品牌 + 兼容品牌）
+    const mp4 = new Uint8Array(3 * 1024 * 1024)
+    mp4.set([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0, 2, 0, 0x69, 0x73, 0x6f, 0x6d, 0, 0, 0, 8])
+    const fd = new FormData()
+    fd.append('file', new File([mp4], 'smoke-3mb.mp4', { type: 'video/mp4' }))
+    const upRes = await raw('POST', '/api/admin/upload', { ...upCookie, body: fd })
+    const upBody = await upRes.json().catch(() => null)
+    const passOk = upRes.status === 200 && !!(upBody && upBody.url)
+    results.push(['上传预检：3MB mp4 放行（>2MB 不再 413）', passOk])
+    console.log(`  ${passOk ? '✓' : '✗'} 上传预检：3MB mp4 放行（status ${upRes.status}）`)
+    if (upBody && upBody.key) await raw('DELETE', `/api/admin/uploads?key=${encodeURIComponent(upBody.key)}`, upCookie)
+
+    // 超限仍要被拦下（豁免路径修好不能顺手把上限也放宽了）
+    const huge = new Uint8Array(31 * 1024 * 1024)
+    huge.set([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d])
+    const fd2 = new FormData()
+    fd2.append('file', new File([huge], 'smoke-31mb.mp4', { type: 'video/mp4' }))
+    const overRes = await raw('POST', '/api/admin/upload', { ...upCookie, body: fd2 })
+    const overOk = overRes.status === 413
+    results.push(['上传预检：31MB 仍被拒（413）', overOk])
+    console.log(`  ${overOk ? '✓' : '✗'} 上传预检：31MB 仍被拒（status ${overRes.status}）`)
+  }
+
   const putSettings = (patch) =>
     raw('PUT', '/api/admin/settings', {
       headers: { 'Content-Type': 'application/json', Cookie: cookie },
@@ -253,7 +339,7 @@ try {
     body: JSON.stringify({ p: '/x', r: '', v: 'smoke-closed-1', t: '' }),
   })
   // 503 + Retry-After：搜索引擎据此暂时保留收录
-  const closedHome = await raw('GET', '/')
+  const closedHome = await raw('GET', bypassUrl('/'))
   const retryAfterOk = closedHome.status === 503 && closedHome.headers.get('retry-after') === '3600'
   results.push(['闭站链路：503 + Retry-After', retryAfterOk])
   console.log(`  ${retryAfterOk ? '✓' : '✗'} 闭站链路：503 + Retry-After（retry-after: ${closedHome.headers.get('retry-after')}）`)
@@ -281,6 +367,27 @@ try {
   const grayscaleOff = reopenedHome.status === 200 && !reopenedText.includes('grayscale')
   results.push(['闭站链路：灰度已随恢复撤下', grayscaleOff])
   console.log(`  ${grayscaleOff ? '✓' : '✗'} 闭站链路：灰度已随恢复撤下`)
+
+  // ── 新手引导记账位链路（概览页清单卡，db.ts onboarding 两键）──
+  // 本地库不经 /api/auth/setup（夹具直灌），「首装播种」断言在 docker-poc/smoke.sh 的真实首装段；
+  // 这里验证 Workers 形态下 GET 键在场（DEFAULT_SETTINGS 兜底）与 PUT 布尔归一化两口
+  console.log('\n▸ 新手引导记账位链路')
+  const obGet = await raw('GET', '/api/admin/settings', { headers: { Cookie: cookie } })
+  const obKeyOk = obGet.status === 200 && (await obGet.text()).includes('"onboarding":"')
+  results.push(['引导记账位：GET settings 键在场', obKeyOk])
+  console.log(`  ${obKeyOk ? '✓' : '✗'} 引导记账位：GET settings 键在场`)
+  const obOff = await putSettings({ onboarding: '0' })
+  const obOffOk = obOff.status === 200 && (await obOff.text()).includes('"onboarding":"0"')
+  results.push(['引导记账位：PUT 置 0 回显（跳过/完成口）', obOffOk])
+  console.log(`  ${obOffOk ? '✓' : '✗'} 引导记账位：PUT 置 0 回显（status ${obOff.status}）`)
+  const obOn = await putSettings({ onboarding: 'true', onboardingManual: '1' })
+  const obOnText = await obOn.text()
+  const obOnOk = obOn.status === 200 && obOnText.includes('"onboarding":"1"') && obOnText.includes('"onboardingManual":"1"')
+  results.push(['引导记账位：PUT \'true\' 归一化为 1 + 手册键', obOnOk])
+  console.log(`  ${obOnOk ? '✓' : '✗'} 引导记账位：PUT 'true' 归一化 + 手册键（status ${obOn.status}）`)
+  const obManualOff = await putSettings({ onboardingManual: '0' })
+  results.push(['引导记账位：手册键复位', obManualOff.status === 200])
+  console.log(`  ${obManualOff.status === 200 ? '✓' : '✗'} 引导记账位：手册键复位`)
 
   // ── 微博前台管理链路（登录管理员在 /weibo 页直接编辑/置顶/删除随手记）──
   // 全程用临时数据（新建→置顶→编辑→删除），不碰夹具，可重复运行
@@ -326,6 +433,47 @@ try {
     console.log(`  ${wbEdit.status === 200 ? '✓' : '✗'} 微博管理：编辑保存`)
     await check('GET', `/api/admin/weibo/${wbId}`, 200, '冒烟管理链路已编辑', wbCookie)
     await check('GET', `/weibo?wb=${wbId}`, 200, '冒烟管理链路已编辑', wbCookie)
+
+    // 微博视频（B19）：一条微博最多 1 个视频，url / poster 过 scheme 白名单，缺键即保留
+    const vidUrl = '/images/u/smoke/smoke-video.mp4'
+    const wbVid = await raw('PUT', `/api/admin/weibo/${wbId}`, {
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({
+        content: '冒烟视频微博 #冒烟话题#',
+        images: [],
+        video: { url: vidUrl, poster: '', w: 640, h: 360 },
+        status: 'published',
+      }),
+    })
+    const wbVidBody = await wbVid.json().catch(() => null)
+    const vidSaved = !!(wbVidBody && wbVidBody.weibo && wbVidBody.weibo.videoView && wbVidBody.weibo.videoView.url === vidUrl)
+    results.push(['微博视频：带 video 保存', wbVid.status === 200 && vidSaved])
+    console.log(`  ${wbVid.status === 200 && vidSaved ? '✓' : '✗'} 微博视频：带 video 保存`)
+    // 前台卡片：播放器 + 按原始宽高写的占位比例（断言数据而不是类名——类名在主题 CSS 里恒在）
+    await check('GET', `/weibo?wb=${wbId}`, 200, `src="${vidUrl}"`, wbCookie)
+    await check('GET', `/weibo?wb=${wbId}`, 200, 'aspect-ratio:640/360', wbCookie)
+
+    // 缺键即保留：后台列表「发布/下架」与前台老编辑器只发 content+images+status，视频不能被静默清掉
+    const wbKeep = await raw('PUT', `/api/admin/weibo/${wbId}`, {
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ content: '冒烟视频微博 · 缺键保留 #冒烟话题#', images: [], status: 'published' }),
+    })
+    const wbKeepBody = await wbKeep.json().catch(() => null)
+    const kept = !!(wbKeepBody && wbKeepBody.weibo && wbKeepBody.weibo.videoView && wbKeepBody.weibo.videoView.url === vidUrl)
+    results.push(['微博视频：PUT 缺 video 键 = 保留原视频', wbKeep.status === 200 && kept])
+    console.log(`  ${wbKeep.status === 200 && kept ? '✓' : '✗'} 微博视频：PUT 缺 video 键 = 保留原视频`)
+    await check('GET', `/weibo?wb=${wbId}`, 200, `src="${vidUrl}"`, wbCookie)
+
+    // 显式 null = 清除
+    const wbClear = await raw('PUT', `/api/admin/weibo/${wbId}`, {
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ content: '冒烟视频微博 · 已清除 #冒烟话题#', images: [], video: null, status: 'published' }),
+    })
+    const wbClearBody = await wbClear.json().catch(() => null)
+    const cleared = !!(wbClearBody && wbClearBody.weibo && wbClearBody.weibo.videoView === null)
+    results.push(['微博视频：显式 null = 清除', wbClear.status === 200 && cleared])
+    console.log(`  ${wbClear.status === 200 && cleared ? '✓' : '✗'} 微博视频：显式 null = 清除`)
+    await check('GET', `/weibo?wb=${wbId}`, 200, undefined, { notContains: `src="${vidUrl}"`, headers: { Cookie: cookie } })
     // 删除 → 单条 404、深链定位失效但页面仍 200
     const wbDel = await raw('DELETE', `/api/admin/weibo/${wbId}`, wbCookie)
     results.push(['微博管理：删除', wbDel.status === 200])
@@ -388,6 +536,112 @@ try {
     const cleanup = await raw('DELETE', `/api/admin/posts/${pId}`, pCookie)
     results.push(['状态切换：清理临时文章', cleanup.status === 200])
     console.log(`  ${cleanup.status === 200 ? '✓' : '✗'} 状态切换：清理临时文章`)
+  }
+
+  // ── 前台删评论链路（2026-10-14）──
+  // 管理员在前台（文章 / 留言板 / 微博评论区）直接删评论：SSR 出 data-cmt-del 键，写操作复用
+  // /api/admin/comments/:id（会话鉴权、连带楼中楼、不可恢复——评论没有回收站）。
+  // 三个断言：管理员页有键 / **访客页不得有键**（越权面）/ 删完前台随即不可见。
+  console.log('\n▸ 前台删评论链路')
+  {
+    const dMark = `冒烟前台待删评论 ${Date.now()}`
+    await raw('POST', '/api/public/comments', {
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ slug: 'smoke-multi-tag', content: dMark, nickname: '作者' }),
+    })
+    const adminPage = await raw('GET', '/post/smoke-multi-tag', { headers: { Cookie: cookie } })
+    const adminHtml = await adminPage.text()
+    const anonPage = await raw('GET', bypassUrl('/post/smoke-multi-tag'))
+    const anonHtml = await anonPage.text()
+
+    const adminHasBtn = adminHtml.includes(dMark) && adminHtml.includes('data-cmt-del')
+    results.push(['前台删评论：管理员页带 data-cmt-del 键', adminHasBtn])
+    console.log(`  ${adminHasBtn ? '✓' : '✗'} 前台删评论：管理员页带 data-cmt-del 键`)
+
+    const anonLeak = anonHtml.includes('data-cmt-del') || anonHtml.includes('data-reply')
+    results.push(['前台删评论：访客页不含管理键（越权面）', !anonLeak])
+    console.log(`  ${!anonLeak ? '✓' : '✗'} 前台删评论：访客页不含管理键（越权面）`)
+
+    // 从管理员页里取这条评论的 id：内容是 li#cmt-<id> → head（含按钮）→ body（正文），
+    // 所以离标记文本最近的上一个 data-cmt-del 就是它
+    const at = adminHtml.indexOf(dMark)
+    const near = at > 0 ? adminHtml.slice(Math.max(0, at - 3000), at) : ''
+    const ids = [...near.matchAll(/data-cmt-del="(\d+)"/g)]
+    const delId = ids.length ? ids[ids.length - 1][1] : ''
+    results.push(['前台删评论：能从页面拿到待删 id', !!delId])
+    console.log(`  ${delId ? '✓' : '✗'} 前台删评论：能从页面拿到待删 id（${delId || '未取到'}）`)
+
+    if (delId) {
+      const delRes = await raw('DELETE', `/api/admin/comments/${delId}`, { headers: { Cookie: cookie } })
+      results.push(['前台删评论：DELETE 后台端点', delRes.status === 200])
+      console.log(`  ${delRes.status === 200 ? '✓' : '✗'} 前台删评论：DELETE 后台端点（status ${delRes.status}）`)
+      const after = await raw('GET', '/post/smoke-multi-tag', { headers: { Cookie: cookie } })
+      const afterHtml = await after.text()
+      results.push(['前台删评论：删完前台随即不可见', !afterHtml.includes(dMark)])
+      console.log(`  ${!afterHtml.includes(dMark) ? '✓' : '✗'} 前台删评论：删完前台随即不可见`)
+    }
+  }
+
+  // ── 评论 IP 属地链路（settings.showCommentRegion 默认关）──
+  // 采集无条件（写库定格 request.cf 快照），展示门控在服务端。wrangler dev 会注入样本 cf
+  // （US/Texas），这里守「采集 → 换算 → 门控」全链真实生效：关 = SSR/JSON 连属地名都不出现；
+  // 开 = SSR 出披露 + 快照评论渲染属地标签 + JSON 带 ip_region。标签映射在 tests/ipregion.test.ts
+  console.log('\n▸ 评论 IP 属地链路')
+  {
+    const rMark = `冒烟属地评论 ${Date.now()}`
+    await raw('POST', '/api/public/comments', {
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ slug: 'smoke-multi-tag', content: rMark, nickname: '作者' }),
+    })
+    // 默认关：SSR 无属地元素与披露文案；微博评论 JSON 不带 ip_region 键（门控在 SELECT，不只是前端藏）
+    const offPage = await raw('GET', bypassUrl('/post/smoke-multi-tag'))
+    const offHtml = await offPage.text()
+    const offOk = !offHtml.includes('cmt-region') && !offHtml.includes('IP 属地')
+    results.push(['评论属地：默认关，SSR 无属地与披露', offOk])
+    console.log(`  ${offOk ? '✓' : '✗'} 评论属地：默认关，SSR 无属地与披露`)
+
+    // 开启：SSR 表单出披露 + 属地快照渲染成标签；JSON 出参带换算好的 ip_region
+    await raw('PUT', '/api/admin/settings', {
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ showCommentRegion: '1' }),
+    })
+    const onPage = await raw('GET', bypassUrl('/post/smoke-multi-tag'))
+    const onHtml = await onPage.text()
+    const onOk = onHtml.includes('IP 属地') && onHtml.includes('cmt-region') && onHtml.includes('>美国<')
+    results.push(['评论属地：开启后 SSR 出披露 + 属地标签（dev 样本 cf=美国）', onOk])
+    console.log(`  ${onOk ? '✓' : '✗'} 评论属地：开启后 SSR 出披露 + 属地标签（dev 样本 cf=美国）`)
+
+    // 临时微博走一遍 JSON 面（微博 id 时点不定，自建再验），验完软删清理
+    const wbCreate = await raw('POST', '/api/admin/weibo', {
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ content: '冒烟属地临时微博', status: 'published' }),
+    })
+    const wbCreated = await wbCreate.json().catch(() => null)
+    const wbId = wbCreated?.weibo?.id
+    if (wbId) {
+      await raw('POST', `/api/public/weibo/${wbId}/comments`, {
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ content: rMark }),
+      })
+      const onJson = await (await raw('GET', `/api/public/weibo/${wbId}/comments`)).json()
+      const onJsonOk = onJson.comments?.some((x) => x.content === rMark && typeof x.ip_region === 'string' && x.ip_region.length > 0)
+      results.push(['评论属地：微博 JSON 出 ip_region（服务端换算标签）', onJsonOk])
+      console.log(`  ${onJsonOk ? '✓' : '✗'} 评论属地：微博 JSON 出 ip_region（${onJson?.comments?.find((x) => x.content === rMark)?.ip_region || '空'}）`)
+      await raw('DELETE', `/api/admin/weibo/${wbId}`, { headers: { Cookie: cookie } })
+    } else {
+      results.push(['评论属地：微博 JSON 出 ip_region（服务端换算标签）', false])
+      console.log('  ✗ 评论属地：微博 JSON 出 ip_region（临时微博创建失败）')
+    }
+
+    // 还原默认关
+    const back = await raw('PUT', '/api/admin/settings', {
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ showCommentRegion: '0' }),
+    })
+    const backSettings = await back.json().catch(() => null)
+    const backOk = back.status === 200 && backSettings?.settings?.showCommentRegion === '0'
+    results.push(['评论属地：开关还原', backOk])
+    console.log(`  ${backOk ? '✓' : '✗'} 评论属地：开关还原`)
   }
 
   // ── 回收站（软删除）链路：删除 → 前台/RSS/sitemap/后台列表全部不可见 → 回收站可见
@@ -785,6 +1039,37 @@ try {
     await raw('DELETE', `/api/admin/trash/post/${pwId}`, { headers: { Cookie: cookie } })
   }
 
+  // AI 生成标注链路（显式标识口径）：建文带 aiGenerated → 只发 {status} 的 PUT（列表页真实载荷）不得误清
+  // → 后台出参带 ai_generated:1 → 文章页 meta 行渲染「AI 生成」标注 → 清理
+  const aiCreate = await raw('POST', '/api/admin/posts', {
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({
+      title: '冒烟：AI 生成标注',
+      content: '<p>冒烟 AI 标注正文</p>',
+      status: 'draft',
+      aiGenerated: 1,
+    }),
+  })
+  const aiCreated = await aiCreate.json().catch(() => null)
+  const aiId = aiCreated?.post?.id
+  results.push(['AI 标注：建文带 aiGenerated', aiCreate.status === 200 && !!aiId])
+  console.log(`  ${aiCreate.status === 200 && !!aiId ? '✓' : '✗'} AI 标注：建文带 aiGenerated（id ${aiId}）`)
+  if (aiId) {
+    const aiCookie = { headers: { Cookie: cookie } }
+    const aiToggle = await raw('PUT', `/api/admin/posts/${aiId}`, {
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ status: 'published' }),
+    })
+    await check('GET', `/api/admin/posts/${aiId}`, 200, '"ai_generated":1', aiCookie)
+    await check('GET', `/post/${aiCreated?.post?.slug}`, 200, 'AI 生成')
+    const aiMarkOk = aiToggle.status === 200
+    results.push(['AI 标注：缺键 PUT 保留 + 文章页渲染', aiMarkOk])
+    console.log(`  ${aiMarkOk ? '✓' : '✗'} AI 标注：缺键 PUT 保留 + 文章页渲染`)
+    // 清理：软删 + 彻底删除（不碰夹具，可重复运行）
+    await raw('DELETE', `/api/admin/posts/${aiId}`, { headers: { Cookie: cookie } })
+    await raw('DELETE', `/api/admin/trash/post/${aiId}`, { headers: { Cookie: cookie } })
+  }
+
   // 后台会员管理：未登录一律 401（路由必须注册在 /admin/* 鉴权中间件之后）→ 搜索 → 拉黑（会话即刻失效 + 登录 403 banned）→ 恢复 active（下轮可复用）
   await check('GET', '/api/admin/members', 401, '请先登录')
   await check('PUT', '/api/admin/members/1', 401, '请先登录', {
@@ -973,6 +1258,409 @@ try {
     await raw('DELETE', `/api/admin/trash/post/${ppId}`, ppCookie)
     results.push(['加密码：清理临时文章', ppDel.status === 200])
     console.log(`  ${ppDel.status === 200 ? '✓' : '✗'} 加密码：清理临时文章`)
+  }
+
+  // ── 站长 SEO 小件链路（B20 / B23 / B24）：设置 → 公开面验证 → 还原 ──
+  // 服务端只认结构化输入（验证 meta 白名单 / 统计脚本白名单属性），断言公开面输出与 CSP 同步放宽
+  console.log('\n▸ 站长 SEO 链路（B20 / B23 / B24）')
+  await check('GET', '/robots.txt', 200, `Sitemap: ${BASE}/sitemap.xml`)
+  const seoOn = await putSettings({
+    verifyMetas: '<meta name="google-site-verification" content="smoke-verify-123">',
+    analyticsScript: '<script defer src="https://analytics.smoke.example/s.js" data-website-id="smoke"></script>',
+    robotsExtra: 'Disallow: /smoke-drafts/',
+  })
+  results.push(['SEO 链路：保存验证 meta / 统计脚本 / robots 追加段', seoOn.status === 200])
+  console.log(`  ${seoOn.status === 200 ? '✓' : '✗'} SEO 链路：保存三项配置（status ${seoOn.status}）`)
+  // 非法输入整体 400（不落库）：白名单外验证字段、内联脚本体
+  const badVerify = await putSettings({ verifyMetas: '<meta name="description" content="x">' })
+  const badScript = await putSettings({ analyticsScript: '<script>alert(1)</script>' })
+  const rejectOk = badVerify.status === 400 && badScript.status === 400
+  results.push(['SEO 链路：非法输入整体 400', rejectOk])
+  console.log(`  ${rejectOk ? '✓' : '✗'} SEO 链路：非法输入整体 400（${badVerify.status}/${badScript.status}）`)
+  await check('GET', '/robots.txt', 200, 'Disallow: /smoke-drafts/')
+  const seoHome = await raw('GET', bypassUrl('/'))
+  const seoHtml = await seoHome.text()
+  const seoCsp = seoHome.headers.get('content-security-policy') || ''
+  const injectOk =
+    seoHtml.includes('<meta name="google-site-verification" content="smoke-verify-123">') &&
+    seoHtml.includes('<script type="speculationrules">') &&
+    seoHtml.includes('https://analytics.smoke.example/s.js')
+  results.push(['SEO 链路：首页 head 注入验证 meta / 统计脚本 / 预取声明', injectOk])
+  console.log(`  ${injectOk ? '✓' : '✗'} SEO 链路：首页 head 注入（status ${seoHome.status}）`)
+  const cspOk =
+    seoCsp.includes("'inline-speculation-rules'") &&
+    seoCsp.includes('https://analytics.smoke.example') &&
+    seoCsp.includes("script-src 'self'")
+  results.push(['SEO 链路：CSP 同步放行统计域与内联预取声明', cspOk])
+  console.log(`  ${cspOk ? '✓' : '✗'} SEO 链路：CSP 同步放宽`)
+  // 文章页面包屑 JSON-LD（首页 → 分类 → 文章）
+  await check('GET', '/post/smoke-multi-tag', 200, 'BreadcrumbList')
+  // 分类描述（B23）：建临时分类 → 分类页出描述行 / meta description / 面包屑 → 清理
+  const catCreate = await raw('POST', '/api/admin/categories', {
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ name: '冒烟分类描述', slug: 'smoke-cat-desc', description: '冒烟分类描述：这个分类收些什么' }),
+  })
+  const catCreated = await catCreate.json().catch(() => null)
+  const catId = catCreated && catCreated.category && catCreated.category.id
+  results.push(['分类描述：建临时分类', catCreate.status === 200 && !!catId])
+  console.log(`  ${catCreate.status === 200 && !!catId ? '✓' : '✗'} 分类描述：建临时分类（id ${catId}）`)
+  if (catId) {
+    const catPage = await raw('GET', '/category/smoke-cat-desc')
+    const catHtml = await catPage.text()
+    const catOk =
+      catPage.status === 200 &&
+      catHtml.includes('冒烟分类描述：这个分类收些什么') &&
+      catHtml.includes('<meta name="description" content="冒烟分类描述：这个分类收些什么">') &&
+      catHtml.includes('BreadcrumbList')
+    results.push(['分类描述：分类页出描述行 / meta description / 面包屑', catOk])
+    console.log(`  ${catOk ? '✓' : '✗'} 分类描述：分类页输出（status ${catPage.status}）`)
+    const catDel = await raw('DELETE', `/api/admin/categories/${catId}`, { headers: { Cookie: cookie } })
+    results.push(['分类描述：清理临时分类', catDel.status === 200])
+    console.log(`  ${catDel.status === 200 ? '✓' : '✗'} 分类描述：清理临时分类`)
+  }
+  // AI 抓取策略（src/seo.ts buildRobotsTxt + src/bots.ts AI 令牌表，2026-10-17）：
+  // 三档声明写进 /robots.txt——检索引用型显式 Allow、训练型独立 Disallow、Content-signal 行；
+  // 脏档位整体 400。默认档（allow）与历史输出逐字节一致，已由 tests/seo.test.ts 守着
+  const aiSeek = await putSettings({ aiPolicy: 'seek' })
+  const seekTxt = await (await raw('GET', '/robots.txt')).text()
+  const seekOk =
+    aiSeek.status === 200 &&
+    seekTxt.includes('Content-signal: search=yes, ai-input=yes, ai-train=no') &&
+    seekTxt.includes('User-agent: OAI-SearchBot') &&
+    seekTxt.includes('User-agent: PerplexityBot') &&
+    seekTxt.includes('User-agent: GPTBot') &&
+    seekTxt.includes('User-agent: CCBot') &&
+    seekTxt.includes('Content-signal: search=yes') &&
+    seekTxt.includes('Disallow: /admin') &&
+    seekTxt.includes('Sitemap:')
+  results.push(['AI 抓取策略：seek 档（检索放行 / 训练拒绝 + Content-signal）', seekOk])
+  console.log(`  ${seekOk ? '✓' : '✗'} AI 抓取策略：seek 档（status ${aiSeek.status}）`)
+  const aiDeny = await putSettings({ aiPolicy: 'deny' })
+  const denyTxt = await (await raw('GET', '/robots.txt')).text()
+  const denyOk =
+    aiDeny.status === 200 &&
+    denyTxt.includes('Content-signal: search=yes, ai-input=no, ai-train=no') &&
+    denyTxt.includes('User-agent: OAI-SearchBot') &&
+    denyTxt.includes('User-agent: GPTBot')
+  results.push(['AI 抓取策略：deny 档（训练 + 检索全部拒绝，ai-input=no）', denyOk])
+  console.log(`  ${denyOk ? '✓' : '✗'} AI 抓取策略：deny 档（status ${aiDeny.status}）`)
+  const aiBad = await putSettings({ aiPolicy: 'yolo' })
+  results.push(['AI 抓取策略：非法档位整体 400（不落库）', aiBad.status === 400])
+  console.log(`  ${aiBad.status === 400 ? '✓' : '✗'} AI 抓取策略：非法档位 400（status ${aiBad.status}）`)
+
+  const seoOff = await putSettings({ verifyMetas: '', analyticsScript: '', robotsExtra: '', aiPolicy: 'allow' })
+  results.push(['SEO 链路：还原配置', seoOff.status === 200])
+  console.log(`  ${seoOff.status === 200 ? '✓' : '✗'} SEO 链路：还原配置`)
+  await check('GET', '/robots.txt', 200, undefined, { notContains: 'smoke-drafts' })
+  const restoredTxt = await (await raw('GET', '/robots.txt')).text()
+  const restoredAiOk = !restoredTxt.includes('Content-signal') && !restoredTxt.includes('AI 抓取策略')
+  results.push(['AI 抓取策略：还原 allow 档后回到内置段（无 AI 声明）', restoredAiOk])
+  console.log(`  ${restoredAiOk ? '✓' : '✗'} AI 抓取策略：还原 allow 档`)
+
+  // ── SEO 收录口径链路（2026-10 SEO 审计）：sitemap 收录面收敛、标签页 noindex + canonical 自指、
+  //    全站 noindex 开关（settings.siteNoindex）。与 src/rss.ts buildSitemap / pages.ts renderList /
+  //    seo.ts buildRobotsTxt 三处同口径，改任一侧先跑这段 ──
+  console.log('\n▸ SEO 收录口径链路')
+  {
+    const sm = await raw('GET', '/sitemap.xml')
+    const smBody = await sm.text()
+    const smOk =
+      sm.status === 200 &&
+      smBody.includes('/post/smoke-multi-tag') &&
+      smBody.includes('/about</loc>') &&
+      smBody.includes('/weibo</loc>') &&
+      smBody.includes('<lastmod>') &&
+      // 标签薄页 / 留言板 / 友链不再主动提交；/page/about 是 301 目标，只提交规范地址 /about
+      !smBody.includes('/tag/') &&
+      !smBody.includes('/guestbook') &&
+      !smBody.includes('/links</loc>') &&
+      !smBody.includes('/page/about')
+    results.push(['sitemap 收录口径：文章/关于/微博在，标签页与薄页/301 页不在', smOk])
+    console.log(`  ${smOk ? '✓' : '✗'} sitemap 收录口径（status ${sm.status}）`)
+
+    // 标签页：noindex 退出索引，canonical 用 /tag/短链形态自指（不再指首页）
+    const tagEnc = encodeURIComponent('冒烟测试')
+    const tagPage = await raw('GET', `/tag/${tagEnc}`)
+    const tagHtml = await tagPage.text()
+    const tagOk =
+      tagPage.status === 200 &&
+      tagHtml.includes('<meta name="robots" content="noindex">') &&
+      new RegExp(`rel="canonical" href="[^"]*\\/tag\\/${tagEnc}"`).test(tagHtml)
+    results.push(['标签页 noindex + canonical 自指 /tag/短链', tagOk])
+    console.log(`  ${tagOk ? '✓' : '✗'} 标签页 noindex + canonical 自指（status ${tagPage.status}）`)
+
+    // 收录可见性守卫（2026-10-17）：/admin/stats 的 crawl 三态是后台概览告警条的唯一数据源，
+    // 与 buildRobotsTxt 的整站 Disallow 同口径（演示站 demo=true 时前台不告警，故这里只断布尔形状）
+    const crawl0 = await (await raw('GET', '/api/admin/stats', { headers: { Cookie: cookie } })).json()
+    const crawlShapeOk = !!crawl0.crawl && crawl0.crawl.noindex === false && crawl0.crawl.closed === false
+    results.push(['收录守卫：stats 出 crawl 三态（默认全可抓）', crawlShapeOk])
+    console.log(`  ${crawlShapeOk ? '✓' : '✗'} 收录守卫：stats 出 crawl 三态`)
+
+    // 全站 noindex 开关：页面出 noindex meta、robots.txt 整站 Disallow；关闭后恢复
+    const nxOn = await putSettings({ siteNoindex: '1' })
+    const nxHome = await raw('GET', bypassUrl('/'))
+    const nxHtml = await nxHome.text()
+    const nxRobotsTxt = await (await raw('GET', '/robots.txt')).text()
+    const nxStats = await (await raw('GET', '/api/admin/stats', { headers: { Cookie: cookie } })).json()
+    const nxOk =
+      nxOn.status === 200 &&
+      nxHtml.includes('<meta name="robots" content="noindex">') &&
+      nxRobotsTxt === 'User-agent: *\nDisallow: /\n' &&
+      nxStats.crawl?.noindex === true
+    results.push(['全站 noindex：页面 meta + robots.txt 整站 Disallow + 概览告警数据源翻真', nxOk])
+    console.log(`  ${nxOk ? '✓' : '✗'} 全站 noindex：页面 meta + robots.txt（status ${nxOn.status}）`)
+
+    const nxOff = await putSettings({ siteNoindex: '0' })
+    const backRobotsTxt = await (await raw('GET', '/robots.txt')).text()
+    const backHome = await raw('GET', bypassUrl('/'))
+    // 恢复后 robots.txt 回到内置段（Allow: / + 仅 Disallow: /admin + Sitemap 行），页面无 noindex
+    const backOk =
+      nxOff.status === 200 &&
+      backRobotsTxt.includes('Allow: /') &&
+      backRobotsTxt.includes('Disallow: /admin') &&
+      backRobotsTxt.includes('Sitemap:')
+    const backNoindex = !(await backHome.text()).includes('<meta name="robots" content="noindex">')
+    results.push(['全站 noindex：关闭后恢复正常收录（robots.txt 还原 + 页面无 noindex）', backOk && backNoindex])
+    console.log(`  ${backOk && backNoindex ? '✓' : '✗'} 全站 noindex：关闭后恢复`)
+  }
+
+  // ── 页面边缘缓存链路（src/pagecache.ts）：miss 回填 → 命中 → 设置换代作废 → 一键清理端点 ──
+  // wrangler dev 有 caches.default（workerd 模拟），链路可端到端验证；冒烟其余段落全走
+  // bypassUrl（带 query 不进缓存），本段是唯一刻意不带旁路参数的页面请求
+  console.log('\n▸ 页面边缘缓存链路')
+  {
+    const cacheHome1 = await raw('GET', '/')
+    const h1 = cacheHome1.headers.get('x-page-cache')
+    results.push(['页缓存：首次请求回源（miss 并回填）', cacheHome1.status === 200 && h1 === 'miss'])
+    console.log(`  ${h1 === 'miss' ? '✓' : '✗'} 页缓存：首次请求回源（x-page-cache: ${h1}）`)
+
+    const cacheHome2 = await raw('GET', '/')
+    const h2 = cacheHome2.headers.get('x-page-cache')
+    const sameBody = (await cacheHome2.text()).includes('fc-name')
+    results.push(['页缓存：第二次请求命中边缘副本', cacheHome2.status === 200 && h2 === 'hit' && sameBody])
+    console.log(`  ${h2 === 'hit' ? '✓' : '✗'} 页缓存：第二次请求命中（x-page-cache: ${h2}）`)
+
+    // 登录视角永远实时（不进缓存键），副本在也不能发给登录者
+    const adminHome = await raw('GET', '/', { headers: { Cookie: cookie } })
+    const ah = adminHome.headers.get('x-page-cache')
+    results.push(['页缓存：管理员会话不进缓存（登录视角实时）', adminHome.status === 200 && ah !== 'hit'])
+    console.log(`  ${ah !== 'hit' ? '✓' : '✗'} 页缓存：管理员会话不进缓存（x-page-cache: ${ah}）`)
+
+    const purgeRes = await raw('POST', '/api/admin/cache/purge', { headers: { Cookie: cookie } })
+    results.push(['页缓存：一键清理端点 200', purgeRes.status === 200])
+    console.log(`  ${purgeRes.status === 200 ? '✓' : '✗'} 页缓存：一键清理端点（status ${purgeRes.status}）`)
+
+    const cacheHome3 = await raw('GET', '/')
+    const h3 = cacheHome3.headers.get('x-page-cache')
+    results.push(['页缓存：清理后回源（旧副本整代作废）', cacheHome3.status === 200 && h3 === 'miss'])
+    console.log(`  ${h3 === 'miss' ? '✓' : '✗'} 页缓存：清理后回源（x-page-cache: ${h3}）`)
+  }
+
+  // ── AI 可获取面链路（B28：/llms.txt、/llms-full.txt、/post/:slug.md Markdown 镜像）──
+  // 守四件：① .md 镜像 200 且 Content-Type 是 text/markdown、内容与库同源且标签剥净（库存是
+  // 净化 HTML，镜像经 htmlToMd 转换）；② llms.txt 索引出条目与订阅清单；③ llms-full.txt 出正文
+  // 且不带标签；④ 密码文 .md 404（与关键词搜索「整体退出」同口径）
+  console.log('\n▸ AI 可获取面链路（B28）')
+  {
+    const mdMark = 'smoke-llms-md-body-77881'
+    const mdCreate = await raw('POST', '/api/admin/posts', {
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ title: '冒烟：AI 镜像文章', content: '<p>AI 镜像正文 ' + mdMark + '</p>', summary: '镜像摘要 77881', status: 'published' }),
+    })
+    const mdCreated = await mdCreate.json().catch(() => null)
+    const mdId = mdCreated && mdCreated.post && mdCreated.post.id
+    const mdSlug = mdCreated && mdCreated.post && mdCreated.post.slug
+    results.push(['AI 面建文', mdCreate.status === 200 && !!mdId])
+    if (mdId) {
+      const mdRes = await raw('GET', `/post/${encodeURIComponent(mdSlug)}.md`)
+      const mdType = (mdRes.headers.get('content-type') || '').includes('text/markdown')
+      const mdBody = await mdRes.text()
+      const mdOk =
+        mdRes.status === 200 &&
+        mdType &&
+        mdBody.includes('AI 镜像正文 ' + mdMark) &&
+        !mdBody.includes('<p>') &&
+        mdBody.includes('镜像摘要 77881')
+      results.push(['AI 面：.md 镜像 200 + text/markdown + 正文同源且标签剥净', mdOk])
+      console.log(`  ${mdOk ? '✓' : '✗'} AI 面：.md 镜像 200 + text/markdown + 正文同源且标签剥净`)
+
+      const llmsRes = await raw('GET', '/llms.txt')
+      const llmsBody = await llmsRes.text()
+      const llmsOk =
+        llmsRes.status === 200 &&
+        (llmsRes.headers.get('content-type') || '').includes('text/markdown') &&
+        llmsBody.includes(`/post/${encodeURIComponent(mdSlug)}`) &&
+        llmsBody.includes('/rss.xml')
+      results.push(['AI 面：llms.txt 索引出条目与机器可读清单', llmsOk])
+      console.log(`  ${llmsOk ? '✓' : '✗'} AI 面：llms.txt 索引出条目与机器可读清单`)
+
+      const fullRes = await raw('GET', '/llms-full.txt')
+      const fullBody = await fullRes.text()
+      const fullOk =
+        fullRes.status === 200 && fullBody.includes('AI 镜像正文 ' + mdMark) && !fullBody.includes('<p>AI 镜像正文')
+      results.push(['AI 面：llms-full.txt 出正文且标签剥净', fullOk])
+      console.log(`  ${fullOk ? '✓' : '✗'} AI 面：llms-full.txt 出正文且标签剥净`)
+
+      // AI 策略 deny 档：AI 面整体关闭——llms 出桩（文案指向策略）、.md 404；恢复后回正常
+      const denyPut = await putSettings({ aiPolicy: 'deny' })
+      const denyLlms = await raw('GET', `/llms.txt?_smoke=${Date.now()}`)
+      const denyLlmsBody = await denyLlms.text()
+      const denyMd = await raw('GET', `/post/${encodeURIComponent(mdSlug)}.md?_smoke=${Date.now()}`)
+      const denyOk =
+        denyPut.status === 200 &&
+        denyLlms.status === 200 &&
+        denyLlmsBody.includes('不允许 AI 抓取') &&
+        !denyLlmsBody.includes('演示') &&
+        denyMd.status === 404
+      results.push(['AI 面：aiPolicy=deny 时 llms 出桩 + .md 404', denyOk])
+      console.log(`  ${denyOk ? '✓' : '✗'} AI 面：aiPolicy=deny 时 llms 出桩 + .md 404`)
+      await putSettings({ aiPolicy: 'allow' })
+
+      // 密码文：.md 一律 404（与不存在同响应，不透露存在性）
+      const pwCreate = await raw('POST', '/api/admin/posts', {
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ title: '冒烟：AI 镜像加密文', content: 'smoke-llms-pw-body', status: 'published', password: 'smoke-pass-4321' }),
+      })
+      const pwCreated = await pwCreate.json().catch(() => null)
+      const pwId = pwCreated && pwCreated.post && pwCreated.post.id
+      const pwSlug = pwCreated && pwCreated.post && pwCreated.post.slug
+      if (pwId) {
+        const pwMd = await raw('GET', `/post/${encodeURIComponent(pwSlug)}.md`)
+        const pwOk = pwMd.status === 404 && !(await pwMd.text()).includes('smoke-llms-pw-body')
+        results.push(['AI 面：密码文 .md 404 不透露存在性', pwOk])
+        console.log(`  ${pwOk ? '✓' : '✗'} AI 面：密码文 .md 404 不透露存在性`)
+        await raw('DELETE', `/api/admin/posts/${pwId}`, { headers: { Cookie: cookie } })
+        await raw('DELETE', `/api/admin/trash/post/${pwId}`, { headers: { Cookie: cookie } })
+      }
+
+      // 清理：软删后 llms 索引即不含（listPosts 的 deleted_at 过滤同源）
+      await raw('DELETE', `/api/admin/posts/${mdId}`, { headers: { Cookie: cookie } })
+      await raw('DELETE', `/api/admin/trash/post/${mdId}`, { headers: { Cookie: cookie } })
+      const llmsAfter = await (await raw('GET', '/llms.txt')).text()
+      const goneOk = !llmsAfter.includes(encodeURIComponent(mdSlug))
+      results.push(['AI 面：软删后索引不再含该文', goneOk])
+      console.log(`  ${goneOk ? '✓' : '✗'} AI 面：软删后索引不再含该文`)
+    }
+  }
+
+  // ── 整站包链路（B26：一键导出整站 / 一键还原到空站，src/sitebundle.ts）──
+  // 守三件最容易被改坏的事：① 导出必须回真 zip（PK 魔数）；② /api/admin/bundle/upload 走的是
+  // 「整站包档位」（100MB）而不是 2MB 普通档——>2MB 的包必须放行；③ **空站守卫**：冒烟库里
+  // 有夹具内容，导入必须被明确拒绝（永不覆盖、永不合并），且没有 start 会话时 step 也不可绕过。
+  console.log('\n▸ 整站包链路（B26）')
+  {
+    const auth = { headers: { Cookie: cookie } }
+    const jsonHeaders = { 'Content-Type': 'application/json', Cookie: cookie }
+
+    // 未登录：与 /admin/* 同口径一律 401（导入是重操作，绝不能落在鉴权之外）
+    const anonList = await raw('GET', '/api/admin/bundle/list')
+    const anonExport = await raw('GET', '/api/admin/bundle/export')
+    const anonOk = anonList.status === 401 && anonExport.status === 401
+    results.push(['整站包：未登录一律 401', anonOk])
+    console.log(`  ${anonOk ? '✓' : '✗'} 整站包：未登录一律 401（list ${anonList.status} / export ${anonExport.status}）`)
+
+    // 导出：流式 zip（PK 魔数 + 体积合理）
+    const exRes = await raw('GET', '/api/admin/bundle/export', auth)
+    const exBytes = new Uint8Array(await exRes.arrayBuffer())
+    const zipOk =
+      exRes.status === 200 &&
+      exBytes.length > 200 &&
+      exBytes[0] === 0x50 &&
+      exBytes[1] === 0x4b &&
+      exBytes[2] === 0x03 &&
+      exBytes[3] === 0x04
+    results.push(['整站包：导出返回合法 zip（PK 魔数）', zipOk])
+    console.log(`  ${zipOk ? '✓' : '✗'} 整站包：导出返回合法 zip（status ${exRes.status} / ${exBytes.length} 字节）`)
+
+    // 上传（原始 body，服务端流式落 R2）：>2MB 必须放行（证明走的是整站包档位，不是普通 2MB 档）
+    const bigBundle = new Uint8Array(3 * 1024 * 1024)
+    bigBundle.set([0x50, 0x4b, 0x03, 0x04])
+    const bigUp = await raw('POST', '/api/admin/bundle/upload', {
+      headers: { 'Content-Type': 'application/zip', Cookie: cookie },
+      body: bigBundle,
+    })
+    const bigUpBody = await bigUp.json().catch(() => null)
+    const bigOk = bigUp.status === 200 && !!(bigUpBody && bigUpBody.key)
+    results.push(['整站包：上传 3MB 放行（>2MB 不再 413）', bigOk])
+    console.log(`  ${bigOk ? '✓' : '✗'} 整站包：上传 3MB 放行（status ${bigUp.status}）`)
+
+    // 真包上传：拿刚导出的字节再传一遍，用来验「空站守卫」（假包会先在 zip 解析处失败）
+    const realUp = await raw('POST', '/api/admin/bundle/upload', {
+      headers: { 'Content-Type': 'application/zip', Cookie: cookie },
+      body: exBytes,
+    })
+    const realUpBody = await realUp.json().catch(() => null)
+    const realKey = realUpBody && realUpBody.key
+
+    // 列表回显（含导入状态记账位）
+    const listRes = await raw('GET', '/api/admin/bundle/list', auth)
+    const listBody = await listRes.json().catch(() => null)
+    const listed =
+      listRes.status === 200 && !!(listBody && (listBody.bundles || []).some((b) => b.key === realKey) && listBody.import)
+    results.push(['整站包：列表回显已上传的包与导入状态', listed])
+    console.log(`  ${listed ? '✓' : '✗'} 整站包：列表回显（status ${listRes.status}）`)
+
+    // 空站守卫：冒烟库有夹具内容 → 必须明确拒绝（且不清空任何东西）
+    const startRes = await raw('POST', '/api/admin/bundle/import/start', {
+      headers: jsonHeaders,
+      body: JSON.stringify({ key: realKey }),
+    })
+    const startBody = await startRes.json().catch(() => null)
+    const guardOk = startRes.status === 400 && !!(startBody && /只允许还原到/.test(startBody.error || ''))
+    results.push(['整站包：非空站导入被拒（永不覆盖、永不合并）', guardOk])
+    console.log(`  ${guardOk ? '✓' : '✗'} 整站包：非空站导入被拒（status ${startRes.status}）`)
+
+    // 没有 start 会话时直接调 step 也要被拒（否则可绕过空站守卫往有内容的站里灌）
+    const stepRes = await raw('POST', '/api/admin/bundle/import/step', {
+      headers: jsonHeaders,
+      body: JSON.stringify({ key: realKey, unit: 'posts', cursor: 0 }),
+    })
+    const stepOk = stepRes.status === 400
+    results.push(['整站包：无会话直接调 step 被拒（守卫不可绕过）', stepOk])
+    console.log(`  ${stepOk ? '✓' : '✗'} 整站包：无会话直接调 step 被拒（status ${stepRes.status}）`)
+
+    // 夹具内容分毫未动（守卫失败的典型表现就是「被清空了」）
+    const stillThere = await raw('GET', bypassUrl('/post/smoke-multi-tag'))
+    const untouched = stillThere.status === 200
+    results.push(['整站包：被拒后站点内容分毫未动', untouched])
+    console.log(`  ${untouched ? '✓' : '✗'} 整站包：被拒后站点内容分毫未动（status ${stillThere.status}）`)
+
+    // 「清空本站内容」（空站守卫的配套）两道闸：未登录 401 / 确认语不对 400。
+    // 真清空**不在冒烟里跑**——它会毁掉本地开发库的内容（happy path 由 tests/sitebundle.test.ts 覆盖，
+    // 那里用内存库跑「清空 → 导入成功」的完整链路）。
+    const anonReset = await raw('POST', '/api/admin/site/reset', {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: '清空本站' }),
+    })
+    const badReset = await raw('POST', '/api/admin/site/reset', {
+      headers: jsonHeaders,
+      body: JSON.stringify({ confirm: '清空' }),
+    })
+    const resetGuardOk = anonReset.status === 401 && badReset.status === 400
+    results.push(['整站包：清空本站 未登录 401 / 确认语错 400', resetGuardOk])
+    console.log(
+      `  ${resetGuardOk ? '✓' : '✗'} 整站包：清空本站守卫（未登录 ${anonReset.status} / 确认语错 ${badReset.status}）`
+    )
+
+    // 确认语不对时绝不能动数据（这类「不可撤销」端点的典型事故就是参数校验放在删除之后）
+    const afterBad = await raw('GET', bypassUrl('/post/smoke-multi-tag'))
+    const notWiped = afterBad.status === 200
+    results.push(['整站包：清空本站确认语错时内容分毫未动', notWiped])
+    console.log(`  ${notWiped ? '✓' : '✗'} 整站包：清空本站确认语错时内容分毫未动（status ${afterBad.status}）`)
+
+    // 清理：删掉本次上传的两个包，列表随之消失
+    const del = (key) =>
+      raw('POST', '/api/admin/bundle/delete', { headers: jsonHeaders, body: JSON.stringify({ key }) })
+    if (bigUpBody && bigUpBody.key) await del(bigUpBody.key)
+    if (realKey) await del(realKey)
+    const afterList = await raw('GET', '/api/admin/bundle/list', auth)
+    const afterBody = await afterList.json().catch(() => null)
+    const cleaned = !!(
+      afterBody &&
+      !(afterBody.bundles || []).some((b) => b.key === realKey || b.key === (bigUpBody && bigUpBody.key))
+    )
+    results.push(['整站包：删除后列表不再回显', cleaned])
+    console.log(`  ${cleaned ? '✓' : '✗'} 整站包：删除后列表不再回显`)
   }
 
 } finally {

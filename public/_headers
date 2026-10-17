@@ -1,8 +1,23 @@
 # 后台 SPA 经 wrangler assets 直出不经过 Worker（CSP 的 meta 兜底在 admin/index.html）。
 # 这里补 meta 兜不住的响应面：frame-ancestors 在 meta 里按规范无效，XFO/ nosniff /
 # Referrer-Policy 只有响应头才作数。其余路径（前台 HTML）的安全头在 pages.ts baseHeaders。
+# XFO 与 frame-ancestors 双写（后者是现代标准，认得 frame-ancestors 的浏览器以其为准）；
+# 2026-10-15 审计确认 /admin/ 缺 CSP 形态的防嵌套声明，docker-poc/server.ts 的 serveStatic
+# 对本文件有同语义镜像（改口径两侧同改），本文件自身不作为静态资源对外服务。
 /admin/*
   X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: same-origin
   Cross-Origin-Opener-Policy: same-origin
+
+# 前台静态资源缓存（复访提速，2026-10-14）：assets 默认 max-age=0 must-revalidate，
+# 复访者每次导航都要发条件请求验证（跨境访客一个 RTT）。site.js / share-card.js 改动随部署
+# 发布且无构建链无版本号，max-age 只给 1 小时时效窗口（部署后旧 JS 最多滞后 1 小时）；
+# emoji PNG 是 scripts/fetch-emoji.mjs 的稳定产物（码点同名不改内容），一年 immutable。
+/site.js
+  Cache-Control: public, max-age=3600
+/share-card.js
+  Cache-Control: public, max-age=3600
+/emoji/*
+  Cache-Control: public, max-age=31536000, immutable

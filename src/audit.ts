@@ -10,6 +10,7 @@ import type { Env } from './types'
  *
  * 引用源清单（新增存图片地址的字段时必须同步 pullReferenceTexts）：
  *   posts.content（含 <meta data-og-image>）与 posts.cover、pages.content、weibo.images、
+ *   weibo.video（视频地址与封面帧，B19）、
  *   users.avatar、friend_links.icon、settings.value（favicon/头像/OG 默认图）、tg_buffer（待合并的 TG 相册）。
  *   评论正文是纯文本不存 HTML，不构成引用源。
  */
@@ -139,6 +140,8 @@ async function pullReferenceTexts(db: D1Database): Promise<string[]> {
     ['posts', 'content'],
     ['pages', 'content'],
     ['weibo', 'images'],
+    // 视频列存 JSON（url + poster 都是 /images/ 地址）：不进引用源会被体检误判为「未被引用」（B19）
+    ['weibo', 'video'],
   ] as const) {
     texts.push(...(await bucketedColumnScan(db, table, column)))
   }
@@ -256,6 +259,8 @@ export interface MergeResult {
   /** 被改写的引用处数（跨所有表的行数合计） */
   updated: number
   freedBytes: number
+  /** 被合并删除的 key（调用方据此清图床边缘缓存，审计 F2） */
+  removed: string[]
 }
 
 const REF_TABLES: [table: string, cols: string[]][] = [
@@ -312,7 +317,7 @@ export async function mergeDuplicate(env: Env, keep: string, remove: string[]): 
   await env.DB.prepare(`DELETE FROM uploads WHERE key IN (${rm.map(() => '?').join(',')})`)
     .bind(...rm)
     .run()
-  return { updated, freedBytes: keepRow.size * rm.length }
+  return { updated, freedBytes: keepRow.size * rm.length, removed: rm }
 }
 
 /* ---------------- 清理未引用 ---------------- */
@@ -322,6 +327,8 @@ export interface CleanupResult {
   freedBytes: number
   /** 执行时发现已被内容引用而保留下来的 key（体检与清理之间内容可能变过） */
   blocked: string[]
+  /** 真正删除的 key（调用方据此清图床边缘缓存，审计 F2） */
+  deletedKeys: string[]
 }
 
 /** 删除一批未引用媒体。执行前对这批 key 重新做一遍引用判定：期间新写的文章若用上了
@@ -333,7 +340,7 @@ export async function cleanupUnreferenced(env: Env, keys: string[]): Promise<Cle
   const referenced = await scanReferencedKeys(env, ks)
   const deletable = ks.filter((k) => !referenced.has(k))
   const blocked = ks.filter((k) => referenced.has(k))
-  if (!deletable.length) return { deleted: 0, freedBytes: 0, blocked }
+  if (!deletable.length) return { deleted: 0, freedBytes: 0, blocked, deletedKeys: [] }
 
   const ph = deletable.map(() => '?').join(',')
   const { results } = await env.DB
@@ -345,5 +352,5 @@ export async function cleanupUnreferenced(env: Env, keys: string[]): Promise<Cle
   await env.DB.prepare(`DELETE FROM uploads WHERE key IN (${ph})`)
     .bind(...deletable)
     .run()
-  return { deleted: deletable.length, freedBytes, blocked }
+  return { deleted: deletable.length, freedBytes, blocked, deletedKeys: deletable }
 }

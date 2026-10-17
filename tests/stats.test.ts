@@ -52,6 +52,7 @@ test('cleanRef 只留 http(s) 域名，剥控制字符', () => {
 test('cleanPath 清洗非法路径', () => {
   assert.equal(cleanPath('/post/hello?utm=x'), '/post/hello?utm=x')
   assert.equal(cleanPath('/weibo?page=2&topic=日常'), '/weibo?page=2&topic=日常')
+  assert.equal(cleanPath('/'), '/') // 裸首页合法：访客打点不许丢首页
   assert.equal(cleanPath('\n/post/x'), '/post/x')
   assert.equal(cleanPath('https://evil.com/x'), '')
   assert.equal(cleanPath('post/x'), '')

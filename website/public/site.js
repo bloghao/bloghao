@@ -37,6 +37,23 @@
   var y = document.getElementById('year')
   if (y) y.textContent = String(new Date().getFullYear())
 
+  // 锚点纠偏：目录卡片异步注入、图片陆续加载会把锚点下方内容顶移，
+  // 落点漂移后用户看到的就是别的区块。资源就绪时若用户没手动滚过，重新对位一次
+  if (location.hash) {
+    var anchorMoved = false
+    var anchorMark = function () { anchorMoved = true }
+    window.addEventListener('wheel', anchorMark, { passive: true, once: true })
+    window.addEventListener('touchmove', anchorMark, { passive: true, once: true })
+    window.addEventListener('keydown', anchorMark, { once: true })
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        if (anchorMoved) return
+        var target = document.getElementById(location.hash.slice(1))
+        if (target) target.scrollIntoView()
+      }, 80)
+    })
+  }
+
   // 博客号目录：数据来自 data/showcase.json（去仓库提 issue 即可上榜）
   var grid = document.getElementById('showcase-grid')
   if (grid) {
@@ -132,5 +149,45 @@
       .catch(function () {
         plazaStat.textContent = '广场内容实时聚合中。'
       })
+  }
+
+  // 赞助位：复制助理微信（微信号以 #support-wx-id 为准）
+  var supportCopy = document.getElementById('support-copy')
+  if (supportCopy) {
+    var wxIdEl = document.getElementById('support-wx-id')
+    var copyTimer = null
+    supportCopy.addEventListener('click', function () {
+      var text = wxIdEl ? String(wxIdEl.textContent || '').trim() : ''
+      if (!text) return
+      var done = function (ok) {
+        supportCopy.textContent = ok ? '已复制 ✓' : '复制'
+        supportCopy.classList.toggle('is-done', !!ok)
+        if (copyTimer) clearTimeout(copyTimer)
+        if (ok) {
+          copyTimer = setTimeout(function () {
+            supportCopy.textContent = '复制'
+            supportCopy.classList.remove('is-done')
+          }, 1600)
+        }
+      }
+      var fallback = function () {
+        var ta = document.createElement('textarea')
+        ta.value = text
+        ta.setAttribute('readonly', '')
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        var ok = false
+        try { ok = document.execCommand('copy') } catch (e) {}
+        document.body.removeChild(ta)
+        done(ok)
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { done(true) }, fallback)
+      } else {
+        fallback()
+      }
+    })
   }
 })()

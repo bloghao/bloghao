@@ -4,13 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>广场 —— 博客号 BlogHao</title>
-<meta name="description" content="博客号广场：所有博客号的最新文章与微博，在这里汇成一条河。权重 + 新文推荐 + 随机展示，每次刷新都可能有新发现。">
+<meta name="description" content="博客号广场：所有博客号的最新文章与微博，卡片墙逛起来。站点视图逐个逛、匿名点赞、活跃榜，带动整个博客号生态互相回访。">
+<link rel="canonical" href="https://bloghao.com/plaza/">
 <meta property="og:title" content="博客号广场 —— 大家都在写什么">
-<meta property="og:description" content="所有博客号的最新文章与微博汇成一条河，刷新一下，逛逛别人的博客号。">
+<meta property="og:description" content="所有博客号的最新文章与微博汇成卡片墙，点进站点视图逛逛别人的博客号。">
+<meta property="og:url" content="https://bloghao.com/plaza/">
+<meta property="og:image" content="https://bloghao.com/assets/editor.png">
 <meta property="og:type" content="website">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../style.css?v=20261011i">
-<link rel="stylesheet" href="./plaza.css?v=20261011h">
+<link rel="stylesheet" href="./plaza.css?v=20261016a">
 </head>
 <body>
 
@@ -38,12 +41,28 @@
 <main>
   <section class="plaza-hero">
     <div class="wrap">
-      <h1>广场</h1>
-      <p class="plaza-hero-sub">所有博客号的最新文章与微博，在这里汇成一条河。<br>权重、新文与一点随机，每次刷新都可能撞见新东西。</p>
-      <div class="plaza-tabs" id="plaza-tabs" role="tablist" aria-label="内容类型">
+      <div id="plaza-hero-default">
+        <h1>广场</h1>
+        <p class="plaza-hero-sub">所有博客号的最新文章与微博，汇成一堵值得逛的卡片墙。<br>点站点名进站点视图，看到喜欢的就去 TA 的博客号逛逛。</p>
+      </div>
+      <div class="plaza-site-hero" id="plaza-site-hero" hidden>
+        <a class="plaza-site-back" href="./">← 返回广场</a>
+        <div class="plaza-site-hero-row">
+          <a class="plaza-site-hero-avatar" id="plaza-site-hero-avatar" href="./" aria-hidden="true" tabindex="-1"></a>
+          <div class="plaza-site-hero-main">
+            <h1 id="plaza-site-hero-name"></h1>
+            <p class="plaza-site-hero-sub" id="plaza-site-hero-sub">在广场上的最新文章与微博</p>
+          </div>
+          <a class="btn btn-primary plaza-visit-btn" id="plaza-site-hero-visit" target="_blank" rel="noopener" hidden>去逛逛 ↗</a>
+        </div>
+      </div>
+      <div class="plaza-tabs" id="plaza-tabs" role="tablist" aria-label="内容类型与视图">
         <button class="plaza-tab is-active" data-kind="" role="tab" aria-selected="true">全部</button>
         <button class="plaza-tab" data-kind="post" role="tab" aria-selected="false">📝 文章</button>
         <button class="plaza-tab" data-kind="weibo" role="tab" aria-selected="false">💭 微博</button>
+        <span class="plaza-tab-sep" aria-hidden="true"></span>
+        <button class="plaza-tab" data-view="wall" type="button" title="双列瀑布流（桌面默认）">▦ 卡片墙</button>
+        <button class="plaza-tab" data-view="river" type="button" title="单列信息流">☰ 河流</button>
         <button class="plaza-tab plaza-tab-refresh" id="plaza-refresh" title="换一批（混排带随机，刷新就有新顺序）" type="button">🔄 换一批</button>
       </div>
     </div>
@@ -56,8 +75,13 @@
       </div>
       <aside class="plaza-side">
         <div class="plaza-side-card">
-          <h2>收录的博客号</h2>
+          <h2>活跃博客号</h2>
+          <p class="plaza-side-sub">按近 7 日更新排序，点进站点视图逛逛</p>
           <ul class="plaza-sites" id="plaza-sites"><li class="plaza-loading">加载中…</li></ul>
+        </div>
+        <div class="plaza-side-card" id="plaza-newest-card" hidden>
+          <h2>最新入驻</h2>
+          <ul class="plaza-sites plaza-newest" id="plaza-newest"></ul>
         </div>
         <div class="plaza-side-card">
           <h2>你的博客号也来？</h2>
@@ -92,6 +116,6 @@
 </footer>
 
 <script src="../site.js?v=20261011h" defer></script>
-<script src="./plaza.js?v=20261011g" defer></script>
+<script src="./plaza.js?v=20261016a" defer></script>
 </body>
 </html>

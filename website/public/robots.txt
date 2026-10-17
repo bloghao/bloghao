@@ -1,0 +1,6 @@
+# 博客号官网 robots.txt
+# 说明：本站经 Cloudflare 代理，CF 的 content-signals 段会自动追加在本文件之后，无需手抄。
+User-agent: *
+Allow: /
+
+Sitemap: https://bloghao.com/sitemap.xml

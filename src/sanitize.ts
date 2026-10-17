@@ -38,7 +38,7 @@ function ogImageUrl(raw: string): string | null {
 }
 
 const ALLOWED_TAGS = new Set([
-  'p', 'br', 'hr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'p', 'br', 'hr', 'wbr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'blockquote', 'pre', 'code', 'kbd', 'samp',
   'ul', 'ol', 'li', 'a', 'img', 'video', 'source',
   'strong', 'b', 'em', 'i', 'u', 's', 'del', 'ins', 'mark', 'sup', 'sub', 'small', 'abbr', 'cite', 'q', 'span',

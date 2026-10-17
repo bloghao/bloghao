@@ -9,8 +9,14 @@
 // （/docs 无斜杠时 ../style.css 会解析成 /docs/style.css，整页丢样式）。
 // 同时生成站内搜索索引（/docs/docs-search-index.js，一次加载全站缓存，客户端零请求零依赖），
 // 搜索 UI 在 public/docs.js、样式在 public/docs.css。
+// 还会重生成全站 /sitemap.xml：页面集合 = 扫描 website/public 的真实 html 文件，
+// lastmod = 各页在 git 里的最后提交日期——改页面后跑本脚本即同步，谷歌收录入口；
+// tests/website-sitemap.test.ts 守着 sitemap 与磁盘页面集合不漂移。
+// ⚠️ marked 按 CommonMark 判定加粗定界符的 flanking：** 紧贴中文标点（如 **「词」** 的开头、
+// ……）** 的结尾）不会被解析成加粗，星号原样漏到页面上——写文档时让 ** 隔开标点或调整措辞。
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises'
+import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { Marked } from 'marked'
@@ -23,7 +29,7 @@ const GITHUB_BLOB = 'https://github.com/bloghao/bloghao/blob/main/'
 
 // 资源缓存版本：改动 style.css / docs.css / docs.js / docs-search-index.js / favicon.svg 后
 // 改这里，重建时统一带上（搜索索引换版本号 = 访客立刻拿到新索引，不必等缓存过期）
-const V = '?v=20261012a'
+const V = '?v=20261014d'
 
 // 文档清单：slug 决定输出文件名与站内路径，顺序即侧栏与上下篇顺序
 const DOCS = [
@@ -374,7 +380,13 @@ function pager(activeSlug) {
   return `\n  <nav class="docs-pager">\n    ${parts.join('\n    ')}\n  </nav>`
 }
 
-function page({ title, description, body }) {
+function page({ title, description, body, path }) {
+  // SEO（2026-10 审计补齐）：canonical 自指绝对地址、og:url/og:image 绝对地址——
+  // 相对 og:image（./assets/…）微信 / X / Telegram 抓不到分享图
+  const url = `https://bloghao.com${path}`
+  const seo = `<link rel="canonical" href="${url}">
+<meta property="og:url" content="${url}">
+<meta property="og:image" content="https://bloghao.com/assets/editor.png">`
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -382,6 +394,7 @@ function page({ title, description, body }) {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${title}</title>
 <meta name="description" content="${description}">
+${seo}
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${description}">
 <meta property="og:type" content="article">
@@ -421,6 +434,7 @@ ${html}
     title: `${doc.title} - 博客号文档`,
     description: doc.desc,
     body,
+    path: `/docs/${doc.slug}.html`,
   })
 }
 
@@ -465,6 +479,7 @@ function indexPage() {
     title: '文档中心 - 博客号 BlogHao',
     description: '博客号 BlogHao 全部中文文档：部署教程、使用手册、Cloudflare 基础、主题开发、插件开发、API 参考、排版规范、演示站指南、路线图、版本大事记与逐版本更新日志。',
     body,
+    path: '/docs/',
   })
 }
 
@@ -500,7 +515,13 @@ async function patchHandWrittenPage() {
           /<link rel="stylesheet" href="(?:\.\.\/|\/)style\.css[^"]*">/,
           `<link rel="stylesheet" href="/style.css${V}">`
         )
-        if (!src.includes(`/docs.css${V}`)) {
+        // docs.css 已有引用先归一到当前 V（V 升位重建的幂等性：否则旧版本残留会让自检
+        // 误报「注入不完整」，或落入插入分支造成重复注入），从未有过才插入
+        src = src.replace(
+          /<link rel="stylesheet" href="(?:\.\.\/|\/)docs\.css[^"]*">/,
+          `<link rel="stylesheet" href="/docs.css${V}">`
+        )
+        if (!src.includes('/docs.css')) {
           src = src.replace(
             new RegExp(`<link rel="stylesheet" href="/style\\.css${V}">`),
             `<link rel="stylesheet" href="/style.css${V}">\n<link rel="stylesheet" href="/docs.css${V}">`
@@ -515,6 +536,17 @@ async function patchHandWrittenPage() {
         const before2 = src
         src = src.replace(/(href=")(?:\.\.\/|\/)favicon\.svg[^"]*(")/g, `$1/favicon.svg${V}$2`)
         src = src.replace(/(src=")(?:\.\.\/|\/)favicon\.svg[^"]*(")/g, `$1/favicon.svg${V}$2`)
+        return src !== before2
+      },
+    },
+    {
+      what: '规范链接与分享图',
+      run: () => {
+        const before2 = src
+        if (!src.includes('<link rel="canonical"')) {
+          const seo = `<link rel="canonical" href="https://bloghao.com/docs/security-audit.html">\n<meta property="og:url" content="https://bloghao.com/docs/security-audit.html">\n<meta property="og:image" content="https://bloghao.com/assets/editor.png">`
+          src = src.replace('</title>', `</title>\n${seo}`)
+        }
         return src !== before2
       },
     },
@@ -621,4 +653,72 @@ for (const doc of DOCS) {
 
 console.log(`✓ docs/security-audit.html  ←  手写页（${patched ? '已更新资源引用与搜索框' : '无需变更'}，索引 ${chunks.length} 小节）`)
 console.log(`✓ docs/docs-search-index.js  ←  搜索索引（${searchIndex.pages.length} 篇 / ${searchIndex.entries.length} 条记录，独立文件全站共用）`)
-console.log(`\n完成：${DOCS.length} 篇文档页 + 文档中心首页 + 安全审计页 + 搜索索引 → website/public/docs/`)
+
+// ---------- 全站 sitemap.xml（谷歌收录入口，勿手改） ----------
+// 页面集合一律以磁盘扫描为准（website/public 下的全部 html），与部署产物天然一致；
+// lastmod 取该页面文件在 git 的最后提交日期（新文件未提交时回落文件修改日期）。
+
+const SITE_URL = 'https://bloghao.com'
+const publicDir = path.join(root, 'website', 'public')
+
+async function collectHtmlFiles(dir) {
+  const entries = await readdir(dir, { withFileTypes: true })
+  const files = []
+  for (const e of entries) {
+    const full = path.join(dir, e.name)
+    if (e.isDirectory()) files.push(...(await collectHtmlFiles(full)))
+    else if (e.name.endsWith('.html')) files.push(path.relative(publicDir, full).split(path.sep).join('/'))
+  }
+  return files
+}
+
+// sitemap 里的规范形态：目录页去 index.html（/、/docs/、/plaza/），其余保留文件名
+function pageUrlOf(relpath) {
+  if (relpath === 'index.html') return SITE_URL + '/'
+  if (relpath.endsWith('/index.html')) return SITE_URL + '/' + relpath.slice(0, -'index.html'.length)
+  return SITE_URL + '/' + relpath
+}
+
+function urlMeta(url) {
+  if (url === SITE_URL + '/') return { changefreq: 'weekly', priority: '1.0' }
+  if (url === SITE_URL + '/docs/') return { changefreq: 'weekly', priority: '0.9' }
+  if (url === SITE_URL + '/plaza/') return { changefreq: 'weekly', priority: '0.8' }
+  if (url.startsWith(SITE_URL + '/docs/')) return { changefreq: 'monthly', priority: '0.7' }
+  return { changefreq: 'monthly', priority: '0.5' }
+}
+
+async function gitLastmod(relpath) {
+  try {
+    // relpath 相对 website/public，git 命令 cwd 是仓库根——路径必须拼回前缀才能命中，
+    // 否则静默回落 mtime，全站 lastmod 恒为构建当天
+    const d = execSync(`git log -1 --format=%cs -- ${JSON.stringify(`website/public/${relpath}`)}`, { cwd: root, encoding: 'utf8' }).trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d
+  } catch { /* 无 git 环境时回落 mtime */ }
+  const m = await stat(path.join(publicDir, relpath))
+  return m.mtime.toISOString().slice(0, 10)
+}
+
+const htmlFiles = (await collectHtmlFiles(publicDir)).sort() // '/' 与前缀目录天然排前，输出稳定
+const sitemapEntries = []
+for (const rel of htmlFiles) {
+  const url = pageUrlOf(rel)
+  const meta = urlMeta(url)
+  sitemapEntries.push(
+    `  <url>\n    <loc>${url}</loc>\n    <lastmod>${await gitLastmod(rel)}</lastmod>\n    <changefreq>${meta.changefreq}</changefreq>\n    <priority>${meta.priority}</priority>\n  </url>`
+  )
+}
+await writeFile(
+  path.join(publicDir, 'sitemap.xml'),
+  `<?xml version="1.0" encoding="UTF-8"?>
+<!-- 由 website/build-docs.mjs 生成，勿手改：页面集合 = 扫描 website/public 的全部 html，
+     lastmod = 各页在 git 的最后提交日期；改页面后跑 npm run build:docs 即同步，
+     tests/website-sitemap.test.ts 守着与磁盘页面集合一致。 -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${sitemapEntries.join('\n')}
+</urlset>
+`,
+  'utf8'
+)
+
+console.log(`✓ sitemap.xml  ←  全站 ${sitemapEntries.length} 个页面（git lastmod，谷歌收录入口）`)
+console.log(`\n完成：${DOCS.length} 篇文档页 + 文档中心首页 + 安全审计页 + 搜索索引 + sitemap → website/public/`)

@@ -102,7 +102,7 @@
 | B9 | ✅ 已修:hooks.ts 新增 firePlazaRetract(带 deleted 协议载荷,尊重插件停用开关与 demo 门控),api.ts 三路接线(PUT 补密/升档/转草稿、posts 软删、weibo 软删);PLAZA.md 已更新 |
 | B10 | ✅ 已修:commentWebhookUrl 进 SECRET_SETTINGS(GET/PUT 双向打码) |
 | B11 | ✅ 已修:并入 A6/C1 |
-| C2 | ⬜ 待站长:dashboard 核实 workers.dev 开关;确认后可在 wrangler.jsonc 显式 workers_dev:false(下一发布) |
+| C2 | ✅ 收敛:wrangler.jsonc 显式 `workers_dev: false` 已于当日落地(906cb3e, 2026-10-12)并随其后 41 次推送经 Workers Builds 部署——workers.dev 平行入口在配置层已关闭;2026-10-15 复核:仓库内无该地址实记录(仅占位符),站长可顺手在 dashboard 对该路由状态做最终确认(双保险,非必须)。另注意 B11 的 export 半边当时未落,2026-10-15 补齐(f2c7daf) |
 | C3 | ◐ 登记接受:TG webhook query secret 兼容旧绑定(observability 日志面;secret 可轮换);建议重绑后由站长移除兼容通道 |
 
 ## 四·二、修复登记(文件清单)

@@ -9,19 +9,49 @@ const settings = {
   rssFullText: '1',
 } as SettingsMap
 
-// ── sitemap（回归：文章上限曾被 listPosts clamp 到 100；分类/标签页缺失；中文 slug 未编码）──
-test('sitemap 包含分类/标签页且中文做百分号编码', () => {
+// ── sitemap（回归：文章上限曾被 listPosts clamp 到 100；中文 slug 未编码；
+//    2026-10 SEO 审计：标签薄页退出收录、/page/about 不再重复提交 301 目标、lastmod 补全）──
+test('sitemap 收录分类/文章页且中文做百分号编码；标签页与薄页不收录', () => {
   const out = buildSitemap(
     settings,
     [{ slug: 'hello-world', updated_at: Date.UTC(2026, 0, 2) }],
     'https://blog.example.com',
-    [{ slug: 'life-notes', name: '生活' }],
-    [{ name: '生活随笔', count: 3 }]
+    [{ slug: 'life-notes', name: '生活', lastmod: '2026-01-02' }],
+    [
+      { slug: 'about', updated_at: Date.UTC(2026, 0, 3) },
+      { slug: 'projects', updated_at: Date.UTC(2026, 0, 4) },
+    ],
+    Date.UTC(2026, 0, 5)
   )
   assert.ok(out.includes('<loc>https://blog.example.com/category/life-notes</loc>'), out)
-  assert.ok(out.includes('<loc>https://blog.example.com/tag/' + encodeURIComponent('生活随笔') + '</loc>'), out)
-  assert.ok(out.includes('<loc>https://blog.example.com/post/hello-world</loc>'), out)
   assert.ok(out.includes('<lastmod>2026-01-02</lastmod>'), out)
+  assert.ok(out.includes('<loc>https://blog.example.com/post/hello-world</loc>'), out)
+  // 标签页是自动生成的薄聚合页（页面本身已 noindex，pages.ts renderList 同口径）：不进 sitemap
+  assert.ok(!out.includes('/tag/'), out)
+  // 留言板 / 友链是薄 UGC 页：不进 sitemap（页面照常可访问与被抓取，只是不主动提交）
+  assert.ok(!out.includes('/guestbook'), out)
+  assert.ok(!out.includes('<loc>https://blog.example.com/links</loc>'), out)
+  // /page/about 会 301 到 /about：只提交规范地址，且带 about 页的 lastmod
+  assert.ok(!out.includes('/page/about'), out)
+  assert.ok(out.includes('<loc>https://blog.example.com/about</loc>'), out)
+  assert.ok(out.includes('<lastmod>2026-01-03</lastmod>'), out)
+  assert.ok(out.includes('<loc>https://blog.example.com/page/projects</loc>'), out)
+  // 微博流带 lastmod（最新一条已发布微博的时间）
+  assert.ok(out.includes('<loc>https://blog.example.com/weibo</loc>'), out)
+  assert.ok(out.includes('<lastmod>2026-01-05</lastmod>'), out)
+})
+
+test('sitemap 首页/归档 lastmod 取最新文章更新时间（不再恒为「今天」）', () => {
+  const out = buildSitemap(settings, [{ slug: 'a', updated_at: Date.UTC(2026, 0, 2) }], 'https://x.com')
+  const home = out.slice(out.indexOf('<url>'), out.indexOf('</url>'))
+  assert.ok(home.includes('<loc>https://x.com/</loc>'), out)
+  assert.ok(home.includes('<lastmod>2026-01-02</lastmod>'), out)
+  const archives = out.slice(out.indexOf('<loc>https://x.com/archives</loc>') - 6, out.indexOf('</url>', out.indexOf('/archives')))
+  assert.ok(archives.includes('<lastmod>2026-01-02</lastmod>'), out)
+  // 无文章时首页不出 lastmod（宁可缺省不给假时间）
+  const empty = buildSitemap(settings, [], 'https://x.com')
+  const emptyHome = empty.slice(empty.indexOf('<url>'), empty.indexOf('</url>'))
+  assert.ok(!emptyHome.includes('<lastmod>'), out)
 })
 
 test('sitemap 文章 slug 里的特殊字符被编码', () => {

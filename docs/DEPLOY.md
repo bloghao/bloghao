@@ -92,9 +92,11 @@ npm run deploy
 成功后 wrangler 会输出你的访问地址，例如：
 
 ```
-Published xwblog v1.0.0
+Published xwblog v2.5.1
 https://xwblog.<你的子域>.workers.dev
 ```
+
+> 若你的 `wrangler.jsonc` 里设了 `"workers_dev": false`（关闭 workers.dev 平行入口），部署后不会生成 workers.dev 地址——删除该行重新部署，或直接按第 6 节绑自定义域。
 
 ## 4. 初始化管理员
 
@@ -119,7 +121,7 @@ https://你的域名/admin/
 - **站点名称 / 描述 / 页脚**：出现在首页刊头、浏览器标题、RSS
 - **站点链接**：填写最终访问域名（本站即 `https://blog.xiaowuleyi.com`），用于 RSS 和 sitemap 里的绝对链接。绑定了自定义域名就**务必填上**
 - **站点头像 / 网站图标**：都从后台上传、存进 R2 图床，改即时生效
-- **外观**：六套主题即点即换
+- **外观**：七套主题即点即换
 - **评论**：可开关留言、可开启「先审后展」
 
 ## 6. 绑定自定义域名
@@ -156,7 +158,7 @@ git push -u origin main
 2. GitHub 仓库 → Settings → Secrets and variables → Actions，添加两个 secret：
    - `CLOUDFLARE_API_TOKEN`：上一步的令牌
    - `CLOUDFLARE_ACCOUNT_ID`：面板首页右侧可以看到
-3. 之后每次 push 到 `main`，GitHub Actions 会自动：类型检查 → 安装依赖 → 执行 schema.sql（幂等）→ `wrangler deploy`。另有内置的 `ci.yml` 与部署并行，跑类型检查 + 回归测试（`tests/` 30+ 用例），防止已修复的 bug 悄悄复发
+3. 之后每次 push 到 `main`，GitHub Actions 会自动：类型检查 → 安装依赖 → 执行 schema.sql（幂等）→ `wrangler deploy`。另有内置的 `ci.yml` 与部署并行，跑类型检查 + 回归测试（`tests/` 700+ 用例），防止已修复的 bug 悄悄复发
 
 > 更省事的替代：不配任何密钥，在 Cloudflare 面板 → 你的 Worker → Settings → Git 支持（Builds）连接 GitHub 仓库，push 即自动部署（一键部署的副本默认就是这条路）。
 
@@ -190,6 +192,7 @@ docker compose up --build -d     # 镜像约 70MB（node:26-alpine），数据�
 | 浏览数据 | Dashboard → Storage & Databases → D1 → xwblog-db → Console |
 | 重置管理员（清空用户重新创建） | `npx wrangler d1 execute DB --remote --command "DELETE FROM users; DELETE FROM sessions;"`，再访问 `/admin/` |
 | 查看图片占用量 | Dashboard → R2 → xwblog-images，或后台「媒体」页 / 概览页 |
+| **整站搬家**（换服务器 / 换域名 / 重新部署） | 后台「设置 → 整站搬家」：旧站**导出整站包**（含全部内容与图床图片）→ 新站登录后**上传并一键还原**。**只允许还原到「没有内容的站」**（没有未删除的文章 / 微博 / 页面；刚装好的新站请先把自带的「示例文章」与「关于我」页面删进回收站），不覆盖不合并；包里不含管理员账号与各类密钥。大站可直接把包传进 R2 再还原：`npx wrangler r2 object put xwblog-images/bundles/xwblog-site-2026-10-16.zip --file=./xwblog-site-2026-10-16.zip`。详见 [GUIDE.md](GUIDE.md) §19 |
 
 ## 9. 本地开发
 
@@ -197,7 +200,7 @@ docker compose up --build -d     # 镜像约 70MB（node:26-alpine），数据�
 npm run db:init:local   # 初始化 .wrangler/state 下的本地 D1
 npm run dev             # http://127.0.0.1:8787（本地 D1/R2 全模拟，不花钱）
 npm run typecheck       # TypeScript 类型检查，提交前必须通过
-npm test                # 回归测试（tests/，30+ 用例），提交前必须通过
+npm test                # 回归测试（tests/，700+ 用例），提交前必须通过
 npm run smoke           # 本地冒烟：起 wrangler dev 逐路由断言 200，改 SQL 拼接/渲染后必跑
 ```
 
@@ -234,9 +237,10 @@ A：项目名改 `wrangler.jsonc` 的 `name`；本地端口 `npm run dev -- --po
 
 ## 11. 附：官网（bloghao.com）是怎么部署的（维护者备忘）
 
-博客号官网是与博客系统互相独立的纯静态站点，源码在仓库 `website/` 目录，部署在 Cloudflare **Pages** 项目 `bloghao`（即 bloghao.pages.dev），自定义域绑定为 `bloghao.com`：
+博客号官网是与博客系统互相独立的纯静态站点，源码在仓库 `website/` 目录（无构建链，改了即生效），部署在维护者自有服务器上由 Caddy 静态直出（`bloghao.com`），与 Cloudflare 上的博客 Worker 完全无关：
 
-- **改动发布**：修改 `website/public/` 后 push 到 GitHub，Pages 项目连着 `bloghao` 仓库（构建输出目录 `website/public`）会自动部署；也可手动 `cd website && npx wrangler pages deploy public`
-- **「博客号目录」**：数据在 `website/public/data/showcase.json`，访客通过官网入口向 [bloghao](https://github.com/bloghao/bloghao) 提 Issue 申请上榜，审核通过后把站点加进 JSON 即可
-- **在线示例**：官网指向的演示站（Worker 名 xwblog-demo，地址以部署输出为准）是引擎的另一套独立 Worker 部署，专供访客体验；作者实例 blog.xiaowuleyi.com 不作演示用
-- 官网与本博客 Worker 互不影响，部署 / 回滚都在 Workers & Pages 的 `bloghao` 项目里操作
+- **改动发布**：修改 `website/public/` 后提交、推送，线上按静态文件方式同步部署目录即刻生效（官网纯静态、无构建步骤）
+- **文档中心**：`website/public/docs/` 下的 HTML 由 `npm run build:docs` 从 `docs/*.md` 与根目录 `CHANGELOG.md` 预渲染生成（生成结果直接提交，仍是零构建静态页）；改了 Markdown 文档后重跑一次 `npm run build:docs`。该命令同时会按扫描 `website/public` 的真实页面重生成 `sitemap.xml`（**勿手改**），`robots.txt` 为手写的源站版
+- **「博客号目录」**：数据在 `website/public/data/showcase.json`，访客走官网表单投稿（落盘待审），审核通过后把站点加进 JSON 即可；GitHub Issue 为兜底入口
+- **在线示例**：官网指向的演示站 https://demo.bloghao.com 是引擎的另一套独立部署（DEMO_MODE 体验环境，机制见 [DEMO.md](DEMO.md)），专供访客体验；作者实例 blog.xiaowuleyi.com 不作演示用
+- 官网与本博客 Worker 互不影响，改动官网不涉及任何 Cloudflare 资源

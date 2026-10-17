@@ -3,7 +3,9 @@
  *
  * 使用面（对 src/ 全量 grep 过）：
  *   put(key, ArrayBuffer|string, { httpMetadata: { contentType, cacheControl } })
+ *   put(key, ReadableStream, …)   ← 整站包上传（B26）：流式落盘，不整包缓冲
  *   get(key) → { body(流), arrayBuffer(), text(), json(), httpEtag, uploaded, size, writeHttpMetadata() }
+ *   get(key, { range: { offset, length } | { suffix } })  ← 整站包按 Range 读（B26，zip 中央目录在末尾）
  *   head(key)、delete(key | key[])、list({ prefix, limit }) → { objects: [{ key, size, uploaded }] }
  *
  * 正文落 <root>/<key>；contentType/etag 落旁车文件 <root>/<key>.meta.json
@@ -15,7 +17,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
-import { Readable } from 'node:stream'
+import { Readable, Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 
 const META_SUFFIX = '.meta.json'
 
@@ -32,7 +35,29 @@ function toBuffer(value: unknown): Buffer {
   if (typeof value === 'string') return Buffer.from(value, 'utf8')
   if (value instanceof ArrayBuffer) return Buffer.from(new Uint8Array(value))
   if (ArrayBuffer.isView(value)) return Buffer.from(value as Uint8Array)
-  throw new Error('[r2-shim] put 只支持 string / ArrayBuffer / TypedArray')
+  throw new Error('[r2-shim] put 只支持 string / ArrayBuffer / TypedArray / ReadableStream')
+}
+
+/** 是不是 Web ReadableStream（整站包上传走流式落盘） */
+function isReadableStream(v: unknown): v is ReadableStream<Uint8Array> {
+  return !!v && typeof v === 'object' && typeof (v as { getReader?: unknown }).getReader === 'function'
+}
+
+/** R2 range 参数 → 磁盘 [start, end]（含端点，闭区间）；越界返回 null */
+function resolveRange(range: unknown, size: number): { start: number; end: number } | null {
+  if (!range || typeof range !== 'object') return null
+  const r = range as { offset?: number; length?: number; suffix?: number }
+  let start = 0
+  let end = size - 1
+  if (typeof r.suffix === 'number') {
+    if (r.suffix <= 0) return null
+    start = Math.max(0, size - r.suffix)
+  } else {
+    if (typeof r.offset === 'number') start = r.offset
+    if (typeof r.length === 'number') end = Math.min(size - 1, start + r.length - 1)
+  }
+  if (start < 0 || start > end || start >= size) return null
+  return { start, end }
 }
 
 interface ObjectMeta {
@@ -73,13 +98,26 @@ function listAllKeys(root: string): string[] {
   return out.sort()
 }
 
-function makeObject(file: string, key: string, withBody: boolean) {
+function makeObject(file: string, key: string, withBody: boolean, range?: { start: number; end: number } | null) {
   const meta = readMeta(file)
   const st = fs.statSync(file)
   const etag = `"${meta.etag ?? crypto.createHash('md5').update(fs.readFileSync(file)).digest('hex')}"`
+  const size = range ? range.end - range.start + 1 : st.size
+  const readSlice = (): Buffer => {
+    if (!range) return fs.readFileSync(file)
+    const len = range.end - range.start + 1
+    const buf = Buffer.alloc(len)
+    const fd = fs.openSync(file, 'r')
+    try {
+      fs.readSync(fd, buf, 0, len, range.start)
+    } finally {
+      fs.closeSync(fd)
+    }
+    return buf
+  }
   return {
     key,
-    size: st.size,
+    size,
     uploaded: st.mtime,
     httpEtag: etag,
     httpMetadata: { contentType: meta.contentType, cacheControl: meta.cacheControl },
@@ -87,16 +125,20 @@ function makeObject(file: string, key: string, withBody: boolean) {
       if (meta.contentType) headers.set('Content-Type', meta.contentType)
       if (meta.cacheControl) headers.set('Cache-Control', meta.cacheControl)
     },
-    body: withBody ? (Readable.toWeb(fs.createReadStream(file)) as unknown as ReadableStream) : undefined,
+    body: withBody
+      ? (Readable.toWeb(
+          range ? fs.createReadStream(file, { start: range.start, end: range.end }) : fs.createReadStream(file)
+        ) as unknown as ReadableStream)
+      : undefined,
     async arrayBuffer(): Promise<ArrayBuffer> {
-      const b = fs.readFileSync(file)
+      const b = readSlice()
       return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
     },
     async text(): Promise<string> {
-      return fs.readFileSync(file, 'utf8')
+      return readSlice().toString('utf8')
     },
     async json(): Promise<unknown> {
-      return JSON.parse(fs.readFileSync(file, 'utf8'))
+      return JSON.parse(readSlice().toString('utf8'))
     },
   }
 }
@@ -110,6 +152,23 @@ export function createR2Disk(root: string) {
     async put(key: string, value: unknown, opts?: { httpMetadata?: { contentType?: string; cacheControl?: string } }) {
       const file = safeJoin(root, key)
       fs.mkdirSync(path.dirname(file), { recursive: true })
+      if (isReadableStream(value)) {
+        // 流式落盘（整站包上传：可能几百 MB，不整包缓冲）；etag 边流边算
+        const hash = crypto.createHash('md5')
+        const hasher = new Transform({
+          transform(chunk, _enc, cb) {
+            hash.update(chunk as Buffer)
+            cb(null, chunk)
+          },
+        })
+        await pipeline(Readable.fromWeb(value as Parameters<typeof Readable.fromWeb>[0]), hasher, fs.createWriteStream(file))
+        writeMeta(file, {
+          etag: hash.digest('hex'),
+          contentType: opts?.httpMetadata?.contentType,
+          cacheControl: opts?.httpMetadata?.cacheControl,
+        })
+        return makeObject(file, key, false)
+      }
       const buf = toBuffer(value)
       fs.writeFileSync(file, buf)
       writeMeta(file, {
@@ -120,7 +179,7 @@ export function createR2Disk(root: string) {
       return makeObject(file, key, false)
     },
 
-    async get(key: string) {
+    async get(key: string, opts?: { range?: { offset?: number; length?: number; suffix?: number } }) {
       const file = safeJoin(root, key)
       let st: fs.Stats
       try {
@@ -129,7 +188,10 @@ export function createR2Disk(root: string) {
         return null
       }
       if (!st.isFile()) return null
-      return makeObject(file, key, true)
+      const range = resolveRange(opts?.range, st.size)
+      // 带 range 但区间非法：与 R2 一致地当作取不到（调用方按「抓不到」退化）
+      if (opts?.range && !range) return null
+      return makeObject(file, key, true, range)
     },
 
     async head(key: string) {

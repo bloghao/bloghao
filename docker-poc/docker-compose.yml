@@ -11,6 +11,10 @@ services:
       # 与其他 Web 服务共存的机器（1Panel/openresty 等占 80）只绑回环给反代：
       #   XWLBLOG_BIND=127.0.0.1 docker compose up -d
       - '${XWLBLOG_BIND:-0.0.0.0}:${XWLBLOG_PORT:-8787}:8787'
+    environment:
+      # 控制面操作日志显式落进挂载卷：缺省路径是 TENANTS_DIR/../ops.log（容器 /data 根，
+      # root 属主且不挂卷——应用以 node 跑 appendFileSync 静默 EACCES，容器重建即丢）
+      - OPS_LOG_PATH=/data/tenants/ops.log
     volumes:
       # Linux 上宿主目录若为 root 属主，容器入口 entrypoint.sh 会自动 chown 给 node，
       # 宿主机无需任何准备；数据落在 ./data/<域名>/（blog.db + uploads/）

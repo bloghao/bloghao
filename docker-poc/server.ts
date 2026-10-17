@@ -223,6 +223,49 @@ const MIME: Record<string, string> = {
   '.webmanifest': 'application/manifest+json',
 }
 
+/** public/_headers 镜像（Cloudflare Workers static assets 同名文件）：后台防嵌套安全头与
+ *  静态资源缓存策略，Workers 线上 / wrangler dev 由平台应用，这里给自托管静态直出同语义。
+ *  只解析仓库用到的子集：URL 规则行 + 缩进「Name: value」行，规则支持尾部 * 前缀通配；
+ *  改 public/_headers 口径两侧同改（AGENTS「后台交互」节） */
+interface AssetHeaderRule {
+  pattern: string
+  prefix: boolean
+  headers: Record<string, string>
+}
+let assetHeaderRulesCache: AssetHeaderRule[] | null = null
+function assetHeaderRules(): AssetHeaderRule[] {
+  if (assetHeaderRulesCache) return assetHeaderRulesCache
+  const rules: AssetHeaderRule[] = []
+  try {
+    let cur: AssetHeaderRule | null = null
+    for (const line of fs.readFileSync(path.join(PUBLIC_ROOT, '_headers'), 'utf8').split(/\r?\n/)) {
+      const t = line.trim()
+      if (!t || t.startsWith('#')) continue
+      if (!/^\s/.test(line)) {
+        cur = { pattern: t, prefix: t.endsWith('*'), headers: {} }
+        rules.push(cur)
+      } else if (cur) {
+        const i = t.indexOf(':')
+        if (i > 0) cur.headers[t.slice(0, i).trim()] = t.slice(i + 1).trim()
+      }
+    }
+  } catch {
+    // 无 _headers 文件（旧快照）= 无附加规则，静态服务照常
+  }
+  assetHeaderRulesCache = rules
+  return rules
+}
+
+function applyAssetHeaders(resp: Response, pathname: string): Response {
+  const matched = assetHeaderRules().filter((r) =>
+    r.prefix ? pathname.startsWith(r.pattern.slice(0, -1)) : pathname === r.pattern
+  )
+  if (!matched.length) return resp
+  const headers = new Headers(resp.headers)
+  for (const r of matched) for (const [k, v] of Object.entries(r.headers)) headers.set(k, v)
+  return new Response(resp.body, { status: resp.status, headers })
+}
+
 /** 静态资源直出（对齐 wrangler assets：精确文件命中才返回，其余进应用） */
 function serveStatic(pathname: string, search: string): Response | null {
   let decoded: string
@@ -232,6 +275,8 @@ function serveStatic(pathname: string, search: string): Response | null {
     return null
   }
   if (decoded.includes('\0') || decoded.includes('\\')) return null
+  // _headers / _redirects 是资产层的配置文件，不对外服务（与 Cloudflare 行为一致）
+  if (decoded === '/_headers' || decoded === '/_redirects') return null
   const file = path.resolve(PUBLIC_ROOT, `.${decoded}`)
   if (file !== PUBLIC_ROOT && !file.startsWith(PUBLIC_ROOT + path.sep)) return null
   let st: fs.Stats
@@ -255,12 +300,15 @@ function serveStatic(pathname: string, search: string): Response | null {
       continue
     }
     if (!fst.isFile()) continue
-    return new Response(fs.readFileSync(f), {
-      headers: {
-        'Content-Type': MIME[path.extname(f).toLowerCase()] || 'application/octet-stream',
-        'Cache-Control': 'public, max-age=120',
-      },
-    })
+    return applyAssetHeaders(
+      new Response(fs.readFileSync(f), {
+        headers: {
+          'Content-Type': MIME[path.extname(f).toLowerCase()] || 'application/octet-stream',
+          'Cache-Control': 'public, max-age=120',
+        },
+      }),
+      decoded
+    )
   }
   return null
 }

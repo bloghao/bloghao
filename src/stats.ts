@@ -48,10 +48,11 @@ export function cleanRef(raw: unknown): string {
 }
 
 /** 上报路径：剥控制字符、必须以 / 开头且第二字符不是 /（拒协议相对 URL //evil.com，
- *  防伪打点把跨站链接塞进后台统计页的「受欢迎的页面」）、截 300（含 query） */
+ *  防伪打点把跨站链接塞进后台统计页的「受欢迎的页面」）、截 300（含 query）。
+ *  裸 `/`（首页）合法：第二字符「不是 /」的拒绝对它按「不存在第二字符」放行。 */
 export function cleanPath(raw: unknown): string {
   const s = String(raw ?? '').replace(/[\u0000-\u001f\u007f]/g, '')
-  return /^\/[^/]/.test(s) ? s.slice(0, 300) : ''
+  return /^\/(?:$|[^/])/.test(s) ? s.slice(0, 300) : ''
 }
 
 /** 匿名访客 id：只放行 [A-Za-z0-9_-]，截 64 */

@@ -164,7 +164,7 @@ export function post(d: PostData): string {
   <article class="jrn-article">
     ${kicker}
     <h1 class="jrn-title">${esc(p.title)}</h1>
-    <p class="jrn-meta"><time>${en ? fmtDateEn(p.published_at) : fmtDateCN(p.published_at)}</time><span>·</span><span>${en ? `about ${p.readingMinutes} min` : `约 ${p.readingMinutes} 分钟`}</span><span>·</span><span>${en ? `${fmtViews(p.views, en)} views` : `${fmtViews(p.views)} 阅读`}</span></p>
+    <p class="jrn-meta"><time>${en ? fmtDateEn(p.published_at) : fmtDateCN(p.published_at)}</time><span>·</span><span>${en ? `about ${p.readingMinutes} min` : `约 ${p.readingMinutes} 分钟`}</span><span>·</span><span>${en ? `${fmtViews(p.views, en)} views` : `${fmtViews(p.views)} 阅读`}</span>${p.aiGenerated ? `<span>·</span><span>${en ? 'AI-generated' : 'AI 生成'}</span>` : ''}</p>
     ${p.cover ? `<figure class="jrn-cover"><img src="${esc(p.cover)}" alt=""><figcaption>${en ? `Taken on ${fmtDateEn(p.published_at)}` : `摄于 ${fmtDateCN(p.published_at)}`}</figcaption></figure>` : ''}
     <div class="rich">${p.contentHtml}</div>
     ${p.locked ? paywallHtml(p.minTier, en) : ''}

@@ -128,6 +128,28 @@ test('fetchPublicResource：超限响应断流返回 null，不整读进内存',
   }
 })
 
+test('fetchPublicResource：method/body 透传 + expectBody:false 不读响应体（204 空体也算成功）', async () => {
+  const seen: RequestInit[] = []
+  const orig = globalThis.fetch
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    seen.push(init || {})
+    return new Response(null, { status: 204 })
+  }) as typeof fetch
+  try {
+    const r = await fetchPublicResource('https://a.example/hook', {
+      maxBytes: 1024, timeoutMs: 1000, method: 'POST', body: '{"x":1}', expectBody: false,
+    })
+    assert.ok(r, '204 空体在 expectBody:false 下算成功（webhook「只发不收」）')
+    assert.equal(seen[0].method, 'POST')
+    assert.equal(seen[0].body, '{"x":1}')
+    assert.equal(seen[0].redirect, 'manual', '逐跳复查口径不变')
+    // 默认（expectBody 未设）下无体响应 → null（只读抓取口径字节级不变）
+    assert.equal(await fetchPublicResource('https://a.example/x', { maxBytes: 1024, timeoutMs: 1000 }), null)
+  } finally {
+    globalThis.fetch = orig
+  }
+})
+
 test('readBodyLimited：限内返回完整字节，超限断流返回 null', async () => {
   assert.ok(await readBodyLimited(res('hello'), 100))
   assert.equal(await readBodyLimited(res('x'.repeat(100)), 10), null)

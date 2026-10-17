@@ -1,16 +1,27 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  cleanVid,
+  daySaltedHash,
   generatePlazaToken,
   hmacHex,
+  maskPlazaToken,
   parseRssItems,
+  parseRssSiteTitle,
+  pullHostOk,
   rssDateToMs,
   scoreFeed,
   scorePlazaItem,
+  spotlightWeight,
+  statsDay,
+  validateBeaconEvents,
   validateIngest,
   verifyPlazaSignature,
   SIGNATURE_TTL_MS,
+  BEACON_MAX_EVENTS,
   INGEST_MAX_ITEMS,
+  SPOTLIGHT_BOOST,
+  SPOTLIGHT_DAYS,
   type PlazaItem,
 } from '../plaza/src/core.ts'
 import { plazaSign } from '../src/hooks.ts'
@@ -47,6 +58,15 @@ test('generatePlazaToken：32 hex 字符', () => {
   const t = generatePlazaToken()
   assert.match(t, /^[0-9a-f]{32}$/)
   assert.notEqual(t, generatePlazaToken())
+})
+
+test('maskPlazaToken：只露后 4 位（不回显前 8 位），短 token 一律打码', () => {
+  assert.equal(maskPlazaToken('a'.repeat(28) + 'beef'), '…beef')
+  assert.equal(maskPlazaToken('a'.repeat(32)), '…aaaa')
+  assert.equal(maskPlazaToken('short'), '…')
+  // 不回显前 8 位：打码串不能包含 token 前缀（曾 `slice(0,8)…slice(-4)` 白送 48 bit）
+  const t = '0123456789abcdef0123456789abcdef'
+  assert.ok(!maskPlazaToken(t).includes(t.slice(0, 8)))
 })
 
 test('validateIngest：形状不对按没传处理，上限截断，url 只收 https', () => {
@@ -290,4 +310,168 @@ test('normalizePulledWeibo：微博补漏条目规整——https 校验、30 天
   assert.equal(long?.ref.length, 200)
   assert.equal(long?.title.length, 200)
   assert.equal(long?.summary.length, 500)
+})
+
+// ── 广场 2.0（B25 P0/P2）纯函数：聚光加成 / RSS 站名回填 / 回传校验 / vid 口径 ──
+
+test('spotlightWeight：注册 7 天内 +2 档封顶 10，过期与脏 created_at 不加成', () => {
+  const now = 1_800_000_000_000
+  const day = 86_400_000
+  // 7 天内（含边界）+2；第 8 天回落
+  assert.equal(spotlightWeight(1, now - (SPOTLIGHT_DAYS - 1) * day, now), 1 + SPOTLIGHT_BOOST)
+  assert.equal(spotlightWeight(1, now - SPOTLIGHT_DAYS * day, now), 1 + SPOTLIGHT_BOOST)
+  assert.equal(spotlightWeight(1, now - (SPOTLIGHT_DAYS + 0.001) * day, now), 1)
+  // 封顶 10：9 档 +2 = 10，不会出 11
+  assert.equal(spotlightWeight(9, now, now), 10)
+  assert.equal(spotlightWeight(10, now, now), 10)
+  // 管理员定的档位本身不受影响（过期后原样返回），脏值（0/负/未来/NaN）宁可不扶持
+  assert.equal(spotlightWeight(5, 0, now), 5)
+  assert.equal(spotlightWeight(5, -1, now), 5)
+  assert.equal(spotlightWeight(5, now + 1000, now), 5)
+  assert.equal(spotlightWeight(5, Number.NaN, now), 5)
+  // 脏 weight 收口与 scorePlazaItem 同口径（负数/超 10 都先 clamp）
+  assert.equal(spotlightWeight(-3, now, now), SPOTLIGHT_BOOST)
+  assert.equal(spotlightWeight(99, now - 100 * day, now), 10)
+})
+
+test('parseRssSiteTitle：channel 头部 title 才是站名——不认 item 标题，CDATA 与纯文本都收', () => {
+  const rss = `<?xml version="1.0"?>
+<rss version="2.0"><channel>
+  <title><![CDATA[张三的小站]]></title>
+  <link>https://z.test/</link>
+  <item><title>第一篇文章标题</title><link>https://z.test/post/a</link></item>
+</channel></rss>`
+  assert.equal(parseRssSiteTitle(rss), '张三的小站')
+  // Atom：feed 根 + entry
+  const atom = `<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>李四的博客</title>
+  <entry><title>Atom 文</title><link href="https://l.test/post/a"/></entry>
+</feed>`
+  assert.equal(parseRssSiteTitle(atom), '李四的博客')
+  // 无 channel 结构时全文找第一个 title（退化行为），纯文本节点剥空白
+  assert.equal(parseRssSiteTitle('<rss><channel><title>  简单站 </title></channel></rss>'), '简单站')
+  // 没有 title → 空串（调用方不回填）
+  assert.equal(parseRssSiteTitle('<rss><channel><link/></channel></rss>'), '')
+  assert.equal(parseRssSiteTitle('not xml'), '')
+  // 截 100 字
+  assert.equal(parseRssSiteTitle(`<rss><channel><title>${'名'.repeat(300)}</title></channel></rss>`).length, 100)
+})
+
+test('validateBeaconEvents：形状不对按没传处理，同 (s,k) 合并计数，封顶防灌', () => {
+  const merged = validateBeaconEvents([
+    { s: 1, k: 'v', n: 3 },
+    { s: 1, k: 'v', n: 2 }, // 同站同类合并 3+2=5
+    { s: 2, k: 'c', n: 1 },
+    { s: 1, k: 'c', n: 1 }, // 同站异类不合
+    { s: 0, k: 'v', n: 1 }, // 非法 site id 丢弃
+    { s: -5, k: 'v', n: 1 }, // 负数丢弃
+    { s: 3, k: 'x', n: 1 }, // 未知 kind 丢弃
+    { s: 3, k: 'v', n: 0 }, // n<=0 丢弃
+    { s: 3, k: 'v', n: -2 }, // 负计数丢弃
+    { s: 3, k: 'v', n: 1.4 }, // 小数四舍五入收 1
+    { s: 3, k: 'v', n: 999 }, // 单条封顶 BEACON_MAX_N
+    'junk',
+    null,
+  ])
+  assert.deepEqual(
+    merged,
+    [
+      { s: 1, k: 'v', n: 5 },
+      { s: 1, k: 'c', n: 1 },
+      { s: 2, k: 'c', n: 1 },
+      { s: 3, k: 'v', n: 21 }, // 1.4→1 与 999→封顶 20 合并
+    ],
+    '按 s 升序 + (s,k) 合并'
+  )
+  // 条数封顶：只收前 BEACON_MAX_EVENTS 条
+  const many = Array.from({ length: BEACON_MAX_EVENTS + 30 }, (_, i) => ({ s: i + 1, k: 'v', n: 1 }))
+  assert.equal(validateBeaconEvents(many).length, BEACON_MAX_EVENTS)
+  // 脏顶层：非数组 / 空 → 空清单
+  assert.deepEqual(validateBeaconEvents('junk'), [])
+  assert.deepEqual(validateBeaconEvents(null), [])
+  assert.deepEqual(validateBeaconEvents({ s: 1 }), [])
+})
+
+test('cleanVid：32 hex 才是合法访客标识，其余一律空（点赞端点 400 掉）', () => {
+  const token = generatePlazaToken() // token 与 vid 同形：32 hex
+  assert.equal(cleanVid(token), token)
+  assert.equal(cleanVid('a'.repeat(32)), 'a'.repeat(32))
+  assert.equal(cleanVid('a'.repeat(31)), '')
+  assert.equal(cleanVid('A'.repeat(32)), '') // 大写不收（客户端一律小写产出）
+  assert.equal(cleanVid('g'.repeat(32)), '') // 非 hex
+  assert.equal(cleanVid(123), '')
+  assert.equal(cleanVid(null), '')
+  assert.equal(cleanVid(''), '')
+})
+
+test('daySaltedHash：同日稳定可去重、跨日不可串联（天级盐）', async () => {
+  const h1 = await daySaltedHash('2026-10-16', '1.2.3.4')
+  const h1again = await daySaltedHash('2026-10-16', '1.2.3.4')
+  const h2 = await daySaltedHash('2026-10-17', '1.2.3.4')
+  assert.equal(h1, h1again)
+  assert.notEqual(h1, h2)
+  assert.match(h1, /^[0-9a-f]{64}$/)
+})
+
+test('daySaltedHash：私盐走 HMAC（库泄露不可枚举还原 IP/vid），同日稳定、跨日/跨密钥不同', async () => {
+  const secret = 'a'.repeat(64)
+  const h = await daySaltedHash('2026-10-16', '1.2.3.4', secret)
+  // 与 hmacHex(secret, day:value) 同口径（与应用端私盐实现绑死）
+  assert.equal(h, await hmacHex(secret, '2026-10-16:1.2.3.4'))
+  // 同日同盐稳定（去重可用）
+  assert.equal(h, await daySaltedHash('2026-10-16', '1.2.3.4', secret))
+  // 跨日不同、换密钥不同
+  assert.notEqual(h, await daySaltedHash('2026-10-17', '1.2.3.4', secret))
+  assert.notEqual(h, await daySaltedHash('2026-10-16', '1.2.3.4', 'b'.repeat(64)))
+  // 私盐口径与无盐口径必须不同（设了密钥即真正收敛隐私面）
+  assert.notEqual(h, await daySaltedHash('2026-10-16', '1.2.3.4'))
+})
+
+test('pullHostOk：pull 出网防线——只放行公网主机，内网后缀 / IPv6 / 私有段 IPv4（含整数十六进制写法）一律拒', () => {
+  // 公网域名与公网 IPv4 放行
+  assert.equal(pullHostOk('https://blog.example.com'), true)
+  assert.equal(pullHostOk('https://a.b.c.d.example.com/rss.xml'), true)
+  assert.equal(pullHostOk('https://8.8.8.8'), true)
+  // 内网 / 保留后缀拒
+  assert.equal(pullHostOk('https://foo.internal'), false)
+  assert.equal(pullHostOk('https://foo.local'), false)
+  assert.equal(pullHostOk('https://foo.localhost'), false)
+  assert.equal(pullHostOk('https://localhost'), false)
+  // 私有段 IPv4（点分、整数、十六进制、八进制、短写）全拒——URL 归一后再判
+  assert.equal(pullHostOk('https://127.0.0.1'), false)
+  assert.equal(pullHostOk('https://169.254.169.254'), false)
+  assert.equal(pullHostOk('https://10.0.0.5'), false)
+  assert.equal(pullHostOk('https://192.168.1.1'), false)
+  assert.equal(pullHostOk('https://2130706433'), false) // 整数写法 = 127.0.0.1
+  assert.equal(pullHostOk('https://0x7f000001'), false) // 十六进制写法
+  assert.equal(pullHostOk('https://127.1'), false) // 短写
+  assert.equal(pullHostOk('https://[::1]'), false) // IPv6 环回（含 ':' 一律拒）
+  assert.equal(pullHostOk('https://[::ffff:127.0.0.1]'), false)
+  // 解析不动 / 空 / 非绝对地址拒
+  assert.equal(pullHostOk('not a url'), false)
+  assert.equal(pullHostOk(''), false)
+  assert.equal(pullHostOk('example.com'), false) // 相对地址，非绝对 URL
+})
+
+test('scoreFeed：hub 条目 id 与点赞计数透传进 feed 出参（点赞动作的目标主键）', () => {
+  const now = 1_800_000_000_000
+  const feed = scoreFeed(
+    [
+      {
+        item: { kind: 'post', ref: 'a', title: 'A', summary: '', url: 'https://x.test/post/a', image: '', publishedAt: now },
+        id: 42,
+        likes: 7,
+        siteId: 1,
+        siteName: '示例站',
+        siteUrl: 'https://x.test',
+        siteVerified: false,
+        siteWeight: 1,
+      },
+    ],
+    10,
+    { now, rand: () => 0 }
+  )
+  assert.equal(feed.length, 1)
+  assert.equal(feed[0].id, 42)
+  assert.equal(feed[0].likes, 7)
 })

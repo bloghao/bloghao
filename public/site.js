@@ -23,11 +23,22 @@
     '加图': 'Add photo',
     '上传中': 'Uploading',
     '只支持 JPG / PNG / WebP / GIF 图片': 'Only JPG / PNG / WebP / GIF images are supported',
+    '视频': 'Video',
+    '最大 25MB，MP4 / WebM': 'Up to 25MB, MP4 / WebM',
+    '图片 / 视频，一条微博最多 1 个视频': 'Photos / video — one video per note',
+    '只支持 MP4 / WebM 视频': 'Only MP4 / WebM videos are supported',
+    'HEVC 高效格式：iPhone / Mac 正常，部分 Windows 浏览器放不出来（想更稳就用剪辑 App 导出 MP4）':
+      'HEVC video: fine on iPhone / Mac, but some Windows browsers cannot play it (export an MP4 from a video editor for the widest support)',
+    'HEVC 高效格式：iPhone / Mac 正常，部分 Windows 浏览器放不出来（想更稳就用剪辑 App 导出 MP4）':
+      'HEVC video: fine on iPhone / Mac, but some Windows browsers cannot play it (export an MP4 from a video editor for the widest support)',
+    '网络错误，上传失败': 'Network error — upload failed',
     '置顶': 'Pin',
     '取消置顶': 'Unpin',
     '删除': 'Delete',
     '删除中…': 'Deleting…',
     '删除失败': 'Failed to delete',
+    '删除这条评论（其下回复一并删除，不可恢复）': 'Delete this comment (its replies go too, and this cannot be undone)',
+    '删除这条评论？其下的回复会一并删除，且不可恢复。': 'Delete this comment? Its replies go too, and this cannot be undone.',
     '保存': 'Save',
     '保存中…': 'Saving…',
     '保存失败': 'Failed to save',
@@ -64,6 +75,19 @@
     '已复制': 'Copied',
     '复制失败': 'Copy failed',
     '复制本节链接': 'Copy link to this section',
+    '更多操作': 'More',
+    '复制链接': 'Copy link',
+    '已复制链接': 'Link copied',
+    '复制链接失败': 'Failed to copy the link',
+    '字号': 'Text size',
+    '小': 'Small',
+    '标准': 'Standard',
+    '大': 'Large',
+    '特大': 'Extra large',
+    '保存图片': 'Save image',
+    '已保存，若未开始下载请长按图片另存': 'Saved — if nothing downloaded, long-press the image to save it',
+    '复制图片地址': 'Copy image address',
+    '已复制图片地址': 'Image address copied',
   }
   function T(zh) {
     return EN ? EN_STR[zh] || zh : zh
@@ -126,6 +150,18 @@
     } catch (e) {
       /* 隐私模式等存不进去就忽略 */
     }
+  }
+
+  /* ---------------- 页面边缘缓存旁路（服务端 src/pagecache.ts：带 query 的请求不进缓存） ----------------
+   * 游客发完评论要立刻看到自己的留言：整页刷新时带 _r 时间戳绕开边缘缓存拿到实时渲染，
+   * 落地后马上把参数从地址栏清掉（不污染分享链接） */
+  function reloadFresh() {
+    location.href = location.pathname + (location.search ? location.search + '&' : '?') + '_r=' + Date.now() + location.hash
+  }
+  try {
+    if (/[?&]_r=\d+/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash)
+  } catch (e) {
+    /* replaceState 不可用就留着参数，无害 */
   }
 
   /* ---------------- 上传前图片压缩与 WebP 转换（前台发布器；后台 editor.js 是同参数同逻辑的 ES Module 原版，改任一侧记得同步另一侧） ----------------
@@ -232,6 +268,268 @@
   // 上传前压缩（compressImage 定义在上方）
   function uploadCompressed(file) {
     return compressImage(file).then(uploadImage)
+  }
+
+  /* ---------------- 微博视频（B19）：一条微博最多 1 个视频，≤25MB ----------------
+   * 体积与类型口径跟 src/store.ts 的 MAX_UPLOAD_BYTES / 上传白名单一致；少数安卓浏览器
+   * file.type 为空，按扩展名兜底。上传走 XHR 是为了 upload.onprogress——25MB 不能是一段无声的等待。
+   * 元数据与封面帧都是 best-effort：拿不到就退化成无封面卡，绝不阻塞发布。
+   */
+  var VIDEO_MAX_BYTES = 25 * 1024 * 1024
+  // accept 用 video/*：iOS 的「照片图库」选择器按 accept 过滤，只列 video/mp4 会把 iPhone 拍的
+  // .mov 视频整批筛掉（图库里一个视频都不显示，2026-10-13 站长手机实测）；格式把关改到上传前做
+  var VIDEO_ACCEPT = 'video/*'
+  var VIDEO_EXT_RE = /\.(mp4|webm|mov)$/i
+
+  /** 选中的文件按视频处理（真正的格式判定在 prepareVideo：能归一化成 mp4 的才算） */
+  function isVideoFile(f) {
+    if (!f) return false
+    return /^video\//i.test(f.type || '') || (!f.type && VIDEO_EXT_RE.test(f.name || ''))
+  }
+
+  /** ISO-BMFF 容器归一化：iPhone 拍的是 .mov（ftyp 主品牌 'qt  '），结构本就是 ISO-BMFF，
+   *  但浏览器与「只收 mp4/webm」的上传端点都不认 QuickTime 容器。这里原地把 ftyp 里的
+   *  'qt  ' 品牌改写成 'isom'（= 标准 mp4 品牌），H.264 / AAC 的 iPhone 视频改完即全平台可放。
+   *  head 是文件头若干字节的 Uint8Array；改了返回 true，没找到 ftyp / 品牌不是 qt 返回 false。 */
+  function patchFtypBrand(head) {
+    var at = -1
+    for (var i = 0; i + 8 <= head.length; i++) {
+      if (head[i] === 0x66 && head[i + 1] === 0x74 && head[i + 2] === 0x79 && head[i + 3] === 0x70) {
+        at = i // 'ftyp'
+        break
+      }
+    }
+    if (at < 4) return false
+    var size = (head[at - 4] << 24) | (head[at - 3] << 16) | (head[at - 2] << 8) | head[at - 1]
+    var end = size > 16 && size <= head.length ? at - 4 + size : head.length
+    var patched = false
+    for (var j = at + 4; j + 4 <= end; j += 4) {
+      // 品牌位按 4 字节对齐：'qt  ' 与 'qt' 两种写法都认
+      if (head[j] === 0x71 && head[j + 1] === 0x74 && (head[j + 2] === 0x20 || head[j + 3] === 0x20)) {
+        head[j] = 0x69 // i
+        head[j + 1] = 0x73 // s
+        head[j + 2] = 0x6f // o
+        head[j + 3] = 0x6d // m
+        patched = true
+      }
+    }
+    return patched
+  }
+
+  /** 粗略探测有没有 HEVC（'hvc1' / 'hev1' 样本描述）：moov 可能在文件头也可能在尾，
+   *  前后各扫 1MB 就够（超过 25MB 的视频本来也传不上来）。找不到一律当没有，不打扰用户。 */
+  function detectHevc(file) {
+    var MAX = 1024 * 1024
+    var parts = [file.slice(0, Math.min(MAX, file.size))]
+    if (file.size > MAX) parts.push(file.slice(Math.max(0, file.size - MAX)))
+    return Promise.all(
+      parts.map(function (p) {
+        return p.arrayBuffer()
+      })
+    ).then(function (bufs) {
+      for (var i = 0; i < bufs.length; i++) {
+        var b = new Uint8Array(bufs[i])
+        for (var j = 0; j + 4 <= b.length; j++) {
+          if (
+            (b[j] === 0x68 && b[j + 1] === 0x76 && b[j + 2] === 0x63 && b[j + 3] === 0x31) ||
+            (b[j] === 0x68 && b[j + 1] === 0x65 && b[j + 2] === 0x76 && b[j + 3] === 0x31)
+          )
+            return true
+        }
+      }
+      return false
+    })
+  }
+
+  /** 重声明视频类型（扩展名一起对齐）：给了 patchedHead 就用改写过的文件头重组（Blob 拼接零拷贝） */
+  function retypeVideo(file, mime, ext, patchedHead) {
+    var name = (file.name || 'video').replace(/\.[^.]+$/, '') + '.' + ext
+    return patchedHead
+      ? new File([patchedHead, file.slice(64)], name, { type: mime })
+      : new File([file], name, { type: mime })
+  }
+
+  /** 上传前的视频整理：**只认文件头，不信任浏览器声明的 MIME**（与服务端「只认魔数」同口径）——
+   *  - ISO-BMFF（有 ftyp）：品牌是 'qt  ' 的（iPhone 拍的 .mov）原地改写成 'isom'，其余品牌字节原样，
+   *    统一按 mp4 声明上传（本来就是同族容器），H.264 / AAC 的 iPhone 视频改完即全平台可放；
+   *  - WebM（EBML 魔数）：按 webm 声明；
+   *  - 其它容器（avi / mkv / flv…）：回 error，前端提示换格式。
+   *  只读文件头 64 字节，不把整段视频读进内存。
+   *  2026-10-13 回归：此前把「品牌无需改写」当成「不认识的格式」直接拒——macOS 把 .mp4 报成
+   *  video/quicktime（内容品牌 isom）时会误拒；现在只要有 ftyp 就照收。 */
+  function prepareVideo(file) {
+    return file
+      .slice(0, 64)
+      .arrayBuffer()
+      .then(function (buf) {
+        var head = new Uint8Array(buf)
+        // WebM：EBML 魔数 1A 45 DF A3
+        if (head[0] === 0x1a && head[1] === 0x45 && head[2] === 0xdf && head[3] === 0xa3)
+          return { file: retypeVideo(file, 'video/webm', 'webm'), hevc: false }
+        patchFtypBrand(head) // 有 'qt  ' 品牌就顺手改写，没有就保持字节原样
+        var hasFtyp = false
+        for (var i = 0; i + 4 <= head.length; i++) {
+          if (head[i] === 0x66 && head[i + 1] === 0x74 && head[i + 2] === 0x79 && head[i + 3] === 0x70) {
+            hasFtyp = true
+            break
+          }
+        }
+        if (!hasFtyp) return { error: true }
+        return detectHevc(file).then(function (hevc) {
+          return { file: retypeVideo(file, 'video/mp4', 'mp4', head), hevc: hevc }
+        })
+      })
+  }
+
+  function fmtSize(n) {
+    if (!n) return ''
+    if (n < 1024 * 1024) return Math.max(1, Math.round(n / 1024)) + 'KB'
+    return (n / 1024 / 1024).toFixed(1) + 'MB'
+  }
+
+  function fmtDuration(sec) {
+    var s = Math.round(sec || 0)
+    if (!s) return ''
+    var m = Math.floor(s / 60)
+    var r = s % 60
+    return m + ':' + (r < 10 ? '0' + r : r)
+  }
+
+  /** 上传视频（带百分比回调）：先做容器归一化（iPhone 的 .mov → mp4，见 prepareVideo），
+   *  再走 raw 上传。失败抛 Error，文案与服务端 jsonError 同源；成功时带上 hevc 标记供调用方提示。 */
+  function uploadVideo(file, onProgress) {
+    return prepareVideo(file).then(function (prep) {
+      if (prep.error) throw new Error(T('只支持 MP4 / WebM 视频'))
+      return uploadVideoRaw(prep.file, onProgress).then(function (d) {
+        d.hevc = prep.hevc
+        return d
+      })
+    })
+  }
+
+  /** 真正发往 /admin/upload 的那一步（XHR 取进度） */
+  function uploadVideoRaw(file, onProgress) {
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest()
+      xhr.open('POST', '/api/admin/upload')
+      // 不收 json：413 这类响应体是纯文本（「请求体过大」），按 json 读会变成 null，
+      // 页面只显示笼统的「上传失败」——2026-10-13 那次 413 就是这么被藏住的
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+      xhr.onload = function () {
+        var d = {}
+        try {
+          d = JSON.parse(xhr.responseText || '{}') || {}
+        } catch (e) {
+          d = {}
+        }
+        if (xhr.status >= 200 && xhr.status < 300 && d.url) return resolve(d)
+        var serverMsg = d.error || (xhr.responseText || '').trim()
+        reject(new Error(serverMsg ? serverMsg.slice(0, 80) : T('上传失败') + '（HTTP ' + xhr.status + '）'))
+      }
+      xhr.onerror = function () {
+        reject(new Error(T('网络错误，上传失败')))
+      }
+      var fd = new FormData()
+      fd.append('file', file)
+      xhr.send(fd)
+    })
+  }
+
+  /** 读视频元数据（宽高 + 时长）：只用于提示语与无封面时的占位比例，失败回调 null */
+  function readVideoMeta(file, cb) {
+    var url = ''
+    var settled = false
+    function finish(m) {
+      if (settled) return
+      settled = true
+      try {
+        URL.revokeObjectURL(url)
+      } catch (e) {
+        /* 老浏览器没有 revokeObjectURL 也不影响 */
+      }
+      cb(m)
+    }
+    try {
+      url = URL.createObjectURL(file)
+    } catch (e) {
+      return cb(null)
+    }
+    var v = document.createElement('video')
+    v.preload = 'metadata'
+    v.muted = true
+    v.addEventListener('loadedmetadata', function () {
+      finish({ w: v.videoWidth || 0, h: v.videoHeight || 0, duration: v.duration || 0 })
+    })
+    v.addEventListener('error', function () {
+      finish(null)
+    })
+    setTimeout(function () {
+      finish(null)
+    }, 6000)
+    v.src = url
+  }
+
+  /** 抽第一帧当封面帧（最长边压到 1280 省体积）：失败 / 超时回调 null，卡片退化成无封面 */
+  function grabVideoPoster(file, cb) {
+    var url = ''
+    var settled = false
+    function finish(shot) {
+      if (settled) return
+      settled = true
+      try {
+        URL.revokeObjectURL(url)
+      } catch (e) {
+        /* 同上 */
+      }
+      cb(shot)
+    }
+    try {
+      url = URL.createObjectURL(file)
+    } catch (e) {
+      return cb(null)
+    }
+    var v = document.createElement('video')
+    v.preload = 'auto'
+    v.muted = true
+    v.setAttribute('playsinline', '')
+    v.setAttribute('webkit-playsinline', '')
+    v.addEventListener('loadeddata', function () {
+      try {
+        var sw = v.videoWidth || 0
+        var sh = v.videoHeight || 0
+        if (!sw || !sh) return finish(null)
+        var scale = Math.min(1, 1280 / Math.max(sw, sh))
+        var cv = document.createElement('canvas')
+        cv.width = Math.max(1, Math.round(sw * scale))
+        cv.height = Math.max(1, Math.round(sh * scale))
+        cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height)
+        cv.toBlob(function (blob) {
+          finish(blob ? { blob: blob, w: sw, h: sh } : null)
+        }, 'image/jpeg', 0.82)
+      } catch (e) {
+        finish(null)
+      }
+    })
+    v.addEventListener('error', function () {
+      finish(null)
+    })
+    setTimeout(function () {
+      finish(null)
+    }, 10000)
+    v.src = url
+  }
+
+  /** 视频预览块（发布器与卡片编辑器共用）：复用图片格样式，进度看按钮文字 */
+  function videoTileHtml(v, meta) {
+    var poster = v.poster ? ' poster="' + esc(v.poster) + '"' : ''
+    return (
+      '<span class="wb-composer-tile wb-composer-tile--video" title="' + esc(meta || '') + '">' +
+      '<video src="' + esc(v.url) + '"' + poster + ' muted playsinline preload="metadata"></video>' +
+      '<button type="button" class="wb-composer-tile-del" data-video-del title="' + T('移除') + '">×</button>' +
+      '</span>'
+    )
   }
 
   // 动态 file input 必须先挂到 DOM 再 click：iOS Safari 对游离节点的选图器能打开、
@@ -413,7 +711,7 @@
           } else {
             if (tipEl) tipEl.textContent = T('留言成功，感谢参与 🙂')
             setTimeout(function () {
-              location.reload()
+              reloadFresh()
             }, 600)
           }
         })
@@ -493,7 +791,7 @@
           } else {
             if (gbTip) gbTip.textContent = T('留言成功，感谢参与 🙂')
             setTimeout(function () {
-              location.reload()
+              reloadFresh()
             }, 600)
           }
         })
@@ -560,6 +858,71 @@
     })
     .catch(function () {})
 
+  /* ---------------- 管理员在前台删评论（文章 / 留言板 / 微博评论三处共用） ----------------
+   * 按钮由服务端（commentsHtml）或这里（微博评论客户端渲染）只对登录管理员渲染，访客 HTML 里不存在；
+   * 写操作复用后台 /api/admin/comments/:id（会话鉴权，连带删掉其下楼中楼，不可恢复——评论没有回收站）。
+   */
+  function cmtResetReplyIfDeleted(form, id) {
+    if (!form) return
+    var hidden = form.querySelector('[name=parentId]')
+    var target = (hidden && hidden.value) || form.dataset.replyId || ''
+    if (String(target) !== String(id)) return
+    // 复用它自己的「取消」键还原回复态（各表单的状态在各自闭包里，这里不伸手进去）
+    var cancel = form.querySelector('.cmt-reply-cancel, .wb-cmt-reply-cancel')
+    if (cancel) cancel.click()
+  }
+
+  function deleteComment(btn, id) {
+    var item = btn.closest ? btn.closest('.cmt-item, .wb-cmt-item') : null
+    var form = (btn.closest('.cmt-section') || btn.closest('.wb-cmt') || document).querySelector('.cmt-form, .wb-cmt-form')
+    var tipEl = form && form.querySelector('.cmt-tip, .wb-cmt-tip')
+    var tipDefault = tipEl ? tipEl.textContent : ''
+    btn.disabled = true
+    fetch('/api/admin/comments/' + encodeURIComponent(id), { method: 'DELETE' })
+      .then(function (r) {
+        return r.json().then(function (d) {
+          if (!r.ok) throw new Error((d && d.error) || T('删除失败'))
+          return d
+        })
+      })
+      .then(function () {
+        // 删掉的条目连同其子回复一起摘掉，再按 DOM 实际数量修计数（比按 1 减更稳）
+        if (item) item.remove()
+        cmtResetReplyIfDeleted(form, id)
+        var card = btn.closest('.wb-card')
+        if (card) {
+          var wbCount = card.querySelector('.wb-cmt-count')
+          if (wbCount) {
+            var panel = card.querySelector('.wb-cmt')
+            var left = panel ? panel.querySelectorAll('.wb-cmt-item').length : 0
+            wbCount.textContent = String(left)
+          }
+        }
+        var section = btn.closest('.cmt-section')
+        if (section) {
+          var c = section.querySelector('.cmt-count')
+          if (c) c.textContent = String(section.querySelectorAll('.cmt-item').length)
+        }
+      })
+      .catch(function (err) {
+        if (tipEl) {
+          tipEl.textContent = (err && err.message) || T('删除失败')
+          setTimeout(function () { tipEl.textContent = tipDefault }, 4000)
+        }
+        btn.disabled = false
+      })
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('.cmt-del-btn, .wb-cmt-del-btn') : null
+    if (!btn) return
+    e.preventDefault()
+    var id = btn.getAttribute('data-cmt-del')
+    if (!id) return
+    if (!confirm(T('删除这条评论？其下的回复会一并删除，且不可恢复。'))) return
+    deleteComment(btn, id)
+  })
+
   /* ---------------- 微博卡片：折叠评论区 ---------------- */
   var authPromise = null
   function authState() {
@@ -601,9 +964,12 @@
         '<div class="wb-cmt-head">' + avatarHtml(c) + '<span class="wb-cmt-name">' + esc(c.nickname) +
         (Number(c.is_admin) ? '<span class="wb-cmt-badge">' + T('楼主') + '</span>' : c.member_name ? '<span class="wb-cmt-badge">' + (EN ? 'Member' : '会员') + '</span>' : '') +
         '</span><span class="wb-cmt-time">' + fmtTime(c.created_at) + '</span>' +
+        // IP 属地：接口在 showCommentRegion 开启时才带 ip_region（已是服务端格式化好的标签），与楼号同款小灰字
+        (c.ip_region ? '<span class="wb-cmt-region" style="font-size:11px;opacity:0.45">' + esc(c.ip_region) + '</span>' : '') +
         (floor ? '<span class="wb-cmt-floor" style="font-size:11px;opacity:0.45;font-variant-numeric:tabular-nums">#' + floor + '</span>' : '') +
         (isAdmin
-          ? '<button type="button" class="wb-cmt-reply-btn" data-reply="' + c.id + '" data-name="' + esc(c.nickname) + '">' + T('回复') + '</button>'
+          ? '<button type="button" class="wb-cmt-reply-btn" data-reply="' + c.id + '" data-name="' + esc(c.nickname) + '">' + T('回复') + '</button>' +
+            '<button type="button" class="wb-cmt-del-btn" data-cmt-del="' + c.id + '" title="' + T('删除这条评论（其下回复一并删除，不可恢复）') + '">' + T('删除') + '</button>'
           : '') +
         '</div><div class="wb-cmt-body">' + wxqReplace(esc(c.content)) + '</div>'
       var kids = byParent[c.id] || []
@@ -880,6 +1246,18 @@
     wxqAttachButton(foot, form && form.querySelector('.wb-cmt-textarea'), foot.querySelector('.wb-cmt-submit'))
   })
 
+  /* 微博视频开播后收起 ▶ 角标（B19）：play 事件不冒泡，只能在 document 上 capture 代理 */
+  document.addEventListener(
+    'play',
+    function (e) {
+      var v = e.target
+      if (!v || v.tagName !== 'VIDEO') return
+      var box = v.closest ? v.closest('.wb-video') : null
+      if (box) box.classList.add('is-playing')
+    },
+    true
+  )
+
   /* ---------------- 前台发微博（管理员登录时微博页顶部的发布框，能力与后台发布器一致） ---------------- */
   var composerForm = document.querySelector('[data-wb-composer]')
   if (composerForm) {
@@ -890,9 +1268,12 @@
     var cpAdd = composerForm.querySelector('.wb-composer-add')
     var cpCount = composerForm.querySelector('.wb-composer-count')
     var cpTip = composerForm.querySelector('.wb-composer-tip')
+    var cpVideoBox = composerForm.querySelector('.wb-composer-video')
     var cpButtons = composerForm.querySelectorAll('.wb-composer-add, .wb-composer-draft, .wb-composer-publish')
     var cpImages = []
-    var cpUploading = 0 // 在途上传计数：发布前必须归零，否则发布会把没传完的图静默丢掉
+    var cpVideo = null // 单视频（B19）：{ url, poster, w, h } | null
+    var cpVideoMeta = '' // 视频预览的小字（体积 · 时长），只用于提示语与 title
+    var cpUploading = 0 // 在途上传计数（图 + 视频）：发布前必须归零，否则发布会把没传完的媒体静默丢掉
     var cpTipTimer = null
 
     function cpMsg(msg) {
@@ -911,6 +1292,75 @@
       if (cpCount && cpText) cpCount.textContent = cpText.value.length + ' / ' + WB_MAX_CHARS
     }
 
+    /** 视频预览（最多一个）：媒体入口统一走「加图」按钮（图片 / 视频同一个选择器，站长 2026-10-13 拍板），
+     *  这里只管预览块；单视频约束在 cpAddVideo 落点提示 */
+    function cpRenderVideo() {
+      if (cpVideoBox) {
+        cpVideoBox.hidden = !cpVideo
+        cpVideoBox.innerHTML = cpVideo ? videoTileHtml(cpVideo, cpVideoMeta) : ''
+      }
+    }
+
+    /** 加视频：单视频约束 + 类型/体积前置校验（省一次 25MB 白传）+ 进度 + 封面帧（best-effort） */
+    function cpAddVideo(file) {
+      if (cpVideo) return cpMsg(EN ? 'One video per note — remove the current one first' : '一条微博只能带一个视频，先移除当前视频')
+      if (!isVideoFile(file)) return cpMsg(T('只支持 MP4 / WebM 视频'))
+      if (file.size > VIDEO_MAX_BYTES)
+        return cpMsg((EN ? 'Video must be under 25MB — this one is ' : '视频不能超过 25MB，当前 ') + fmtSize(file.size))
+      var label = cpAdd ? cpAdd.textContent : ''
+      cpUploading++
+      if (cpAdd) {
+        cpAdd.disabled = true
+        cpAdd.textContent = (EN ? 'Uploading ' : '上传视频 ') + '0%'
+      }
+      // 元数据先到就先显示（时长/尺寸），赶在上传完成之前给回馈
+      readVideoMeta(file, function (m) {
+        if (!m) return
+        cpVideoMeta = fmtSize(file.size) + (fmtDuration(m.duration) ? ' · ' + fmtDuration(m.duration) : '')
+        if (cpVideo && !cpVideo.w) {
+          cpVideo.w = m.w
+          cpVideo.h = m.h
+        }
+        cpRenderVideo()
+        cpMsg((EN ? 'Video added · ' : '已加视频 · ') + cpVideoMeta)
+      })
+      uploadVideo(file, function (pct) {
+        if (cpAdd) cpAdd.textContent = (EN ? 'Uploading ' : '上传视频 ') + pct + '%'
+      })
+        .then(function (up) {
+          cpVideo = { url: up.url, poster: '', w: 0, h: 0 }
+          if (!cpVideoMeta) cpVideoMeta = fmtSize(file.size)
+          cpRenderVideo()
+          // HEVC（iPhone 默认的高效格式）只在部分浏览器能放：如实提示，让站长自己决定要不要换格式
+          if (up.hevc) cpMsg(T('HEVC 高效格式：iPhone / Mac 正常，部分 Windows 浏览器放不出来（想更稳就用剪辑 App 导出 MP4）'))
+          // 封面帧慢一步补传：拿不到就保持无封面（卡片照常播放），不拖慢发布
+          grabVideoPoster(file, function (shot) {
+            if (!shot || !cpVideo || cpVideo.url !== up.url) return
+            uploadImage(new File([shot.blob], 'poster.jpg', { type: 'image/jpeg' }))
+              .then(function (poster) {
+                if (!cpVideo || cpVideo.url !== up.url) return
+                cpVideo.poster = poster
+                if (!cpVideo.w) {
+                  cpVideo.w = shot.w
+                  cpVideo.h = shot.h
+                }
+                cpRenderVideo()
+              })
+              .catch(function () {
+                /* 封面帧失败不算错误：卡片退化成无封面，视频照常可播 */
+              })
+          })
+        })
+        .catch(function (err) {
+          cpMsg((err && err.message) || T('上传失败'))
+        })
+        .finally(function () {
+          cpUploading--
+          if (cpAdd) cpAdd.textContent = label
+          cpRenderVideo()
+        })
+    }
+
     if (cpTiles) {
       cpTiles.addEventListener('click', function (e) {
         var del = e.target && e.target.closest ? e.target.closest('.wb-composer-tile-del') : null
@@ -923,9 +1373,12 @@
 
     function cpAddFiles(fileList) {
       var all = Array.prototype.slice.call(fileList || [])
+      // 拖拽 / 粘贴不看 accept，视频文件会直接落到这里：先分流到视频通道（同后台 addMediaFiles 口径）
+      var vids = all.filter(isVideoFile)
+      if (vids.length) cpAddVideo(vids[0])
       var imgs = all.filter(function (f) { return /^image\//.test(f.type) })
       if (!imgs.length) {
-        if (all.length) cpMsg(T('只支持 JPG / PNG / WebP / GIF 图片'))
+        if (all.length && !vids.length) cpMsg(T('只支持 JPG / PNG / WebP / GIF 图片'))
         return
       }
       var room = WB_MAX_IMAGES - cpImages.length
@@ -966,9 +1419,22 @@
 
     if (cpAdd) {
       cpAdd.addEventListener('click', function () {
-        pickFiles({ accept: 'image/jpeg,image/png,image/webp,image/gif', multiple: true }, function (files) {
+        // 图片与视频共用一个入口：多选时视频只取第一个（一条微博最多 1 个视频），其余按图片走。
+        // accept 里写 video/*（不是枚举 mp4/webm）——iOS 图库按 accept 过滤，列窄了 iPhone 拍的 .mov 一个都不显示
+        pickFiles({ accept: 'image/jpeg,image/png,image/webp,image/gif,' + VIDEO_ACCEPT, multiple: true }, function (files) {
           cpAddFiles(files)
         })
+      })
+    }
+
+    if (cpVideoBox) {
+      cpVideoBox.addEventListener('click', function (e) {
+        var del = e.target && e.target.closest ? e.target.closest('[data-video-del]') : null
+        if (!del) return
+        cpVideo = null
+        cpVideoMeta = ''
+        cpRenderVideo()
+        cpMsg(EN ? 'Video removed' : '已移除视频')
       })
     }
 
@@ -1000,22 +1466,25 @@
     })
 
     function cpPublish(status) {
-      if (cpUploading > 0) return cpMsg(EN ? 'Images are still uploading — wait a moment' : '还有图片在上传中，等一下再发')
+      if (cpUploading > 0) return cpMsg(EN ? 'Media is still uploading — wait a moment' : '还有图片/视频在上传中，等一下再发')
       var content = cpText ? cpText.value.trim() : ''
-      if (!content && !cpImages.length) {
-        cpMsg(EN ? 'Write something or attach a photo first' : '写点什么，或者配张图吧')
+      if (!content && !cpImages.length && !cpVideo) {
+        cpMsg(T('写点什么，或者配张图 / 加段视频吧'))
         return
       }
       cpButtons.forEach(function (b) { b.disabled = true })
-      postJSON('/api/admin/weibo', { content: content, images: cpImages, status: status })
+      postJSON('/api/admin/weibo', { content: content, images: cpImages, video: cpVideo, status: status })
         .then(function () {
           if (status === 'published') {
-            location.reload()
+            reloadFresh()
             return
           }
           if (cpText) cpText.value = ''
           cpImages = []
+          cpVideo = null
+          cpVideoMeta = ''
           cpRender()
+          cpRenderVideo()
           cpMsg(EN ? 'Draft saved — continue editing in the admin Notes page' : '草稿已保存，到后台「微博」页可继续编辑')
         })
         .catch(function (err) {
@@ -1023,6 +1492,8 @@
         })
         .finally(function () {
           cpButtons.forEach(function (b) { b.disabled = false })
+          // 视频按钮的禁用态由「是否已有视频」决定，统一交回 cpRenderVideo 还原
+          cpRenderVideo()
         })
     }
     var cpPub = composerForm.querySelector('.wb-composer-publish')
@@ -1030,6 +1501,7 @@
     if (cpPub) cpPub.addEventListener('click', function () { cpPublish('published') })
     if (cpDraft) cpDraft.addEventListener('click', function () { cpPublish('draft') })
     cpRender()
+    cpRenderVideo()
   }
 
   /* ---------------- 微博卡管理（管理员登录时卡片上的 编辑 / 置顶 / 删除） ----------------
@@ -1128,6 +1600,25 @@
       return 'wb-imgs ' + (n === 1 ? 'wb-imgs-1' : n === 2 || n === 4 ? 'wb-imgs-2' : 'wb-imgs-3')
     }
 
+    // 视频块与后端 render.ts weiboVideoHtml 同口径（单行输出、占位比例、封面帧、无封面时的 ▶ 角标）；
+    // 编辑保存后就地重渲染用它，改动必须与服务端同步（tests/weibo-admin.test.ts 有逐字节镜像守卫）
+    function wbVideoHtmlJs(v) {
+      if (!v || !v.url) return ''
+      var portrait = v.w > 0 && v.h > 0 && v.h > v.w
+      var ratio = v.w > 0 && v.h > 0 ? ' style="aspect-ratio:' + v.w + '/' + v.h + '"' : ''
+      var poster = v.poster ? ' poster="' + esc(v.poster) + '"' : ''
+      var badge = v.poster ? '' : '<span class="wb-video-badge" aria-hidden="true"></span>'
+      var mime = /\.webm(\?|#|$)/i.test(v.url) ? 'video/webm' : 'video/mp4'
+      var src = esc(v.url)
+      return (
+        '<div class="wb-video' + (portrait ? ' is-portrait' : '') + (v.poster ? '' : ' is-plain') + '">' +
+        '<video controls playsinline preload="metadata"' + poster + ratio + '>' +
+        '<source src="' + src + '" type="' + mime + '">' +
+        '<a class="wb-video-fallback" href="' + src + '" target="_blank" rel="noopener noreferrer">' + T('视频') + '</a>' +
+        '</video>' + badge + '</div>'
+      )
+    }
+
     // 失败反馈：按钮文字短暂变成错误信息再还原（前台无全局 toast，评论/发布器同样是行内提示）
     function flashBtn(btn, msg) {
       if (!btn) return
@@ -1163,12 +1654,14 @@
       if (card.querySelector('[data-wb-edit]')) return
       var textEl = card.querySelector('.wb-text')
       var imgsEl = card.querySelector('.wb-imgs')
+      var videoEl = card.querySelector('.wb-video')
       var foot = card.querySelector('.wb-foot')
       var admin = card.querySelector('.wb-admin')
-      // 用内联 display 而非 hidden 属性：主题 CSS 里 .wb-imgs 等常设 display，会盖掉 [hidden]
+      // 用内联 display 而非 hidden 属性：主题 CSS 里 .wb-imgs / .wb-video 常设 display，会盖掉 [hidden]
       if (admin) admin.style.display = 'none'
       if (textEl) textEl.style.display = 'none'
       if (imgsEl) imgsEl.style.display = 'none'
+      if (videoEl) videoEl.style.display = 'none'
 
       var form = document.createElement('form')
       form.className = 'wb-edit'
@@ -1176,8 +1669,9 @@
       form.innerHTML =
         '<textarea class="wb-composer-textarea" name="content" maxlength="5000" rows="5" placeholder="' + T('说点什么…') + '"></textarea>' +
         '<div class="wb-composer-tiles" hidden></div>' +
+        '<div class="wb-composer-video" hidden></div>' +
         '<div class="wb-composer-foot">' +
-        '<button type="button" class="wb-composer-add">' + (EN ? addLabelEn(0, WB_MAX_IMAGES) : '加图（0/' + WB_MAX_IMAGES + '）') + '</button>' +
+        '<button type="button" class="wb-composer-add" title="' + T('图片 / 视频，一条微博最多 1 个视频') + '">' + (EN ? addLabelEn(0, WB_MAX_IMAGES) : '加图（0/' + WB_MAX_IMAGES + '）') + '</button>' +
         '<span class="wb-composer-count">0 / ' + WB_MAX_CHARS + '</span>' +
         '<span class="wb-composer-tip" aria-live="polite"></span>' +
         '<button type="button" class="wb-composer-draft" data-wb-edit-cancel>' + T('取消') + '</button>' +
@@ -1190,12 +1684,17 @@
       wxqAttachButton(form.querySelector('.wb-composer-foot'), form.querySelector('textarea'))
       var ta = form.querySelector('textarea')
       var tiles = form.querySelector('.wb-composer-tiles')
-      var addBtn = form.querySelector('.wb-composer-add')
+      // 收紧选择器：表情按钮（wxqAttachButton 插的，带 data-wxq-btn）也带 .wb-composer-add 类，
+      // 裸 querySelector 会取到它——「加图」标签会被刷到表情按钮上、点它还会弹出选图器（HEAD 上就有的老 bug）
+      var addBtn = form.querySelector('.wb-composer-add:not([data-wxq-btn])')
       var countEl = form.querySelector('.wb-composer-count')
       var tipEl = form.querySelector('.wb-composer-tip')
       var saveBtn = form.querySelector('[data-wb-edit-save]')
       var cancelBtn = form.querySelector('[data-wb-edit-cancel]')
+      var videoBox = form.querySelector('.wb-composer-video')
       var images = []
+      var video = null // 单视频（B19）：{ url, poster, w, h } | null
+      var videoMeta = ''
       var uploading = 0 // 与顶部发布框同口径：保存前必须等在途上传归零
       var tipTimer = null
 
@@ -1212,6 +1711,67 @@
         countEl.textContent = ta.value.length + ' / ' + WB_MAX_CHARS
       }
 
+      /** 视频预览（最多一个）：媒体入口统一走「加图」按钮（与顶部发布器同口径） */
+      function renderVideo() {
+        videoBox.hidden = !video
+        videoBox.innerHTML = video ? videoTileHtml(video, videoMeta) : ''
+      }
+
+      /** 加视频：类型 / 体积前置校验 + 进度 + 封面帧（best-effort）；与顶部发布器同一套流程 */
+      function addVideoFile(file) {
+        if (video) return tip(EN ? 'One video per note — remove the current one first' : '一条微博只能带一个视频，先移除当前视频')
+        if (!isVideoFile(file)) return tip(T('只支持 MP4 / WebM 视频'))
+        if (file.size > VIDEO_MAX_BYTES)
+          return tip((EN ? 'Video must be under 25MB — this one is ' : '视频不能超过 25MB，当前 ') + fmtSize(file.size))
+        var label = addBtn.textContent
+        uploading++
+        addBtn.disabled = true
+        addBtn.textContent = (EN ? 'Uploading ' : '上传视频 ') + '0%'
+        readVideoMeta(file, function (m) {
+          if (!m) return
+          videoMeta = fmtSize(file.size) + (fmtDuration(m.duration) ? ' · ' + fmtDuration(m.duration) : '')
+          if (video && !video.w) {
+            video.w = m.w
+            video.h = m.h
+          }
+          renderVideo()
+          tip((EN ? 'Video added · ' : '已加视频 · ') + videoMeta)
+        })
+        uploadVideo(file, function (pct) {
+          addBtn.textContent = (EN ? 'Uploading ' : '上传视频 ') + pct + '%'
+        })
+          .then(function (up) {
+            video = { url: up.url, poster: '', w: 0, h: 0 }
+            if (!videoMeta) videoMeta = fmtSize(file.size)
+            renderVideo()
+            if (up.hevc) tip(T('HEVC 高效格式：iPhone / Mac 正常，部分 Windows 浏览器放不出来（想更稳就用剪辑 App 导出 MP4）'))
+            grabVideoPoster(file, function (shot) {
+              if (!shot || !video || video.url !== up.url) return
+              uploadImage(new File([shot.blob], 'poster.jpg', { type: 'image/jpeg' }))
+                .then(function (poster) {
+                  if (!video || video.url !== up.url) return
+                  video.poster = poster
+                  if (!video.w) {
+                    video.w = shot.w
+                    video.h = shot.h
+                  }
+                  renderVideo()
+                })
+                .catch(function () {
+                  /* 封面帧失败不算错误：卡片退化成无封面，视频照常可播 */
+                })
+            })
+          })
+          .catch(function (err) {
+            tip((err && err.message) || T('上传失败'))
+          })
+          .finally(function () {
+            uploading--
+            addBtn.textContent = label
+            renderVideo()
+          })
+      }
+
       ta.addEventListener('input', renderTiles)
       tiles.addEventListener('click', function (e) {
         var del = e.target && e.target.closest ? e.target.closest('.wb-composer-tile-del') : null
@@ -1219,9 +1779,21 @@
         images.splice(Number(del.getAttribute('data-i')), 1)
         renderTiles()
       })
+      videoBox.addEventListener('click', function (e) {
+        var del = e.target && e.target.closest ? e.target.closest('[data-video-del]') : null
+        if (!del) return
+        video = null
+        videoMeta = ''
+        renderVideo()
+        tip(EN ? 'Video removed' : '已移除视频')
+      })
 
       function addFiles(fileList) {
-        var imgs = [].slice.call(fileList || []).filter(function (f) { return /^image\//.test(f.type) })
+        var all = [].slice.call(fileList || [])
+        // 拖拽 / 粘贴不看 accept：视频走视频通道（一条微博一个视频），其余按图片处理
+        var vids = all.filter(isVideoFile)
+        if (vids.length) addVideoFile(vids[0])
+        var imgs = all.filter(function (f) { return /^image\//.test(f.type) })
         if (!imgs.length) return
         var room = WB_MAX_IMAGES - images.length
         if (room <= 0) return tip(EN ? 'At most ' + WB_MAX_IMAGES + ' photos' : '最多 ' + WB_MAX_IMAGES + ' 张图')
@@ -1251,7 +1823,8 @@
           })
       }
       addBtn.addEventListener('click', function () {
-        pickFiles({ accept: 'image/jpeg,image/png,image/webp,image/gif', multiple: true }, function (files) {
+        // 图片与视频共用一个入口（与顶部发布器同口径）；addFiles 内部把视频分流到视频通道
+        pickFiles({ accept: 'image/jpeg,image/png,image/webp,image/gif,' + VIDEO_ACCEPT, multiple: true }, function (files) {
           addFiles(files)
         })
       })
@@ -1278,22 +1851,23 @@
         form.remove()
         if (textEl) textEl.style.display = ''
         if (imgsEl) imgsEl.style.display = ''
+        if (videoEl) videoEl.style.display = ''
         if (admin) admin.style.display = ''
       }
       cancelBtn.addEventListener('click', leaveEdit)
 
       saveBtn.addEventListener('click', function () {
-        if (uploading > 0) return tip(EN ? 'Images are still uploading — wait a moment' : '还有图片在上传中，等一下再保存')
+        if (uploading > 0) return tip(EN ? 'Media is still uploading — wait a moment' : '还有图片/视频在上传中，等一下再保存')
         var content = ta.value.trim()
-        if (!content && !images.length) return tip(EN ? 'Write something or attach a photo first' : '写点什么，或者配张图吧')
+        if (!content && !images.length && !video) return tip(T('写点什么，或者配张图 / 加段视频吧'))
         saveBtn.textContent = T('保存中…')
         saveBtn.disabled = true
         cancelBtn.disabled = true
-        // PUT 是全量更新：必须带上现有 images，不然配图会被清空（与后台编辑同约束）
-        fetch('/api/admin/weibo/' + id, {
+        // 全量更新：images 必须回传，video 显式回传（null = 清除），不然配图 / 视频会被清空
+        fetch('/api/admin/weibo/' + encodeURIComponent(id), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: content, images: images, status: 'published' }),
+          body: JSON.stringify({ content: content, images: images, video: video, status: 'published' }),
         })
           .then(function (r) {
             return r.json().then(function (d) {
@@ -1325,6 +1899,20 @@
                 imgsEl.remove()
                 imgsEl = null
               }
+              if (video) {
+                var vHtml = wbVideoHtmlJs(video)
+                if (videoEl) {
+                  videoEl.outerHTML = vHtml
+                } else {
+                  var holder = document.createElement('div')
+                  holder.innerHTML = vHtml
+                  card.insertBefore(holder.firstChild, imgsEl || form)
+                }
+                videoEl = card.querySelector('.wb-video')
+              } else if (videoEl) {
+                videoEl.remove()
+                videoEl = null
+              }
               leaveEdit()
             })
           })
@@ -1341,13 +1929,16 @@
       saveBtn.disabled = true
       ta.disabled = true
       renderTiles()
-      getJSON('/api/admin/weibo/' + id)
+      getJSON('/api/admin/weibo/' + encodeURIComponent(id))
         .then(function (d) {
           ta.value = (d.weibo && d.weibo.content) || ''
           images = ((d.weibo && d.weibo.imageList) || []).slice(0, WB_MAX_IMAGES)
+          video = (d.weibo && d.weibo.videoView) || null
+          videoMeta = ''
           ta.disabled = false
           saveBtn.disabled = false
           renderTiles()
+          renderVideo()
           ta.focus()
         })
         .catch(function (err) {
@@ -1369,7 +1960,7 @@
       } else if (act === 'pin') {
         var pinned = !card.classList.contains('is-pinned')
         btn.disabled = true
-        postJSON('/api/admin/weibo/' + id + '/pin', { pinned: pinned })
+        postJSON('/api/admin/weibo/' + encodeURIComponent(id) + '/pin', { pinned: pinned })
           .then(function () {
             setPinned(card, pinned)
             // 置顶后挪到列表最前（服务端 pinnedFirst 排序，与刷新后的顺序一致）
@@ -1385,7 +1976,7 @@
         if (!confirm(EN ? 'Delete this note? It moves to the admin trash and can be restored within 30 days.' : '确定删除这条微博？将移入后台回收站，30 天内可恢复。')) return
         btn.textContent = T('删除中…')
         btn.disabled = true
-        fetch('/api/admin/weibo/' + id, { method: 'DELETE' })
+        fetch('/api/admin/weibo/' + encodeURIComponent(id), { method: 'DELETE' })
           .then(function (r) {
             return r.json().then(function (d) {
               if (!r.ok) throw new Error((d && d.error) || T('删除失败'))
@@ -1437,8 +2028,374 @@
       })
   })
 
+  /* ---------------- 微信同款读者交互件：底部操作面板 + 轻提示 + 正文缩放 + 右上角「…」 ----------------
+   * 全部客户端注入（归宿①，不给七主题加样式负担）；样式一次性注入 <style>（CSP style-src 允许内联）。
+   * 三类消费者：正文页右上角「…」聚合菜单、灯箱长按菜单、正文缩放（C11 阅读偏好）。
+   * 面板配色中性白/深（微信 action sheet 同款），按主题底色亮度自动选深浅，不引主题变量名。 */
+  var XW_UI_CSS = [
+    '.xw-toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:100002;',
+    'max-width:74vw;padding:10px 18px;border-radius:8px;background:rgba(0,0,0,.78);color:#fff;',
+    'font-size:14px;line-height:1.5;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s ease;',
+    'font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}',
+    '.xw-toast.is-on{opacity:1}',
+    '.xw-sheet-ov{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);opacity:0;transition:opacity .2s ease}',
+    '.xw-sheet-ov.is-on{opacity:1}',
+    '.xw-sheet{position:fixed;left:0;right:0;bottom:0;z-index:100001;padding:0 10px calc(10px + env(safe-area-inset-bottom));',
+    'transform:translateY(102%);transition:transform .26s cubic-bezier(.22,.61,.36,1);',
+    'font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}',
+    '.xw-sheet.is-open{transform:translateY(0)}',
+    '.xw-sheet-card{background:#fff;border-radius:14px;overflow:hidden}',
+    '.xw-sheet-cancel{display:flex;align-items:center;justify-content:center;margin-top:8px;padding:15px;',
+    'background:#fff;border-radius:14px;font-size:16px;color:#1a1a1a;cursor:pointer;-webkit-tap-highlight-color:transparent}',
+    '.xw-sheet-row{display:flex;align-items:center;gap:12px;padding:15px 18px;font-size:16px;color:#1a1a1a;',
+    'cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent}',
+    '.xw-sheet-row+.xw-sheet-row{border-top:1px solid #ededed}',
+    '.xw-sheet-row:active,.xw-sheet-cancel:active{background:#f5f5f5}',
+    '.xw-sheet-ic{display:inline-flex;flex:0 0 22px;color:#576b95}',
+    '.xw-fs-seg{display:flex;gap:8px;margin-left:auto}',
+    '.xw-fs-btn{min-width:48px;padding:6px 10px;margin:0;border:none;border-radius:8px;background:#f2f2f2;color:#333;',
+    'font-size:14px;line-height:1.4;cursor:pointer;-webkit-tap-highlight-color:transparent}',
+    '.xw-fs-btn.is-on{background:#07c160;color:#fff}',
+    '.xw-sheet[data-dark="1"] .xw-sheet-card,.xw-sheet[data-dark="1"] .xw-sheet-cancel{background:#1f1f1f}',
+    '.xw-sheet[data-dark="1"] .xw-sheet-row,.xw-sheet[data-dark="1"] .xw-sheet-cancel{color:#e6e6e6}',
+    '.xw-sheet[data-dark="1"] .xw-sheet-row+.xw-sheet-row{border-top-color:#2c2c2c}',
+    '.xw-sheet[data-dark="1"] .xw-sheet-row:active,.xw-sheet[data-dark="1"] .xw-sheet-cancel:active{background:#2a2a2a}',
+    '.xw-sheet[data-dark="1"] .xw-sheet-ic{color:#7d90b8}',
+    '.xw-sheet[data-dark="1"] .xw-fs-btn{background:#2c2c2c;color:#ddd}',
+    '.xw-sheet[data-dark="1"] .xw-fs-btn.is-on{background:#07c160;color:#fff}',
+    '.xw-more-fab{position:fixed;top:calc(10px + env(safe-area-inset-top));right:14px;z-index:70;display:none;',
+    'width:38px;height:38px;align-items:center;justify-content:center;margin:0;padding:0;border:none;border-radius:50%;',
+    'background:rgba(40,38,34,.72);color:#fff;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);',
+    'cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 2px 10px rgba(0,0,0,.14)}',
+    '.xw-more-fab.is-on{display:flex}',
+    '@media (prefers-reduced-motion:reduce){.xw-sheet,.xw-sheet-ov,.xw-toast{transition:none}}',
+  ].join('')
+
+  // 面板行图标（currentColor 随面板配色）
+  var XW_ICONS = {
+    share:
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4m0 0L8 8m4-4 4 4"/><path d="M7.5 11H7a3 3 0 0 0-3 3v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3a3 3 0 0 0-3-3h-.5"/></svg>',
+    link:
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>',
+    font: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19 8 6l5 13"/><path d="M4.8 14.5h6.4"/><path d="M15.5 19h5"/></svg>',
+    download:
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>',
+  }
+
+  ;(function () {
+    if (document.getElementById('xw-ui-css')) return
+    var st = document.createElement('style')
+    st.id = 'xw-ui-css'
+    st.textContent = XW_UI_CSS
+    document.head.appendChild(st)
+  })()
+
+  /* 轻提示：居中黑底圆角，微信 Toast 同款，自动消失（同一时刻只留一个） */
+  var xwToastTimer = null
+  function xwToast(msg) {
+    var el = document.getElementById('xw-toast')
+    if (!el) {
+      el = document.createElement('div')
+      el.id = 'xw-toast'
+      el.className = 'xw-toast'
+      el.setAttribute('role', 'status')
+      document.body.appendChild(el)
+    }
+    el.textContent = msg
+    el.classList.add('is-on')
+    clearTimeout(xwToastTimer)
+    xwToastTimer = setTimeout(function () {
+      el.classList.remove('is-on')
+    }, 1700)
+  }
+
+  /* 复制文本：剪贴板 API 优先，不可用回落 execCommand（与代码块复制同兜底语义） */
+  function xwLegacyCopy(text) {
+    var ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;'
+    document.body.appendChild(ta)
+    ta.focus()
+    ta.select()
+    var ok = false
+    try {
+      ok = document.execCommand('copy')
+    } catch (e) {}
+    document.body.removeChild(ta)
+    return ok
+  }
+  function xwCopyText(text, ok, fail) {
+    var done = function () {
+      if (ok) ok()
+    }
+    var bad = function () {
+      if (fail) fail()
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () {
+        if (xwLegacyCopy(text)) done()
+        else bad()
+      })
+    } else if (xwLegacyCopy(text)) {
+      done()
+    } else {
+      bad()
+    }
+  }
+
+  /* 底部操作面板（微信 action sheet 同款）：xwOpenSheet(行元素数组, 是否深色) */
+  var xwSheetOnKey = null
+  function xwCloseSheet() {
+    var ov = document.getElementById('xw-sheet-ov')
+    var panel = document.getElementById('xw-sheet')
+    if (!ov && !panel) return
+    if (xwSheetOnKey) {
+      document.removeEventListener('keydown', xwSheetOnKey, true)
+      xwSheetOnKey = null
+    }
+    if (ov) ov.classList.remove('is-on')
+    if (panel) panel.classList.remove('is-open')
+    // 等过渡结束再摘 DOM；用闭包变量判在场，防期间又开了一个面板
+    setTimeout(function () {
+      if (ov && ov.parentNode) ov.parentNode.removeChild(ov)
+      if (panel && panel.parentNode) panel.parentNode.removeChild(panel)
+    }, 280)
+  }
+  function xwOpenSheet(rows, dark) {
+    xwCloseSheet()
+    var ov = document.createElement('div')
+    ov.id = 'xw-sheet-ov'
+    ov.className = 'xw-sheet-ov'
+    ov.addEventListener('click', xwCloseSheet)
+    var panel = document.createElement('div')
+    panel.id = 'xw-sheet'
+    panel.className = 'xw-sheet'
+    panel.setAttribute('role', 'dialog')
+    panel.setAttribute('aria-modal', 'true')
+    if (dark) panel.setAttribute('data-dark', '1')
+    var card = document.createElement('div')
+    card.className = 'xw-sheet-card'
+    for (var i = 0; i < rows.length; i++) card.appendChild(rows[i])
+    var cancel = document.createElement('div')
+    cancel.className = 'xw-sheet-cancel'
+    cancel.setAttribute('role', 'button')
+    cancel.setAttribute('tabindex', '0')
+    cancel.textContent = T('取消')
+    cancel.addEventListener('click', xwCloseSheet)
+    panel.appendChild(card)
+    panel.appendChild(cancel)
+    // 不锁 body 滚动：灯箱打开时它已锁，这里再锁会与灯箱互相抵消（关面板时误解锁）
+    document.body.appendChild(ov)
+    document.body.appendChild(panel)
+    xwSheetOnKey = function (e) {
+      if (e.key === 'Escape') {
+        xwCloseSheet()
+        e.preventDefault()
+      }
+    }
+    document.addEventListener('keydown', xwSheetOnKey, true)
+    var show = function () {
+      ov.classList.add('is-on')
+      panel.classList.add('is-open')
+    }
+    if (window.requestAnimationFrame) requestAnimationFrame(show)
+    else setTimeout(show, 16)
+  }
+  /* 面板行：icon + label（+ 可选的尾部节点，如字号分段控件）；onPick 为 null 则只展示不可点 */
+  function xwSheetRow(icon, label, onPick, trailing) {
+    var r = document.createElement('div')
+    r.className = 'xw-sheet-row'
+    if (onPick) {
+      r.setAttribute('role', 'button')
+      r.setAttribute('tabindex', '0')
+    }
+    r.innerHTML = '<span class="xw-sheet-ic">' + icon + '</span><span class="xw-sheet-lb">' + esc(label) + '</span>'
+    if (trailing) r.appendChild(trailing)
+    if (onPick) {
+      r.addEventListener('click', onPick)
+      r.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onPick()
+        }
+      })
+    }
+    return r
+  }
+
+  /* ---------------- 正文缩放（C11）+ 正文页右上角「…」聚合菜单（微信同款） ----------------
+   * 字号只作用于正文容器（.rich）；缩放走 zoom——一次覆盖标题/正文/代码/表格，无需七主题逐套字号，
+   * 不支持的浏览器降级为只缩放正文字号。记忆走 storeGet/storeSet（禁裸 localStorage）。
+   * 「…」只在窄屏 + 导航滚出视野后浮现（顶部右下角不压导航），点开底部面板：分享 / 复制链接 / 字号。 */
+  ;(function () {
+    var FS_KEY = 'xw:reader:fs:v1'
+    var FS_LABELS = ['小', '标准', '大', '特大']
+    var FS_MULT = [0.9, 1, 1.15, 1.3]
+    var FS_DEFAULT = 1 // 标准
+
+    function fsZoomOk() {
+      return !!(window.CSS && window.CSS.supports && window.CSS.supports('zoom', '1.15'))
+    }
+    function fsApply(i) {
+      var mult = FS_MULT[i]
+      var nodes = document.querySelectorAll('.rich')
+      for (var k = 0; k < nodes.length; k++) {
+        var n = nodes[k]
+        if (fsZoomOk()) {
+          n.style.zoom = mult === 1 ? '' : String(mult)
+        } else {
+          // 降级：只缩放正文容器字号（首遍读基线，避免二次放大叠加）
+          if (n.__xwBaseFs == null) n.__xwBaseFs = parseFloat(window.getComputedStyle(n).fontSize) || 17
+          n.style.fontSize = (n.__xwBaseFs * mult).toFixed(2) + 'px'
+        }
+      }
+    }
+    function fsGet() {
+      var v = parseInt(storeGet(FS_KEY), 10)
+      return v >= 0 && v < FS_MULT.length ? v : FS_DEFAULT
+    }
+    function fsSet(i) {
+      storeSet(FS_KEY, String(i))
+      fsApply(i)
+    }
+
+    if (!document.querySelector('.rich')) return // 列表 / 微博页无正文，不启用
+    fsApply(fsGet())
+
+    // 主题底色亮度 → 面板深浅（各主题变量名不同，用计算色判定，不引变量）
+    function cssLum(c) {
+      var m = /rgba?\(([^)]+)\)/.exec(c || '')
+      if (!m) return null
+      var p = m[1].split(',')
+      if (p.length < 3) return null
+      if (p.length > 3 && parseFloat(p[3]) === 0) return null
+      var r = parseFloat(p[0])
+      var g = parseFloat(p[1])
+      var b = parseFloat(p[2])
+      if (isNaN(r) || isNaN(g) || isNaN(b)) return null
+      return (r * 299 + g * 587 + b * 114) / 1000
+    }
+    function themeDark() {
+      var v = cssLum(window.getComputedStyle(document.body).backgroundColor)
+      if (v == null) v = cssLum(window.getComputedStyle(document.documentElement).backgroundColor)
+      return v != null && v < 128
+    }
+
+    function fsRow() {
+      var seg = document.createElement('div')
+      seg.className = 'xw-fs-seg'
+      var cur = fsGet()
+      var btns = []
+      for (var i = 0; i < FS_LABELS.length; i++) {
+        ;(function (i) {
+          var b = document.createElement('button')
+          b.type = 'button'
+          b.className = 'xw-fs-btn' + (i === cur ? ' is-on' : '')
+          b.textContent = T(FS_LABELS[i])
+          b.addEventListener('click', function () {
+            fsSet(i)
+            for (var k = 0; k < btns.length; k++) {
+              if (k === i) btns[k].classList.add('is-on')
+              else btns[k].classList.remove('is-on')
+            }
+          })
+          seg.appendChild(b)
+          btns.push(b)
+        })(i)
+      }
+      return xwSheetRow(XW_ICONS.font, T('字号'), null, seg)
+    }
+
+    function copyLink() {
+      xwCopyText(
+        location.href,
+        function () {
+          xwToast(T('已复制链接'))
+        },
+        function () {
+          xwToast(T('复制链接失败'))
+        }
+      )
+    }
+    function doShare() {
+      var sb = document.querySelector('.share-btn')
+      if (sb) {
+        sb.click() // 复用文章分享面板（复制链接 / 系统分享 / 卡片图 + 二维码）
+        return
+      }
+      if (navigator.share) {
+        try {
+          var pr = navigator.share({ title: document.title, url: location.href })
+          if (pr && pr.catch) pr.catch(function () {})
+          return
+        } catch (e) {}
+      }
+      copyLink()
+    }
+
+    function openMore() {
+      xwOpenSheet(
+        [
+          xwSheetRow(XW_ICONS.share, T('分享'), function () {
+            xwCloseSheet()
+            doShare()
+          }),
+          xwSheetRow(XW_ICONS.link, T('复制链接'), function () {
+            xwCloseSheet()
+            copyLink()
+          }),
+          fsRow(),
+        ],
+        themeDark()
+      )
+    }
+
+    var mq = window.matchMedia ? window.matchMedia('(max-width: 900px)') : null
+    var fab = document.createElement('button')
+    fab.type = 'button'
+    fab.id = 'xw-more'
+    fab.className = 'xw-more-fab'
+    fab.setAttribute('aria-label', T('更多操作'))
+    fab.title = T('更多操作')
+    fab.innerHTML =
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>'
+    fab.addEventListener('click', openMore)
+    document.body.appendChild(fab)
+
+    var nav = document.querySelector('[data-xw-nav-sticky]') || document.querySelector('nav')
+    var shown = false
+    var recheck = null
+    function navHidden() {
+      if (!nav) return true
+      // 吸顶导航收起时带 .xw-nav-hide（且收起有过渡，rect 在过渡中仍是旧值，故同时看类名）
+      if (nav.classList && nav.classList.contains('xw-nav-hide')) return true
+      return nav.getBoundingClientRect().bottom <= 8
+    }
+    function update() {
+      var on = false
+      if (!mq || mq.matches) {
+        var y = window.pageYOffset || document.documentElement.scrollTop || 0
+        if (y > 120) on = navHidden()
+      }
+      if (on === shown) return
+      shown = on
+      if (on) fab.classList.add('is-on')
+      else fab.classList.remove('is-on')
+    }
+    function onScroll() {
+      update()
+      // 导航收起有过渡，过渡结束后复核一次（否则只在滚动瞬间测到旧 rect，FAB 永远不浮现）
+      clearTimeout(recheck)
+      recheck = setTimeout(update, 280)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', update)
+    update()
+  })()
+
   /* ---------------- 图片灯箱：正文图 + 微博配图，点击全屏查看 ----------------
-   * 手势：单指/滚轮缩放（双指捏合）、拖动平移、双击放大复原、左右滑动切换同组图片。
+   * 手势：单指/滚轮缩放（双指捏合）、拖动平移、双击放大复原、左右滑动切换同组图片、
+   * 未放大时下拉关闭；长按弹「保存图片 / 复制图片地址」（微信图片查看器同款）。
    * 纯 JS + 内联 style（CSP style-src 允许内联），无外部依赖。 */
   ;(function () {
     var lb = null
@@ -1452,6 +2409,9 @@
     var pinchDist = 0
     var pointers = new Map()
     var lastTap = 0
+    var dragY = 0 // 未放大时下拉关闭的位移
+    var pressTimer = null // 长按计时
+    var pressAt = null
 
     function apply() {
       imgEl.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')'
@@ -1460,7 +2420,9 @@
       scale = 1
       tx = 0
       ty = 0
+      dragY = 0
       apply()
+      if (lb) lb.style.background = 'rgba(0,0,0,.92)'
     }
     function show(i) {
       idx = (i + group.length) % group.length
@@ -1471,6 +2433,11 @@
     }
     function close() {
       if (!lb) return
+      if (pressTimer) {
+        clearTimeout(pressTimer)
+        pressTimer = null
+      }
+      pressAt = null
       document.removeEventListener('keydown', onKey, true)
       lb.remove()
       lb = null
@@ -1522,7 +2489,7 @@
       btnClose.textContent = '×'
       btnClose.addEventListener('click', close)
       imgEl = document.createElement('img')
-      imgEl.setAttribute('style', 'max-width:92vw;max-height:88vh;transition:transform .18s ease;will-change:transform;user-select:none;-webkit-user-drag:none;')
+      imgEl.setAttribute('style', 'max-width:92vw;max-height:88vh;transition:transform .18s ease;will-change:transform;user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none;')
       lb.appendChild(imgEl)
       lb.appendChild(counter)
       lb.appendChild(btnClose)
@@ -1572,9 +2539,18 @@
           apply()
           return
         }
-        // 未放大时横向拖超过 60px 即切图（touch 上跟手，抬手判定）
-        var dx = e.clientX - prev.x
-        if (group.length > 1 && Math.abs(dx) > 0) imgEl.style.transform = 'translateX(' + dx / 3 + 'px)'
+        // 未放大时：纵向拖是下拉关闭（跟手 + 背景渐透），横向拖给切图跟手反馈
+        if (startPos) {
+          var tdx = e.clientX - startPos.x
+          var tdy = e.clientY - startPos.y
+          if (Math.abs(tdy) > Math.abs(tdx)) {
+            dragY = tdy
+            imgEl.style.transform = 'translateY(' + tdy + 'px)'
+            lb.style.background = 'rgba(0,0,0,' + Math.max(0.3, 0.92 - Math.abs(tdy) / 520).toFixed(3) + ')'
+          } else if (group.length > 1 && Math.abs(tdx) > 0) {
+            imgEl.style.transform = 'translateX(' + tdx / 3 + 'px)'
+          }
+        }
       })
       var startPos = null
       lb.addEventListener('pointerdown', function (e) {
@@ -1590,6 +2566,12 @@
           var dx = e.clientX - startPos.x
           var dy = e.clientY - startPos.y
           var dt = Date.now() - startPos.t
+          // 下拉关闭（微信图片查看器同款）：够远且纵向为主，抬手即关
+          if (dt < 700 && dy > 100 && Math.abs(dy) > Math.abs(dx)) {
+            startPos = null
+            close()
+            return
+          }
           if (group.length > 1 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) && dt < 600) {
             show(idx + (dx < 0 ? 1 : -1))
             startPos = null
@@ -1623,6 +2605,54 @@
         },
         { passive: false }
       )
+
+      // 长按（在图上按住 550ms 不动）：弹「保存图片 / 复制图片地址」（微信图片查看器同款长按菜单）
+      function pressCancel() {
+        if (pressTimer) {
+          clearTimeout(pressTimer)
+          pressTimer = null
+        }
+        pressAt = null
+      }
+      lb.addEventListener('pointerdown', function (e) {
+        if (pointers.size !== 1 || e.target !== imgEl) return
+        pressAt = { x: e.clientX, y: e.clientY }
+        if (pressTimer) clearTimeout(pressTimer)
+        pressTimer = setTimeout(function () {
+          pressTimer = null
+          if (!lb || pointers.size !== 1 || scale > 1) return
+          var url = group[idx]
+          if (!url) return
+          xwOpenSheet(
+            [
+              xwSheetRow(XW_ICONS.download, T('保存图片'), function () {
+                xwCloseSheet()
+                var a = document.createElement('a')
+                a.href = url
+                a.download = ''
+                a.rel = 'noopener'
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                xwToast(T('已保存，若未开始下载请长按图片另存'))
+              }),
+              xwSheetRow(XW_ICONS.link, T('复制图片地址'), function () {
+                xwCloseSheet()
+                xwCopyText(url, function () {
+                  xwToast(T('已复制图片地址'))
+                })
+              }),
+            ],
+            true
+          )
+        }, 550)
+      })
+      lb.addEventListener('pointermove', function (e) {
+        if (!pressAt) return
+        if (Math.abs(e.clientX - pressAt.x) > 10 || Math.abs(e.clientY - pressAt.y) > 10) pressCancel()
+      })
+      lb.addEventListener('pointerup', pressCancel)
+      lb.addEventListener('pointercancel', pressCancel)
 
       show(idx)
     }
@@ -1971,7 +3001,7 @@
           .then(function () {
             if (tip) tip.textContent = kind === 'register' ? T('注册成功，正在进入…') : T('登录成功，正在进入…')
             setTimeout(function () {
-              location.reload()
+              reloadFresh()
             }, 500)
           })
           .catch(function (err) {
@@ -2004,7 +3034,7 @@
         .then(function () {
           if (tip) tip.textContent = T('昵称已更新，正在刷新…')
           setTimeout(function () {
-            location.reload()
+            reloadFresh()
           }, 500)
         })
         .catch(function (err) {
@@ -2043,7 +3073,7 @@
           } else {
             if (tip) tip.textContent = T('已保存，正在刷新…')
             setTimeout(function () {
-              location.reload()
+              reloadFresh()
             }, 500)
           }
         })
@@ -2099,7 +3129,7 @@
       memLogout.disabled = true
       postJSON('/api/member/logout', {})
         .then(function () {
-          location.reload()
+          reloadFresh()
         })
         .catch(function (err) {
           memLogout.disabled = false
@@ -2113,12 +3143,21 @@
   /* ---------------- 访客统计打点（后台「统计」页，服务端见 src/stats.ts） ----------------
    * 只上报匿名访客 id / 路径 / 标题 / 来源域名，不碰 Cookie 不存 IP；
    * 页面带 <meta name="xw-stats" content="off">（后台关闭采集）时完全不发请求 */
-  try {
-    if (
-      document.visibilityState === 'visible' &&
-      !/bot|crawl|spider|slurp/i.test(navigator.userAgent) &&
-      !document.querySelector('meta[name="xw-stats"][content="off"]')
-    ) {
+  // 预渲染 / 预取（Speculation Rules，B24）中先不报：页面真被打开时才计入访客，
+  // 否则 hover 一次就给一个没打开过的页面记一笔访客。老浏览器没有 prerendering 属性，
+  // 走原路径（可见即上报）。
+  var trackSent = false
+  function sendTrack() {
+    if (trackSent) return
+    if (document.prerendering) {
+      document.addEventListener('prerenderingchange', sendTrack)
+      return
+    }
+    if (document.visibilityState !== 'visible') return
+    if (/bot|crawl|spider|slurp/i.test(navigator.userAgent)) return
+    if (document.querySelector('meta[name="xw-stats"][content="off"]')) return
+    trackSent = true
+    try {
       var vid = storeGet('xw-vid')
       if (!vid) {
         vid = Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
@@ -2131,8 +3170,9 @@
         v: vid,
         t: document.title,
       }).catch(function () {})
+    } catch (err) {
+      /* 统计永不影响页面 */
     }
-  } catch (err) {
-    /* 统计永不影响页面 */
   }
+  sendTrack()
 })()

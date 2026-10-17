@@ -38,29 +38,32 @@ export function ftsMatchExpr(q: string): string | null {
  *  listPosts 的 LIKE 路径（时间序）——调用方拿到的都是同构 ListPostsResult，无感切换。
  *  加密文 / 回收站 / 非公开状态在 FTS 查询层直接排除（防线 2），locked 文章照常参与搜索、
  *  由渲染层的摘要口径兜底（与旧搜索同口径）。 */
-export async function searchPosts(db: D1Database, q: string, limit = 50): Promise<ListPostsResult> {
+export async function searchPosts(db: D1Database, q: string, limit = 50, afterTs = 0): Promise<ListPostsResult> {
   const expr = ftsMatchExpr(q)
-  if (!expr) return listPosts(db, { status: 'published', q, page: 1, limit })
-  // 与 listPosts q 分支同口径的过滤条件（防线 2）；matches 必须回连原表过这些业务过滤
+  if (!expr) return listPosts(db, { status: 'published', q, page: 1, limit, afterTs })
+  // 与 listPosts q 分支同口径的过滤条件（防线 2）；matches 必须回连原表过这些业务过滤；
+  // 站点可见窗口（afterTs）同 listPosts 口径——窗口外文章不参与搜索，防「命中本身即泄露」
+  const vis = afterTs > 0 ? 'AND COALESCE(p.published_at, p.created_at) >= ?' : ''
   const where =
-    "posts_fts MATCH ? AND p.deleted_at IS NULL AND p.status = 'published' AND (p.password_hash IS NULL OR p.password_hash = '')"
+    `posts_fts MATCH ? AND p.deleted_at IS NULL AND p.status = 'published' AND (p.password_hash IS NULL OR p.password_hash = '') ${vis}`
+  const binds = (args: unknown[]) => (afterTs > 0 ? [...args, afterTs] : args)
   try {
     const [itemsRes, countRes] = await Promise.all([
       db
         .prepare(
           `SELECT p.* FROM posts_fts JOIN posts p ON p.id = posts_fts.rowid WHERE ${where} ORDER BY bm25(posts_fts) LIMIT ?`
         )
-        .bind(expr, limit)
+        .bind(...binds([expr]), limit)
         .all<PostRow>(),
       db
         .prepare(`SELECT COUNT(*) AS n FROM posts_fts JOIN posts p ON p.id = posts_fts.rowid WHERE ${where}`)
-        .bind(expr)
+        .bind(...binds([expr]))
         .first<{ n: number }>(),
     ])
     return { items: itemsRes.results ?? [], total: countRes?.n ?? 0, page: 1, totalPages: 1 }
   } catch {
     // FTS 虚表缺失（迁移未跑完的冷启动窗口）等异常：退回 LIKE，搜索不能因索引挂掉而 500
-    return listPosts(db, { status: 'published', q, page: 1, limit })
+    return listPosts(db, { status: 'published', q, page: 1, limit, afterTs })
   }
 }
 
@@ -70,22 +73,24 @@ export interface WeiboSearchResult {
 }
 
 /** /search 页微博搜索：长词走 weibo_fts（bm25），短词走 LIKE 扫微博表（微博行数少，扫表够快）。
- *  微博无加密 / 档位概念，只需排除回收站与草稿。 */
-export async function searchWeibo(db: D1Database, q: string, limit = 20): Promise<WeiboSearchResult> {
+ *  微博无加密 / 档位概念，只需排除回收站与草稿；站点可见窗口（afterTs）两条路都收口。 */
+export async function searchWeibo(db: D1Database, q: string, limit = 20, afterTs = 0): Promise<WeiboSearchResult> {
+  const vis = afterTs > 0 ? 'AND COALESCE(w.published_at, w.created_at) >= ?' : ''
+  const tail = (args: unknown[]) => (afterTs > 0 ? [...args, afterTs] : args)
   const expr = ftsMatchExpr(q)
   if (expr) {
-    const where = "weibo_fts MATCH ? AND w.deleted_at IS NULL AND w.status = 'published'"
+    const where = `weibo_fts MATCH ? AND w.deleted_at IS NULL AND w.status = 'published' ${vis}`
     try {
       const [itemsRes, countRes] = await Promise.all([
         db
           .prepare(
             `SELECT w.* FROM weibo_fts JOIN weibo w ON w.id = weibo_fts.rowid WHERE ${where} ORDER BY bm25(weibo_fts), w.id DESC LIMIT ?`
           )
-          .bind(expr, limit)
+          .bind(...tail([expr]), limit)
           .all<WeiboRow>(),
         db
           .prepare(`SELECT COUNT(*) AS n FROM weibo_fts JOIN weibo w ON w.id = weibo_fts.rowid WHERE ${where}`)
-          .bind(expr)
+          .bind(...tail([expr]))
           .first<{ n: number }>(),
       ])
       return { items: itemsRes.results ?? [], total: countRes?.n ?? 0 }
@@ -93,15 +98,16 @@ export async function searchWeibo(db: D1Database, q: string, limit = 20): Promis
       /* 虚表缺失等异常：落到底下的 LIKE 兜底 */
     }
   }
-  const where = "w.deleted_at IS NULL AND w.status = 'published' AND w.content LIKE ? ESCAPE '\\'"
+    // vis 恒置句尾与 tail() 的追加式 bind 顺序对齐（vis 插中间会把 cutoff 绑成 LIKE 模式——0 行静默漏配）
+  const where = `w.deleted_at IS NULL AND w.status = 'published' AND w.content LIKE ? ESCAPE '\\' ${vis}`
   const [itemsRes, countRes] = await Promise.all([
     db
       .prepare(
         `SELECT w.* FROM weibo w WHERE ${where} ORDER BY w.pinned DESC, COALESCE(w.published_at, w.created_at) DESC LIMIT ?`
       )
-      .bind(likePattern(q), limit)
+      .bind(...tail([likePattern(q)]), limit)
       .all<WeiboRow>(),
-    db.prepare(`SELECT COUNT(*) AS n FROM weibo w WHERE ${where}`).bind(likePattern(q)).first<{ n: number }>(),
+    db.prepare(`SELECT COUNT(*) AS n FROM weibo w WHERE ${where}`).bind(...tail([likePattern(q)])).first<{ n: number }>(),
   ])
   return { items: itemsRes.results ?? [], total: countRes?.n ?? 0 }
 }

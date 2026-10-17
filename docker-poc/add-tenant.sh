@@ -13,6 +13,10 @@
 # 为什么用「cat 覆盖」而不是「写临时文件再 mv」：tenants.json 是 compose 的单文件
 # bind mount，容器读到的是同一 inode——mv 会换掉 inode，容器里永远看到旧文件；
 # cat > 截断重写保住 inode，重启后新配置立即生效。
+#
+# 开通末尾会跑一次「收录自检」：确认新域名的 robots.txt 不是整站 Disallow、sitemap.xml 可达
+# ——站长口径是「bloghao.com 的每个二级域名都要能被 AI 与搜索引擎抓到」。演示站例外：
+# demo 站刻意整站 noindex（公开了 demo 账号、每 2 小时清库重灌），跳过断言。
 set -eu
 
 usage() {
@@ -130,13 +134,40 @@ if [ "$REMOVE" = 1 ]; then
   exit 0
 fi
 
+# ── 收录自检（SEO / AI 抓取守卫）────────────────────────────────────────────
+# 内核默认就是「可抓取」：siteNoindex 默认关、robots.txt / sitemap.xml 自动生成。
+# 这里只兜底确认一次——开通时串了模板、或日后被关了 noindex，当场红字提醒。
+crawl_selfcheck() {
+  if [ "$DEMO" = 1 ]; then
+    echo "  · 演示站：刻意整站 noindex，跳过收录自检（属正常）"
+    return 0
+  fi
+  ROBOTS=$(docker compose -f "$COMPOSE_FILE" exec -T xwblog \
+    sh -c "wget -q -O - --header 'Host: $HOST' http://127.0.0.1:8787/robots.txt" 2>/dev/null || true)
+  if printf '%s\n' "$ROBOTS" | grep -qx 'Disallow: /'; then
+    echo "  ✗ 警告：${HOST} 的 robots.txt 是整站 Disallow —— 搜索引擎与 AI 都抓不到这个域名！" >&2
+    echo "    恢复：打开 https://${HOST}/admin/ → 设置 → 站点 → 关掉「禁止搜索引擎收录」/「关闭站点」" >&2
+    return 1
+  fi
+  if docker compose -f "$COMPOSE_FILE" exec -T xwblog \
+      sh -c "wget -q -O /dev/null --header 'Host: $HOST' http://127.0.0.1:8787/sitemap.xml" 2>/dev/null; then
+    echo "  ✓ 收录自检通过：robots.txt 可抓取、sitemap.xml 可达"
+  else
+    echo "  ⚠ 提示：${HOST} 的 sitemap.xml 取不到（站点闭站时属正常；否则去后台确认「站点地址」是否已填）" >&2
+  fi
+  return 0
+}
+
 printf '等待 %s 就绪' "$HOST"
 i=0
 while [ "$i" -lt 30 ]; do
   if docker compose -f "$COMPOSE_FILE" exec -T xwblog \
       sh -c "wget -q -O /dev/null --header 'Host: $HOST' http://127.0.0.1:8787/api/health" 2>/dev/null; then
     echo ""
-    echo "✓ ${HOST} 已就绪（/api/health 200）。浏览器打开确认后即可开始写作。"
+    echo "✓ ${HOST} 已就绪（/api/health 200）。"
+    crawl_selfcheck || true
+    echo ""
+    echo "浏览器打开 https://${HOST}/ 确认后即可开始写作。"
     exit 0
   fi
   printf '.'

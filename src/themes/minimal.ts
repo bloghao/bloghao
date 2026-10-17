@@ -131,7 +131,7 @@ export function post(d: PostData): string {
   </header>
   <article class="mn-article">
     <h1 class="mn-title">${esc(p.title)}</h1>
-    <div class="mn-meta"><time>${en ? fmtDateEn(p.published_at) : fmtDate(p.published_at)}</time><span>·</span><span>${p.readingMinutes} min</span><span>·</span><span>${p.views} views</span></div>
+    <div class="mn-meta"><time>${en ? fmtDateEn(p.published_at) : fmtDate(p.published_at)}</time><span>·</span><span>${p.readingMinutes} min</span><span>·</span><span>${p.views} views</span>${p.aiGenerated ? `<span>·</span><span>${en ? 'AI-generated' : 'AI 生成'}</span>` : ''}</div>
     ${p.cover ? `<div class="mn-cover"><img src="${esc(p.cover)}" alt=""></div>` : ''}
     <div class="rich">${p.contentHtml}</div>
     ${p.locked ? paywallHtml(p.minTier, en) : ''}

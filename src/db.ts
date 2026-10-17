@@ -28,23 +28,46 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   // 站点模式：blog-weibo（博客+微博，博客优先，默认）/ weibo-blog（微博+博客，微博优先）/
   // blog（纯博客）/ weibo（纯微博）——前台模块显隐与首页优先级，见 src/render.ts siteMode()
   siteMode: 'blog-weibo',
+  // 站点可见窗口（朋友圈式 N 天可见）：'' = 全部可见（默认，老站零打扰）；'3d'/'1m'/'6m'/'1y' =
+  // 窗口外内容对游客/会员不可见（列表/直链/搜索/RSS/sitemap 全面收口），后台与备份不受影响。
+  // 档位白名单与窗口天数唯一来源 utils.LIST_RANGES，校验在 api.ts 设置 PUT
+  contentVisibleRange: '',
   siteUrl: '',
   // 主题外观变量（B9 · 内测）：扁平 JSON（角色键 → 色值 + font/fontSize），渲染期按当前主题
   // 映射回主题自己的 CSS 变量输出覆盖样式，空串 = 未配置，机制见 src/appearance.ts
   appearance: '',
+  // 皮肤包自定义 CSS（B8，机制 src/skinpack.ts）：样式安检门净化后进 <style data-custom-css>，
+  // 空串 = 未配置；皮肤包应用 = appearance + customCss 两键一起写，无独立存储
+  customCss: '',
   // 页脚「站点足迹」统计 JSON（{posts,chars,since}）：每晚 cron 刷新 + 冷启动首次播种
   // （refreshFootStats），前台页脚名片读这里——展示口径滞后一夜可接受，不值得每次渲染都聚合
   siteFoot: '',
+  // 页面边缘缓存的代序号（src/pagecache.ts）：saveSettings 自动换新，后台「一键清理缓存」显式写
+  pageCacheEpoch: '',
   footerText: '由 博客号 驱动 · 住在 Cloudflare 上',
   allowComments: '1',
   moderateComments: '0',
+  // 评论 IP 属地展示开关（src/ipregion.ts）：采集无条件（写库定格 request.cf 快照），
+  // 此开关只管前台展示——关闭时连公开出参都不带；开启前的旧评论无属地，不追溯回填
+  showCommentRegion: '0',
   postsPerPage: '10',
   about: '<p>在这里写下关于你的故事。</p>',
   faviconUrl: '',
   avatarUrl: '',
   // 分享到社交平台的默认卡图（og:image 兜底；文章未设封面/卡图时使用，空则回退内置 /og-default.png）
   ogImageDefault: '',
-  // 外部发布（见 src/external.ts）：空 Token = 开放接口关闭
+  // 站长 SEO（B20，机制 src/seo.ts）：站点验证 meta（结构化 JSON，name 走白名单）/ 统计脚本
+  // （https 脚本 URL 或 provider 片段，解析成结构化属性重放，内联脚本体不接受）/ robots.txt 追加段
+  verifyMetas: '',
+  analyticsScript: '',
+  robotsExtra: '',
+  // AI 抓取策略（2026-10-17，机制 src/seo.ts + src/bots.ts）：训练型拒绝 / 检索引用型放行的声明，
+  // 写进 robots.txt（AI 爬虫独立 User-agent 组 + Content-signal 行）。
+  //  'allow' 全部允许（默认，输出与历史逐字节一致，老站无此键行为不变）
+  //  'seek'  只许检索引用、不许训练（推荐）
+  //  'deny'  所有 AI 爬虫一律拒绝
+  aiPolicy: 'allow',
+  // 外部发布（见 src/external.ts）：空 Token  则 开放接口关闭
   externalToken: '',
   telegramBotToken: '',
   telegramAllowFrom: '',
@@ -63,6 +86,9 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   pluginsDisabled: 'douban-media',
   // 服务端插件停用名单（后台「插件」页；逗号分隔的插件 id，空 = 全部启用，见 src/hooks.ts）
   serverPluginsDisabled: '',
+  // 服务端插件配置（统一通道）：JSON { 插件id: { 字段键: 值 } }，按 hooks.ts 各插件
+  // configFields 渲染表单，PUT 过 cleanServerPluginConfig 净化校验——插件要配置不必塞专属键
+  serverPluginConfig: '',
   // 服务端插件配置：发布同步 TG 频道的频道 ID / 评论 Webhook 地址 / 页脚自定义 HTML（src/hooks.ts）
   tgChannelChatId: '',
   commentWebhookUrl: '',
@@ -79,6 +105,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   siteClosed: '0',
   // 闭站页公告文案，空 = 使用内置默认文案
   siteClosedMessage: '',
+  // 全站 noindex（2026-10 SEO 审计）：所有公开页 <meta name="robots" content="noindex"> +
+  // robots.txt 整站 Disallow——用于空白模板站 / 演示性镜像 / 临时预览实例不进搜索引擎索引；
+  // 与闭站不同：页面照常可访问，只是不让收录。默认关闭（正常收录）
+  siteNoindex: '0',
   // 会员体系总开关（契约见 docs/DEVPLAN-2026-10-07.md 附录 A）：关闭时前台无会员入口、/api/member/* 返回 404
   membersEnabled: '0',
   // 排行榜展示条数上限（/rank 页与首页挂件共用，1-50）
@@ -94,19 +124,110 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   // 英文版最近一次异常的错误摘要与发生时间（后台横幅展示，仅记录，渲染层不读）
   editionEnError: '',
   editionEnAt: '',
+  // 新手引导记账位（后台概览页清单卡）：仅 /api/auth/setup 首装成功时播种 '1'（api.ts），
+  // 老站没有此键 = 永不显示引导卡；'0' = 已完成/已跳过，永久消失。onboardingManual 是
+  // 「打开使用手册」的点击记账。两键都进 BOOL_SETTINGS 归一化，后台设置页保存全部不含它们
+  onboarding: '',
+  onboardingManual: '',
+}
+
+/** 敏感设置键：GET / PUT 响应一律打码（api.ts），整站包导出整体跳过（sitebundle.ts）。
+ *  唯一来源就在这里——新增敏感键只改这张表，别在别处再抄一份（曾因清单分叉漏打码）。
+ *  明文只在生成时返回一次；打码占位符提交 = 保留原值（同 SECRET_SETTINGS 口径） */
+export const SECRET_SETTINGS = [
+  'externalToken',
+  'telegramBotToken',
+  'telegramWebhookSecret',
+  'bufferAccessToken',
+  'plazaToken',
+  'commentWebhookUrl',
+  'turnstileSecret',
+]
+
+// settings 读取的共享快照层（Cache API）：生产 Workers 上 caches.default 是 colo 级共享——
+// 跨 isolate 同读一份快照，热读省掉每次请求的 D1 查询；写路径 invalidateSharedSettings
+// 推送式 delete（全 colo 立即失效，写返回后任何 isolate 读必见新值，无 TTL 旧值窗口）。
+// Node 测试与 docker-poc 无 caches.default，自动退化为直查（后者单进程天然一致，语义不变）；
+// 并发请求按 in-flight 去重（突发流量只打一发 SQL），按 db 实例（WeakMap）隔离防多站点串租户。
+// 一切写 settings 的路径写完必须 await invalidateSharedSettings(db)：saveSettings /
+// refreshFootStats / ensureSchema 已内置，散落 db.ts 之外的裸写点（setupLock /
+// recordEditionFailure / demo 播种）各自负责——见 AGENTS「SQL / 输入」防线。
+const SETTINGS_SHARED_URL = 'https://xwblog-internal.invalid/__settings-snapshot'
+// 60s（2026-10-15 审计 F1 止血）：快照键无实例维度，跨部署串设置的暴露窗口随 TTL 走——
+// 压到 1 分钟热读收益基本不损（一分钟内同 isolate/同 colo 仍免 D1），窗口缩到原来的 1/5。
+// 键带实例维度的完整修复需 host 穿过 getSettings/invalidateSharedSettings 调用链，见审计报告
+const SETTINGS_SHARED_TTL_S = 60
+const settingsInflight = new WeakMap<object, Promise<SettingsMap>>()
+
+function sharedCache(): Cache | null {
+  const c = (globalThis as { caches?: { default?: Cache } }).caches
+  return c?.default ?? null
+}
+
+/** 写 settings 后调用（await）：清共享快照，写返回后全 colo 读必见新值 */
+export async function invalidateSharedSettings(db: D1Database): Promise<void> {
+  settingsInflight.delete(db)
+  const cache = sharedCache()
+  if (cache) {
+    try {
+      await cache.delete(SETTINGS_SHARED_URL)
+    } catch {
+      /* 共享层删不掉就等 max-age 过期，不挡写路径 */
+    }
+  }
 }
 
 export async function getSettings(db: D1Database): Promise<SettingsMap> {
-  const { results } = await db
-    .prepare('SELECT key, value FROM settings')
-    .all<{ key: string; value: string }>()
-  const s: SettingsMap = { ...DEFAULT_SETTINGS }
-  for (const r of results ?? []) s[r.key] = r.value
-  return s
+  const inflight = settingsInflight.get(db)
+  if (inflight) return inflight
+  const p = (async () => {
+    const cache = sharedCache()
+    if (cache) {
+      try {
+        const hit = await cache.match(SETTINGS_SHARED_URL)
+        if (hit) {
+          const data = (await hit.json()) as Record<string, string> | null
+          if (data) return { ...DEFAULT_SETTINGS, ...data }
+        }
+      } catch {
+        /* 快照读不出来按 miss 走 D1 */
+      }
+    }
+    const { results } = await db
+      .prepare('SELECT key, value FROM settings')
+      .all<{ key: string; value: string }>()
+    const s: SettingsMap = { ...DEFAULT_SETTINGS }
+    for (const r of results ?? []) s[r.key] = r.value
+    if (cache) {
+      try {
+        await cache.put(
+          SETTINGS_SHARED_URL,
+          new Response(JSON.stringify(s), { headers: { 'Cache-Control': `public, max-age=${SETTINGS_SHARED_TTL_S}` } })
+        )
+      } catch {
+        /* 回填失败不影响本次读 */
+      }
+    }
+    return s
+  })()
+  settingsInflight.set(db, p)
+  try {
+    return await p
+  } finally {
+    settingsInflight.delete(db)
+  }
 }
 
 export async function saveSettings(db: D1Database, patch: SettingsMap): Promise<void> {
-  const entries = Object.entries(patch)
+  // 设置一变全站页面渲染跟着变：顺手换页缓存 epoch（src/pagecache.ts），旧边缘副本整代作废。
+  // 调用方显式带了 epoch（purgePageCache）就原样落库；没带则读旧值与 now 取 max(old+1)——
+  // 同一毫秒内连续保存也保证严格递增（测试与失效语义都依赖这点）
+  let epoch = patch[PAGE_CACHE_EPOCH_KEY]
+  if (epoch === undefined) {
+    const prev = await db.prepare(`SELECT value FROM settings WHERE key = '${PAGE_CACHE_EPOCH_KEY}'`).first<{ value: string }>()
+    epoch = prev?.value ? String(Math.max(Date.now(), Number(prev.value) + 1)) : String(Date.now())
+  }
+  const entries = Object.entries({ ...patch, [PAGE_CACHE_EPOCH_KEY]: epoch })
   if (!entries.length) return
   const stmts = entries.map(([k, v]) =>
     db
@@ -116,6 +237,7 @@ export async function saveSettings(db: D1Database, patch: SettingsMap): Promise<
       .bind(k, String(v ?? ''))
   )
   await db.batch(stmts)
+  await invalidateSharedSettings(db)
 }
 
 export function parseTags(row: Pick<PostRow, 'tags'>): string[] {
@@ -132,6 +254,10 @@ export function parseTags(row: Pick<PostRow, 'tags'>): string[] {
 /** 文章正文长度上限（UTF-8 字节，非字符数）：api.ts readPostPayload 与 mcp.ts publish_post 同口径 */
 export const MAX_CONTENT_BYTES = 1_000_000
 
+/** 页面边缘缓存的代序号（src/pagecache.ts）：进缓存键，换新 = 旧边缘副本整代作废。
+ *  saveSettings 每次保存自动换新（改设置全站页面即刻失效），后台「一键清理缓存」也写这键 */
+export const PAGE_CACHE_EPOCH_KEY = 'pageCacheEpoch'
+
 export type PostSort = 'latest' | 'views' | 'likes' | 'comments' | 'random'
 
 export interface ListPostsOptions {
@@ -144,6 +270,9 @@ export interface ListPostsOptions {
   /** 前台列表排序：latest 置顶优先最新在前；random 需配 seed 保证翻页不重洗 */
   sort?: PostSort
   seed?: number
+  /** 后台时间范围筛选：只出 COALESCE(published_at, created_at) >= afterTs 的行（0/缺省 = 不过滤）。
+   *  值由 api.ts 用 utils.listRangeCutoff 从白名单语义值算出，客户端不供给时间戳 */
+  afterTs?: number
 }
 
 export interface ListPostsResult {
@@ -178,9 +307,16 @@ export async function listPosts(db: D1Database, opts: ListPostsOptions = {}): Pr
     where.push('id IN (SELECT post_id FROM post_categories WHERE category_id IN (SELECT id FROM categories WHERE slug = ?))')
     binds.push(opts.categorySlug)
   }
+  // 后台时间范围筛选：谓词落在排序键 COALESCE(published_at, created_at) 上——与 idx_posts_feed 表达式同形，可作索引范围约束
+  if (opts.afterTs && opts.afterTs > 0) {
+    where.push('COALESCE(published_at, created_at) >= ?')
+    binds.push(opts.afterTs)
+  }
   const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : ''
   const recency = 'COALESCE(published_at, created_at) DESC'
   // 随机排序用 (id+seed) 乘法散列：同一 seed 下全站顺序固定，翻页不重洗；换 seed 即换一组
+  // sort=comments 的相关子查询 INDEXED BY 是防读放大关键：规划器误选 idx_comments_status 时
+  // 逐篇全表扫评论，生产实测单次渲染 50 万行读取（tests/feed-index.test.ts 守卫）
   const orderSql =
     opts.status === 'draft'
       ? 'ORDER BY updated_at DESC'
@@ -189,7 +325,7 @@ export async function listPosts(db: D1Database, opts: ListPostsOptions = {}): Pr
         : opts.sort === 'likes'
           ? `ORDER BY likes DESC, ${recency}`
           : opts.sort === 'comments'
-            ? `ORDER BY (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = posts.id AND cm.status = 'approved') DESC, ${recency}`
+            ? `ORDER BY (SELECT COUNT(*) FROM comments cm INDEXED BY idx_comments_post WHERE cm.post_id = posts.id AND cm.status = 'approved') DESC, ${recency}`
             : opts.sort === 'random'
               ? `ORDER BY ((posts.id + ${clampInt(opts.seed, 1, 999999999, 1)}) * 2654435761) % 4294967296 ASC, posts.id ASC`
               : `ORDER BY pinned DESC, ${recency}`
@@ -305,31 +441,61 @@ export async function postHeatmap(db: D1Database): Promise<{ days: { day: string
 export async function adjacentPosts(
   db: D1Database,
   ts: number,
-  id: number
+  id: number,
+  afterTs = 0
 ): Promise<{ prev: { slug: string; title: string } | null; next: { slug: string; title: string } | null }> {
+  // 可见窗口开启时邻居导航不得指向窗口外文章（点了就是 404 的死链）
+  const vis = afterTs > 0 ? 'AND COALESCE(published_at, created_at) >= ?' : ''
+  const binds = (args: unknown[]) => (afterTs > 0 ? [...args, afterTs] : args)
   const where = "FROM posts WHERE status = 'published' AND deleted_at IS NULL AND id != ? AND COALESCE(published_at, created_at)"
   const [prev, next] = await Promise.all([
     db
-      .prepare(`SELECT slug, title ${where} < ? ORDER BY COALESCE(published_at, created_at) DESC LIMIT 1`)
-      .bind(id, ts)
+      .prepare(`SELECT slug, title ${where} < ? ${vis} ORDER BY COALESCE(published_at, created_at) DESC LIMIT 1`)
+      .bind(...binds([id, ts]))
       .first<{ slug: string; title: string }>(),
     db
-      .prepare(`SELECT slug, title ${where} > ? ORDER BY COALESCE(published_at, created_at) ASC LIMIT 1`)
-      .bind(id, ts)
+      .prepare(`SELECT slug, title ${where} > ? ${vis} ORDER BY COALESCE(published_at, created_at) ASC LIMIT 1`)
+      .bind(...binds([id, ts]))
       .first<{ slug: string; title: string }>(),
   ])
   return { prev: prev ?? null, next: next ?? null }
 }
 
 /** sitemap 用的轻量列表：slug + updated_at（不走 listPosts——它的 limit 被 clamp 到 100） */
-export async function listSitemapPosts(db: D1Database): Promise<{ slug: string; updated_at: number }[]> {
-  const { results } = await db
-    .prepare("SELECT slug, updated_at FROM posts WHERE status = 'published' AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 2000")
-    .all<{ slug: string; updated_at: number }>()
+export async function listSitemapPosts(db: D1Database, afterTs = 0): Promise<{ slug: string; updated_at: number }[]> {
+  // 可见窗口开启时窗口外文章不进 sitemap（前台 404 的页面不提交搜索引擎）
+  const vis = afterTs > 0 ? 'AND COALESCE(published_at, created_at) >= ?' : ''
+  const stmt = db.prepare(
+    `SELECT slug, updated_at FROM posts WHERE status = 'published' AND deleted_at IS NULL ${vis} ORDER BY updated_at DESC LIMIT 2000`
+  )
+  const { results } = await (afterTs > 0 ? stmt.bind(afterTs) : stmt).all<{ slug: string; updated_at: number }>()
   return results ?? []
 }
 
-/** 已发布文章用到的标签聚合（导航菜单/sitemap 用），按使用次数倒序 */
+/** sitemap 用：每个分类下已发布文章的最新更新时间（分类归档页的 lastmod） */
+export async function listSitemapCategoryLastmod(db: D1Database): Promise<{ slug: string; lastmod: number }[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT c.slug, MAX(p.updated_at) AS lastmod
+       FROM post_categories pc
+       JOIN posts p ON p.id = pc.post_id
+       JOIN categories c ON c.id = pc.category_id
+       WHERE p.status = 'published' AND p.deleted_at IS NULL
+       GROUP BY c.slug`
+    )
+    .all<{ slug: string; lastmod: number }>()
+  return results ?? []
+}
+
+/** sitemap 用：最新一条已发布微博的时间（/weibo 页的 lastmod） */
+export async function listWeiboLastmod(db: D1Database): Promise<number> {
+  const row = await db
+    .prepare("SELECT MAX(COALESCE(published_at, created_at)) AS ts FROM weibo WHERE status = 'published' AND deleted_at IS NULL")
+    .first<{ ts: number | null }>()
+  return row?.ts ?? 0
+}
+
+/** 已发布文章用到的标签聚合（导航菜单用），按使用次数倒序 */
 export async function listPublishedTags(db: D1Database): Promise<{ name: string; count: number }[]> {
   const { results } = await db
     .prepare("SELECT tags FROM posts WHERE status = 'published' AND deleted_at IS NULL LIMIT 1000")
@@ -363,6 +529,8 @@ export interface OnThisDayRow {
   title: string
   content: string
   images: string
+  /** 微博视频 JSON 列（B19）：无正文时给「发了一段视频」兜底文案用；posts 侧恒为空串 */
+  video: string
   ts: number
 }
 
@@ -388,7 +556,8 @@ export function buildOnThisDayItems(postRows: OnThisDayRow[], weiboRows: OnThisD
   }
   for (const r of weiboRows) {
     const imgs = weiboImageList(r)
-    const text = r.content.trim() || (imgs.length ? `发了 ${imgs.length} 张图` : '')
+    // 无正文时给媒体兜底文案：与首页微博入口卡同口径（视频优先，其次配图数；B19）
+    const text = r.content.trim() || (weiboVideoView(r) ? '发了一段视频' : imgs.length ? `发了 ${imgs.length} 张图` : '')
     if (!text) continue
     items.push({ kind: 'weibo', href: `/weibo?wb=${r.key}#wb-${r.key}`, text: excerpt(text, 64), ts: r.ts, yearsAgo: thisYear - cstDate(r.ts).getUTCFullYear() })
   }
@@ -408,14 +577,14 @@ export async function listOnThisDay(db: D1Database): Promise<OnThisDayItem[]> {
   const [postsRes, weiboRes] = await db.batch([
     db
       .prepare(
-        `SELECT slug AS key, title, '' AS content, '' AS images, COALESCE(published_at, created_at) AS ts
+        `SELECT slug AS key, title, '' AS content, '' AS images, '' AS video, COALESCE(published_at, created_at) AS ts
          FROM posts
          WHERE status = 'published' AND deleted_at IS NULL AND ${ON_THIS_DAY_MD} = strftime('%m-%d', 'now', '28800 seconds') AND ${ON_THIS_DAY_Y} < CAST(strftime('%Y', 'now', '28800 seconds') AS INTEGER)
          ORDER BY ts DESC LIMIT ${ON_THIS_DAY_SOURCE_LIMIT}`
       ),
     db
       .prepare(
-        `SELECT id AS key, '' AS title, content, images, COALESCE(published_at, created_at) AS ts
+        `SELECT id AS key, '' AS title, content, images, video, COALESCE(published_at, created_at) AS ts
          FROM weibo
          WHERE status = 'published' AND deleted_at IS NULL AND ${ON_THIS_DAY_MD} = strftime('%m-%d', 'now', '28800 seconds') AND ${ON_THIS_DAY_Y} < CAST(strftime('%Y', 'now', '28800 seconds') AS INTEGER)
          ORDER BY ts DESC LIMIT ${ON_THIS_DAY_SOURCE_LIMIT}`
@@ -432,7 +601,10 @@ export async function listOnThisDay(db: D1Database): Promise<OnThisDayItem[]> {
 let otdCache: { day: string; at: number; items: OnThisDayItem[] } | null = null
 
 
-export async function relatedPosts(db: D1Database, post: PostRow, limit = 3): Promise<PostRow[]> {
+export async function relatedPosts(db: D1Database, post: PostRow, limit = 3, afterTs = 0): Promise<PostRow[]> {
+  // 可见窗口开启时相关文章同样限定在窗口内（链接出去就是 404）
+  const vis = afterTs > 0 ? 'AND COALESCE(published_at, created_at) >= ?' : ''
+  const tail = (args: unknown[]) => (afterTs > 0 ? [...args, afterTs] : args)
   const tags = parseTags(post)
   if (tags.length) {
     // 与 listPosts 的标签过滤同口径：带 JSON 引号精确匹配 + ESCAPE，防「猫」命中「波斯猫」/通配符注入
@@ -440,15 +612,15 @@ export async function relatedPosts(db: D1Database, post: PostRow, limit = 3): Pr
     const likeBinds = tags.map(() => "tags LIKE ? ESCAPE '\\'").join(' OR ')
     const { results } = await db
       .prepare(
-        `SELECT * FROM posts WHERE id != ? AND status = 'published' AND deleted_at IS NULL AND (${likeBinds}) ORDER BY views DESC LIMIT ?`
+        `SELECT * FROM posts WHERE id != ? AND status = 'published' AND deleted_at IS NULL AND (${likeBinds}) ${vis} ORDER BY views DESC LIMIT ?`
       )
-      .bind(post.id, ...tags.map((t) => jsonItemLikePattern(t)), limit)
+      .bind(...tail([post.id, ...tags.map((t) => jsonItemLikePattern(t))]), limit)
       .all<PostRow>()
     if ((results?.length ?? 0) > 0) return results ?? []
   }
   const { results } = await db
-    .prepare("SELECT * FROM posts WHERE id != ? AND status = 'published' AND deleted_at IS NULL ORDER BY published_at DESC LIMIT ?")
-    .bind(post.id, limit)
+    .prepare(`SELECT * FROM posts WHERE id != ? AND status = 'published' AND deleted_at IS NULL ${vis} ORDER BY published_at DESC LIMIT ?`)
+    .bind(...tail([post.id]), limit)
     .all<PostRow>()
   return results ?? []
 }
@@ -480,10 +652,10 @@ export async function getCategoryById(db: D1Database, id: number): Promise<Categ
   return db.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first<CategoryRow>()
 }
 
-export async function createCategory(db: D1Database, name: string, slug: string, sort = 0): Promise<CategoryRow> {
+export async function createCategory(db: D1Database, name: string, slug: string, sort = 0, description = ''): Promise<CategoryRow> {
   const res = await db
-    .prepare('INSERT INTO categories (name, slug, sort, created_at) VALUES (?, ?, ?, ?)')
-    .bind(name, slug, sort, Date.now())
+    .prepare('INSERT INTO categories (name, slug, sort, description, created_at) VALUES (?, ?, ?, ?, ?)')
+    .bind(name, slug, sort, description, Date.now())
     .run()
   const row = await getCategoryById(db, Number(res.meta.last_row_id))
   if (!row) throw new Error('分类创建失败')
@@ -594,6 +766,56 @@ export function weiboImageList(row: Pick<WeiboRow, 'images'>): string[] {
   }
 }
 
+/* ---------------- 微博视频（B19） ----------------
+ * 一条微博最多 1 个视频，存 weibo.video 单列 JSON：{ url, poster, w, h }，空串 = 无视频。
+ * 上传走 /admin/upload（≤25MB，mp4/webm 只认文件魔数，见 store.ts）；poster 是发布端从视频里
+ * 抽的第一帧（best-effort，抓不到就留空，渲染退化成无封面卡）。写侧 parseWeiboVideo、
+ * 读侧 weiboVideoView 两道 scheme 白名单，与图片 parseWeiboImages / weiboImageList 同口径。
+ */
+export interface WeiboVideoView {
+  /** 站内 /images/ 地址或 http(s) 外链 */
+  url: string
+  /** 封面帧地址（可空串）：卡片首帧、分享卡与后台缩略图用 */
+  poster: string
+  /** 原始宽高（未知 = 0）：渲染期换算占位比例，避免视频加载时的布局抖动 */
+  w: number
+  h: number
+}
+
+/** 视频地址白名单：站内图床或 http(s)（同 weiboImageList 的读侧口径） */
+function videoUrlOk(s: string): boolean {
+  return s.startsWith('/images/') || /^https?:\/\//i.test(s)
+}
+
+/** 写侧：校验并规整单个视频对象（POST/PUT /admin/weibo 的 video 字段）。
+ *  只认 { url, poster?, w?, h? }，多余键丢弃；url 必填且过白名单，poster 同口径（非法当没填），
+ *  w/h 取整并限幅（未知 / 越界 = 0）。任一硬性条件不满足返回 null（= 无视频），不抛错。 */
+export function parseWeiboVideo(v: unknown): WeiboVideoView | null {
+  if (!v || typeof v !== 'object') return null
+  const b = v as Record<string, unknown>
+  const url = typeof b.url === 'string' ? b.url.trim().slice(0, 500) : ''
+  if (!url || !videoUrlOk(url)) return null
+  const rawPoster = typeof b.poster === 'string' ? b.poster.trim().slice(0, 500) : ''
+  const poster = rawPoster && videoUrlOk(rawPoster) ? rawPoster : ''
+  const dim = (x: unknown) => {
+    const n = clampInt(x, 0, 10000, 0)
+    return n > 0 ? n : 0
+  }
+  return { url, poster, w: dim(b.w), h: dim(b.h) }
+}
+
+/** 读侧：解析 weibo.video 列 → 视频视图；空串 / 脏 JSON / 非法 scheme 一律 null
+ *  （纵深防御，同 weiboImageList：备份恢复、手工改库进来的异常值不会流进 <video src>） */
+export function weiboVideoView(row: Pick<WeiboRow, 'video'>): WeiboVideoView | null {
+  const raw = (row.video || '').trim()
+  if (!raw) return null
+  try {
+    return parseWeiboVideo(JSON.parse(raw))
+  } catch {
+    return null
+  }
+}
+
 export function weiboTopicList(row: Pick<WeiboRow, 'topics'>): string[] {
   try {
     const a = JSON.parse(row.topics || '[]')
@@ -625,8 +847,8 @@ export interface ListWeiboResult {
   totalPages: number
 }
 
-/** listWeibo / locateWeiboPage 共用的过滤条件（status + 话题 + 回收站），保证深链定位与列表分页的口径一致 */
-function weiboConditions(opts: { status?: 'published' | 'draft' | 'all'; topic?: string }): { conds: string[]; binds: unknown[] } {
+/** listWeibo / locateWeiboPage 共用的过滤条件（status + 话题 + 时间范围 + 回收站），保证深链定位与列表分页的口径一致 */
+function weiboConditions(opts: { status?: 'published' | 'draft' | 'all'; topic?: string; afterTs?: number }): { conds: string[]; binds: unknown[] } {
   const conds: string[] = ['deleted_at IS NULL'] // 回收站过滤：微博页/首页入口卡/后台列表都不展示已删行
   const binds: unknown[] = []
   if (opts.status && opts.status !== 'all') {
@@ -636,6 +858,12 @@ function weiboConditions(opts: { status?: 'published' | 'draft' | 'all'; topic?:
   if (opts.topic) {
     conds.push("topics LIKE ? ESCAPE '\\'")
     binds.push(jsonItemLikePattern(opts.topic))
+  }
+  // 后台时间范围筛选：cutoff 由服务端 listRangeCutoff 算出（客户端只传白名单语义值），
+  // 谓词落在排序键 COALESCE(published_at, created_at) 上——与 idx_weibo_feed 表达式同形，可作索引范围约束
+  if (opts.afterTs && opts.afterTs > 0) {
+    conds.push('COALESCE(published_at, created_at) >= ?')
+    binds.push(opts.afterTs)
   }
   return { conds, binds }
 }
@@ -648,6 +876,7 @@ export async function listWeibo(
     limit?: number
     topic?: string
     pinnedFirst?: boolean
+    afterTs?: number
   } = {}
 ): Promise<ListWeiboResult> {
   const page = clampInt(opts.page, 1, 1000, 1)
@@ -675,9 +904,13 @@ export async function listWeibo(
  * 排序口径与 listWeibo 的 pinnedFirst（置顶优先 + 时间倒序 + id 兜底）一致，status/topic 过滤同步生效；
  * 目标不存在 / 非已发布 / 不在 topic 筛选范围内时返回 null，调用方回退常规分页。
  */
-export async function locateWeiboPage(db: D1Database, id: number, opts: { limit?: number; topic?: string } = {}): Promise<number | null> {
+export async function locateWeiboPage(
+  db: D1Database,
+  id: number,
+  opts: { limit?: number; topic?: string; afterTs?: number } = {}
+): Promise<number | null> {
   const limit = clampInt(opts.limit, 1, 100, 15)
-  const { conds, binds } = weiboConditions({ status: 'published', topic: opts.topic })
+  const { conds, binds } = weiboConditions({ status: 'published', topic: opts.topic, afterTs: opts.afterTs })
   const target = conds.length ? `id = ? AND ${conds.join(' AND ')}` : 'id = ?'
   const x = await db
     .prepare(`SELECT id, pinned, COALESCE(published_at, created_at) AS ts FROM weibo WHERE ${target}`)
@@ -703,12 +936,14 @@ export async function getWeiboById(db: D1Database, id: number): Promise<WeiboRow
   return db.prepare('SELECT * FROM weibo WHERE id = ? AND deleted_at IS NULL').bind(id).first<WeiboRow>()
 }
 
-/** 批量取一组微博的已审核评论数：{weiboId: count} */
+/** 批量取一组微博的已审核评论数：{weiboId: count}。
+ *  INDEXED BY 是硬约束（生产实测 2026-10-15）：不带它时规划器误选 idx_comments_status，
+ *  每次全表扫全部已审评论；强制走 weibo_id 索引后十次精准 seek。索引由 ensureSchema 兜底建 */
 export async function weiboCommentCountMap(db: D1Database, weiboIds: number[]): Promise<Map<number, number>> {
   if (!weiboIds.length) return new Map()
   const ph = weiboIds.map(() => '?').join(',')
   const { results } = await db
-    .prepare(`SELECT weibo_id, COUNT(*) AS n FROM comments WHERE weibo_id IN (${ph}) AND status = 'approved' GROUP BY weibo_id`)
+    .prepare(`SELECT weibo_id, COUNT(*) AS n FROM comments INDEXED BY idx_comments_weibo WHERE weibo_id IN (${ph}) AND status = 'approved' GROUP BY weibo_id`)
     .bind(...weiboIds)
     .all<{ weibo_id: number; n: number }>()
   const m = new Map<number, number>()
@@ -716,12 +951,13 @@ export async function weiboCommentCountMap(db: D1Database, weiboIds: number[]): 
   return m
 }
 
-/** 批量取一组文章的已审核评论数：{postId: count}（列表页一次带全，替代逐篇 COUNT 的 N+1） */
+/** 批量取一组文章的已审核评论数：{postId: count}（列表页一次带全，替代逐篇 COUNT 的 N+1）。
+ *  INDEXED BY 同 weiboCommentCountMap：防规划器误选 idx_comments_status 全表扫 */
 export async function postCommentCountMap(db: D1Database, postIds: number[]): Promise<Map<number, number>> {
   if (!postIds.length) return new Map()
   const ph = postIds.map(() => '?').join(',')
   const { results } = await db
-    .prepare(`SELECT post_id, COUNT(*) AS n FROM comments WHERE post_id IN (${ph}) AND status = 'approved' GROUP BY post_id`)
+    .prepare(`SELECT post_id, COUNT(*) AS n FROM comments INDEXED BY idx_comments_post WHERE post_id IN (${ph}) AND status = 'approved' GROUP BY post_id`)
     .bind(...postIds)
     .all<{ post_id: number; n: number }>()
   const m = new Map<number, number>()
@@ -764,6 +1000,8 @@ const SCHEMA_COLUMNS: { table: string; column: string; ddl: string }[] = [
   { table: 'weibo', column: 'likes', ddl: 'ALTER TABLE weibo ADD COLUMN likes INTEGER NOT NULL DEFAULT 0' },
   { table: 'weibo', column: 'topics', ddl: "ALTER TABLE weibo ADD COLUMN topics TEXT NOT NULL DEFAULT '[]'" },
   { table: 'weibo', column: 'pinned', ddl: 'ALTER TABLE weibo ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0' },
+  // 微博视频（B19）：一列存单个视频的 JSON（url + 封面帧 + 宽高），空串 = 无视频；写侧解析 parseWeiboVideo / 读侧过滤 weiboVideoView
+  { table: 'weibo', column: 'video', ddl: "ALTER TABLE weibo ADD COLUMN video TEXT NOT NULL DEFAULT ''" },
   { table: 'comments', column: 'weibo_id', ddl: 'ALTER TABLE comments ADD COLUMN weibo_id INTEGER NOT NULL DEFAULT 0' },
   { table: 'comments', column: 'parent_id', ddl: 'ALTER TABLE comments ADD COLUMN parent_id INTEGER NOT NULL DEFAULT 0' },
   { table: 'comments', column: 'is_admin', ddl: 'ALTER TABLE comments ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0' },
@@ -778,6 +1016,8 @@ const SCHEMA_COLUMNS: { table: string; column: string; ddl: string }[] = [
   { table: 'posts', column: 'min_tier', ddl: "ALTER TABLE posts ADD COLUMN min_tier TEXT NOT NULL DEFAULT 'all'" },
   // 文章访问密码（src/protect.ts）：salt:hash（PBKDF2），空 = 未加密；解锁 Cookie 的 HMAC key 就用它
   { table: 'posts', column: 'password_hash', ddl: "ALTER TABLE posts ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''" },
+  // AI 生成标注（编辑器「更多」自愿申报，<人工智能生成合成内容标识办法> 显式标识口径）：0/1，前台文章页 meta 行显示
+  { table: 'posts', column: 'ai_generated', ddl: 'ALTER TABLE posts ADD COLUMN ai_generated INTEGER NOT NULL DEFAULT 0' },
   // 会员昵称 30 天一次修改窗口（src/utils.ts nicknameCooldown）：NULL = 从未改过，首次修改不受限
   { table: 'members', column: 'display_name_changed_at', ddl: 'ALTER TABLE members ADD COLUMN display_name_changed_at INTEGER' },
   // 评论头像（C2）：绑定的 QQ 号，仅头像抓取记账位——任何公开出参不携带（头像走站内转存，见 members.avatar）
@@ -785,6 +1025,11 @@ const SCHEMA_COLUMNS: { table: string; column: string; ddl: string }[] = [
   // 游客 QQ 头像（C2 扩展）：游客选填的 qq（仅抓取记账位，公开出参不携带）+ 服务端抓取转存的站内头像地址
   { table: 'comments', column: 'qq', ddl: "ALTER TABLE comments ADD COLUMN qq TEXT NOT NULL DEFAULT ''" },
   { table: 'comments', column: 'avatar', ddl: "ALTER TABLE comments ADD COLUMN avatar TEXT NOT NULL DEFAULT ''" },
+  // 评论 IP 属地（src/ipregion.ts）：写库定格 request.cf 快照（CN:Guangdong / US / HK），采集无条件，
+  // 展示走 settings.showCommentRegion 门控；开启前的旧评论与无 cf 的自托管形态为空串不展示
+  { table: 'comments', column: 'ip_region', ddl: "ALTER TABLE comments ADD COLUMN ip_region TEXT NOT NULL DEFAULT ''" },
+  // 分类描述（B23）：归档页页头说明 + meta description；建表列体见 schema.sql
+  { table: 'categories', column: 'description', ddl: "ALTER TABLE categories ADD COLUMN description TEXT NOT NULL DEFAULT ''" },
 ]
 const SCHEMA_TABLES = [
   // 会员体系（2026-10-07 起，见 docs/DEVPLAN-2026-10-07.md 附录 A 契约）：
@@ -876,6 +1121,16 @@ const SCHEMA_TABLES = [
     br      TEXT    NOT NULL DEFAULT '',
     country TEXT    NOT NULL DEFAULT ''
   )`,
+  // 爬虫 / AI 抓取日志（src/bots.ts）：服务端按 UA 识别后旁路落库，不进备份，保留 180 天
+  `CREATE TABLE IF NOT EXISTS bot_log (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts      INTEGER NOT NULL,
+    day     TEXT    NOT NULL,
+    name    TEXT    NOT NULL DEFAULT '',
+    kind    TEXT    NOT NULL DEFAULT '',
+    path    TEXT    NOT NULL DEFAULT '',
+    country TEXT    NOT NULL DEFAULT ''
+  )`,
   // FTS5 全文索引（src/fts.ts，ROADMAP B4）：external content 挂原表省一份正文存储，
   // trigram 分词适配中文。虚表可以进 schema.sql（单条无分号体）；触发器只能在这里挂——
   // demo.ts 的 ensureTables 按分号朴素切分 SQL，切不开 CREATE TRIGGER 的 BEGIN...END 体，
@@ -909,8 +1164,12 @@ const SCHEMA_TRIGGERS = [
     INSERT INTO weibo_fts(rowid, content) VALUES (new.id, new.content);
   END`,
 ]
-const SCHEMA_INDEXES = [
+// 导出供 tests/feed-index.test.ts 做双份登记镜像守卫
+export const SCHEMA_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_comments_weibo ON comments (weibo_id, created_at)',
+  // idx_comments_post 的 schema.sql 副本自 MoBlog v1.0 就有，但 INDEXED BY 是硬约束（索引不在场语句直接
+  // 报错）：这里兜底所有冷启动形态，老库若曾手工删过索引也能自愈（与 schema.sql 双份登记，tests/feed-index.test.ts 守卫）
+  'CREATE INDEX IF NOT EXISTS idx_comments_post ON comments (post_id, created_at)',
   // comments.member_id 与 posts.min_tier 是老库运行时补齐的列，索引只能在这里建（schema.sql 不能建，见该文件内说明）
   'CREATE INDEX IF NOT EXISTS idx_comments_member ON comments (member_id, created_at)',
   'CREATE INDEX IF NOT EXISTS idx_members_points ON members (points DESC)',
@@ -924,13 +1183,24 @@ const SCHEMA_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_visit_day ON visit_log (day, ts)',
   // 滚动清理 DELETE WHERE ts < ? 走前导索引（visit_log 是量最大的日志表；与 schema.sql 同步登记）
   'CREATE INDEX IF NOT EXISTS idx_visit_ts ON visit_log (ts)',
+  // 爬虫日志同口径（src/bots.ts；与 schema.sql 同步登记）
+  'CREATE INDEX IF NOT EXISTS idx_bot_day ON bot_log (day, ts)',
+  'CREATE INDEX IF NOT EXISTS idx_bot_ts ON bot_log (ts)',
   // 回收站软删行极少：部分索引只收已删行，trash 面查询与 30 天到期清理免全表扫
   'CREATE INDEX IF NOT EXISTS idx_posts_deleted ON posts (deleted_at) WHERE deleted_at IS NOT NULL',
   'CREATE INDEX IF NOT EXISTS idx_weibo_deleted ON weibo (deleted_at) WHERE deleted_at IS NOT NULL',
   'CREATE INDEX IF NOT EXISTS idx_pages_deleted ON pages (deleted_at) WHERE deleted_at IS NOT NULL',
+  // 列表时间线排序索引（P0-1，D1 读放大优化）：ORDER BY 的 COALESCE(published_at, created_at) 与裸 published_at
+  // 列结构不匹配，翻页曾全表扫描 + 临时排序；表达式与 listPosts/listWeibo 排序片段一字不差，
+  // 改排序与 schema.sql / 排序处三同步（tests/feed-index.test.ts 守卫）
+  'CREATE INDEX IF NOT EXISTS idx_weibo_feed ON weibo (status, COALESCE(published_at, created_at) DESC, id DESC) WHERE deleted_at IS NULL',
+  'CREATE INDEX IF NOT EXISTS idx_weibo_feed_pinned ON weibo (status, pinned DESC, COALESCE(published_at, created_at) DESC, id DESC) WHERE deleted_at IS NULL',
+  'CREATE INDEX IF NOT EXISTS idx_posts_feed ON posts (status, pinned DESC, COALESCE(published_at, created_at) DESC, id DESC) WHERE deleted_at IS NULL',
 ]
 
-async function tableColumns(db: D1Database, table: string): Promise<Set<string>> {
+/** 表列清单（PRAGMA table_info）：ensureSchema 迁移与整站包版本比对共用。
+ *  调用方只传 BUNDLE_TABLES / SCHEMA_COLUMNS 里的固定表名（非用户输入），无注入面 */
+export async function tableColumns(db: D1Database, table: string): Promise<Set<string>> {
   const { results } = await db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>()
   return new Set((results ?? []).map((r) => r.name))
 }
@@ -1018,6 +1288,9 @@ export async function ensureSchema(db: D1Database): Promise<void> {
   // upsert 幂等，并发 isolate 重复算也只是同值覆盖
   const footRow = await db.prepare("SELECT value FROM settings WHERE key = 'siteFoot'").first()
   if (!footRow) await refreshFootStats(db).catch(() => {})
+  // 冷启动/cron 期间写过记账位（ftsSeeded / pagesSeeded / siteFoot），清掉共享快照，
+  // 保证紧随其后的业务读取看到播种后的口径
+  await invalidateSharedSettings(db)
 }
 
 /** 页脚「站点足迹」统计：累计已发布篇数 / 正文字符量 / 最早发文时间（北京年口径）。
@@ -1032,6 +1305,7 @@ export async function refreshFootStats(db: D1Database): Promise<void> {
     .prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
     .bind('siteFoot', JSON.stringify({ posts: row?.n ?? 0, chars: row?.c ?? 0, since: row?.since ?? 0 }))
     .run()
+  await invalidateSharedSettings(db)
 }
 
 export async function countUsers(db: D1Database): Promise<number> {
@@ -1041,7 +1315,7 @@ export async function countUsers(db: D1Database): Promise<number> {
 
 export async function seedWelcomePost(db: D1Database, authorId: number): Promise<void> {
   const now = Date.now()
-  const content = `<p>你好呀，这是你博客号的第一篇文章 👋</p><p>微信有<strong>公众号</strong>，你有<strong>博客号</strong>——不用申请、不用排队，注册账号的那一刻它就归你了，而且完全住在 <strong>Cloudflare</strong> 上：网页由 Workers 渲染，文字存进 D1，图片传到 R2，全世界的访客都很快，每月免费额度足够你写很多年。</p><h2>写作，就要轻松</h2><p>打开 <a href="/admin/">后台</a>，像写公众号一样写：标题、正文、封面、标签都在一屏里；截图直接 <strong>Ctrl/⌘ + V</strong> 粘贴进正文，图片自动传到你的 R2 图床。</p><blockquote>博客号，博客好。写作最好的状态：像发动态一样轻，像写文章一样认真。</blockquote><h3>试试这些</h3><ul><li>粘贴一张截图，体验自动上传</li><li>点右上角「体检」，检查排版是否符合微信排版规范</li><li>在「设置」里换一套主题：微信公众号风 / 纸墨 / 极简 / 夜航 / 手账</li></ul><p>现在，删掉这篇文章，写下属于你的第一篇吧。</p>`
+  const content = `<p>你好呀，这是你博客号的第一篇文章 👋</p><p>微信有<strong>公众号</strong>，你有<strong>博客号</strong>——不用申请、不用排队，注册账号的那一刻它就归你了，而且完全住在 <strong>Cloudflare</strong> 上：网页由 Workers 渲染，文字存进 D1，图片传到 R2，全世界的访客都很快，每月免费额度足够你写很多年。</p><h2>写作，就要轻松</h2><p>打开 <a href="/admin/">后台</a>，像写公众号一样写：标题、正文、封面、标签都在一屏里；截图直接 <strong>Ctrl/⌘ + V</strong> 粘贴进正文，图片自动传到你的 R2 图床。</p><blockquote>博客号，博客好。写作最好的状态：像发动态一样轻，像写文章一样认真。</blockquote><h3>试试这些</h3><ul><li>粘贴一张截图，体验自动上传</li><li>点右上角「体检」，检查排版是否符合微信排版规范</li><li>在「设置」里换一套主题：微信公众号风 / 纸墨 / 极简 / 夜航 / 手账 / 比特币 / 小红书</li></ul><p>现在，删掉这篇文章，写下属于你的第一篇吧。</p>`
   // OR IGNORE：slug 已存在（例如线上已手动播种过）时静默跳过，保证首次创建管理员永不失败
   await db
     .prepare(

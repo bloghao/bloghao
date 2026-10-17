@@ -38,6 +38,16 @@ test('clean：空/空白返回空串；fontSize 0 与空串 = 清除；fontSize 
   assert.equal(JSON.parse(cleanAppearanceSettings('{"fontSize":14.24}')!).fontSize, 14, '0.5 步进取整')
 })
 
+test('clean：radius 0 = 直角（合法值不清除）；空/缺键 = 清除；越界收敛 0-24、取整', () => {
+  assert.equal(JSON.parse(cleanAppearanceSettings('{"radius":0}')!).radius, 0, '0 是合法的直角，不清除')
+  assert.ok(!cleanAppearanceSettings('{"radius":""}')!.includes('radius'), '空串 = 清除')
+  assert.ok(!cleanAppearanceSettings('{"fontSize":18}')!.includes('radius'), '缺键不出现')
+  assert.equal(JSON.parse(cleanAppearanceSettings('{"radius":99}')!).radius, 24)
+  assert.equal(JSON.parse(cleanAppearanceSettings('{"radius":7.6}')!).radius, 8, '取整')
+  assert.equal(cleanAppearanceSettings('{"radius":"x"}'), null)
+  assert.equal(cleanAppearanceSettings('{"radius":[]}')!, null)
+})
+
 test('clean：非法输入整体拒绝返回 null（坏 JSON / 非对象 / 未知键 / 坏颜色 / 坏字体 / 超长）', () => {
   assert.equal(cleanAppearanceSettings('not json'), null)
   assert.equal(cleanAppearanceSettings('[1,2]'), null)
@@ -115,6 +125,18 @@ test('css：深浅衍生色——bitcoin 主色带 color-mix 压深与冲淡；j
   assert.equal(btBack, '', '全部等于主题默认 → 无任何输出')
 })
 
+test('css：radius 圆角——异于默认才输出基准变量、0 直角照常输出、同值不输出', () => {
+  const html = appearanceHeadStyle({ theme: 'wechat', appearance: '{"radius":12}' })
+  assert.ok(html.includes(':root{--wx-radius:12px}'), '只重写基准变量，lg 档由主题 CSS calc 派生')
+  assert.ok(!html.includes('--wx-radius-lg'), 'lg 变量不在覆盖样式里（主题 ：root 自己派生）')
+  const zero = appearanceHeadStyle({ theme: 'wechat', appearance: '{"radius":0}' })
+  assert.ok(zero.includes('--wx-radius:0px'), '0 = 直角风格，照常输出')
+  const same = appearanceHeadStyle({ theme: 'wechat', appearance: '{"radius":8}' })
+  assert.equal(same, '', '与主题默认同值不输出')
+  const minimal = appearanceHeadStyle({ theme: 'minimal', appearance: '{"radius":6}' })
+  assert.ok(minimal.includes('--mn-radius:6px'))
+})
+
 test('css：font 输出 body 规则、fontSize 与主题基线不同才输出 .rich 规则', () => {
   const html = appearanceHeadStyle({
     theme: 'wechat',
@@ -158,6 +180,12 @@ test('镜像守卫：THEME_APPEARANCE 默认值与七主题 CSS :root 块逐一�
     const rich = /\.rich\s*{[^}]*?font-size:\s*([\d.]+)px/.exec(css)
     assert.ok(rich, `${themeId}.css 的 .rich 应显式声明 font-size`)
     assert.equal(Number(rich[1]), t.richSize, `${themeId} 的 richSize 与 .rich 实际字号不一致`)
+    // 圆角旋钮：:root 必须声明基准变量（值与映射表一致），lg 档必须用 calc 从基准派生
+    assert.ok(t.radius, `${themeId} 应配置 radius 旋钮`)
+    assert.equal(declared.get(t.radius!.var), `${t.radius!.default}px`, `${themeId} ${t.radius!.var} 默认值与映射表不一致`)
+    const lgVar = t.radius!.var.replace('-radius', '-radius-lg')
+    const lg = declared.get(lgVar)
+    assert.ok(lg && lg.includes(`var(${t.radius!.var})`) && lg.startsWith('calc('), `${themeId} ${lgVar} 应为 calc(var(${t.radius!.var}) * 系数) 派生`)
   }
 })
 
@@ -167,11 +195,13 @@ test('镜像守卫：字体预设栈里出现的字体名都能通过本模块�
   }
 })
 
-test('appearanceMeta：出参带支持角色 / 默认值 / 基线字号 / 字体预设；七主题全部有外观能力', () => {
+test('appearanceMeta：出参带支持角色 / 默认值 / 基线字号 / 圆角 / 字体预设；七主题全部有外观能力', () => {
   const meta = appearanceMeta('wechat')
   assert.ok(meta)
   assert.ok(meta!.roles.some((r) => r.key === 'link'), 'wechat 有专用链接色角色')
+  assert.ok(meta!.roles.every((r) => Array.isArray(r.vars) && r.vars.length), '角色带变量名清单（后台实时预览用）')
   assert.equal(meta!.richSize, 17)
+  assert.ok(meta!.radius && meta!.radius.var === '--wx-radius' && meta!.radius.default === 8)
   assert.ok(meta!.fontPresets.every((p) => p.stack))
   assert.equal(appearanceMeta('nope'), null)
 })

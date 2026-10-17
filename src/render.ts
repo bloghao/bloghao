@@ -1,10 +1,13 @@
 import type { CommentRow, PostRow, SettingsMap } from './types'
-import type { PostSort } from './db'
+import type { PostSort, WeiboVideoView } from './db'
 import { renderFooterHtml } from './hooks'
 import { outHref } from './outlink'
 import { cstDate, esc, excerpt, extractWeiboTopics, fmtDate, fmtDateCN, fmtDateTime, isoDate, NICKNAME_CHANGE_COOLDOWN_MS, nicknameCooldown } from './utils'
 import { replaceEmoji } from './emoji'
 import { appearanceHeadStyle } from './appearance'
+import { customCssHeadStyle } from './skinpack'
+import { ipRegionLabel } from './ipregion'
+import { readAiPolicy, seoHeadHtml } from './seo'
 import { enBetaBannerHtml, fmtDateEn, fmtDateEnShort, fmtDateTimeEn, isEn, plural, tr, weiboTimeEn } from './i18n'
 
 // 英文测试版（English 0.1）的词典与日期随共享构建器一起再导出：主题与 pages.ts 只认 render 一个进口
@@ -25,8 +28,9 @@ export interface ThemePageOptions {
   noindex?: boolean
   /** 演示体验版（DEMO_MODE）：所有公开页顶部公示站点性质横幅，见 demoBannerHtml() */
   demo?: boolean
-  /** 结构化数据（JSON-LD）：对象序列化进 <script type="application/ld+json">，文章页传 articleJsonLd() 的产物 */
-  jsonLd?: Record<string, unknown>
+  /** 结构化数据（JSON-LD）：对象序列化进 <script type="application/ld+json">，文章页传 articleJsonLd() 的产物；
+   *  传数组时逐块输出（文章页 = BlogPosting + 面包屑 BreadcrumbList，见 src/seo.ts） */
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[]
 }
 
 /** og:image 三级兜底：文章专属卡图（编辑器 OG 标记 > 封面）→ 后台设置的默认卡图 → 内置品牌卡图。
@@ -76,7 +80,9 @@ export function page(o: ThemePageOptions): string {
   const ogImage = resolveOgImage(o.ogImage, o.settings)
   // JSON-LD 里的 < 必须转成 \u003c（仍是合法 JSON）：防正文标题带 </script> 提前闭合脚本标签
   const jsonLdHtml = o.jsonLd
-    ? `<script type="application/ld+json">${JSON.stringify(o.jsonLd).replace(/</g, '\\u003c')}</script>`
+    ? (Array.isArray(o.jsonLd) ? o.jsonLd : [o.jsonLd])
+        .map((one) => `<script type="application/ld+json">${JSON.stringify(one).replace(/</g, '\\u003c')}</script>`)
+        .join('\n')
     : ''
   return `<!DOCTYPE html>
 <html lang="${en ? 'en' : 'zh-CN'}"${en ? ' data-edition="en"' : ''}${
@@ -88,7 +94,7 @@ export function page(o: ThemePageOptions): string {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}">
-${o.noindex || en ? '<meta name="robots" content="noindex">' : ''}
+${o.noindex || en ? '<meta name="robots" content="noindex">' : '<meta name="robots" content="max-snippet:-1, max-image-preview:large, max-video-preview:-1">'}
 ${o.settings.statsEnabled === '0' ? '<meta name="xw-stats" content="off">' : ''}
 ${base ? `<link rel="canonical" href="${esc(base + o.path)}">` : ''}
 <meta property="og:title" content="${esc(o.title || siteName)}">
@@ -103,9 +109,12 @@ ${jsonLdHtml}
 ${o.settings.faviconUrl ? `<link rel="icon" href="${esc(absUrl(base, o.settings.faviconUrl))}">` : `<link rel="icon" href="/favicon.svg" type="image/svg+xml">`}
 ${base ? `<link rel="alternate" type="application/rss+xml" title="${esc(siteName)}" href="${esc(base)}/rss.xml">` : ''}
 ${base ? `<link rel="alternate" type="application/feed+json" title="${esc(siteName)}" href="${esc(base)}/feed.json">` : ''}
+${base && o.path.startsWith('/post/') && readAiPolicy(o.settings.aiPolicy) !== 'deny' ? `<link rel="alternate" type="text/markdown" title="${esc(o.title || siteName)}" href="${esc(base + o.path)}.md">` : ''}
 <style>${o.css}</style>
 ${appearanceHeadStyle(o.settings)}
+${customCssHeadStyle(o.settings)}
 ${grayscaleStyle(o.settings)}
+${seoHeadHtml(o.settings)}
 </head>
 <body${o.preview ? ' data-preview="1"' : ''}>
 ${en ? enBetaBannerHtml() : ''}
@@ -573,9 +582,10 @@ function safeIso(ts: number): string {
 }
 
 /** 友链卡片：有图标用图标，没有用站名首字。url/icon 渲染前过 scheme 白名单——
- *  写侧已拦 javascript: 等协议，这里兜底防备份恢复/导入路径的脏数据流进 href/src */
+ *  写侧已拦 javascript: 等协议，这里兜底防备份恢复/导入路径的脏数据流进 href/src。
+ *  协议相对地址 //host 是外链不是站内路径，同样不放行（`/[^/]` 要求斜杠后还有字符） */
 export function friendLinkCards(items: FriendLinkView[], en = false): string {
-  const safeUrl = (u: string): string => (/^(https?:\/\/|\/)/i.test(u) ? u : '')
+  const safeUrl = (u: string): string => (/^(https?:\/\/|\/[^/])/i.test(u) ? u : '')
   return items
     .map((l) => {
       const url = safeUrl(l.url)
@@ -661,6 +671,8 @@ export interface WeiboItemView {
   id: number
   content: string
   images: string[]
+  /** 单条视频（B19）：媒体区先视频后图片；null / 缺省 = 无视频 */
+  video?: WeiboVideoView | null
   created_at: number
   likes: number
   commentCount: number
@@ -686,6 +698,21 @@ export function weiboImageGrid(images: string[]): string {
   const cls = n === 1 ? 'wb-imgs-1' : n === 2 || n === 4 ? 'wb-imgs-2' : 'wb-imgs-3'
   const imgs = images.map((u) => `<img src="${esc(u)}" loading="lazy" alt="">`).join('')
   return `<div class="wb-imgs ${cls}">${imgs}</div>`
+}
+
+/** 微博视频块（B19）：单视频，控件齐全、只预载元数据（不预下整段），有原始宽高时换算占位比例避免加载抖动。
+ *  无封面帧时叠一个 ▶ 角标（播放后由 site.js 给 .wb-video 挂 is-playing 收起）；竖屏视频交主题 CSS 居中限高。
+ *  src 只可能来自 parseWeiboVideo 白名单（站内 /images/ 或 http(s)），仍统一过 esc。 */
+export function weiboVideoHtml(v: WeiboVideoView, en = false): string {
+  const portrait = v.w > 0 && v.h > 0 && v.h > v.w
+  const ratio = v.w > 0 && v.h > 0 ? ` style="aspect-ratio:${v.w}/${v.h}"` : ''
+  const poster = v.poster ? ` poster="${esc(v.poster)}"` : ''
+  const badge = v.poster ? '' : '<span class="wb-video-badge" aria-hidden="true"></span>'
+  const mime = /\.webm(\?|#|$)/i.test(v.url) ? 'video/webm' : 'video/mp4'
+  const src = esc(v.url)
+  // 单行输出（与 weiboImageGrid 一致）：site.js 的 wbVideoHtmlJs 是它的手工 ES5 镜像，
+  // tests/weibo-admin.test.ts 把两侧同输入比对，别为了好看加换行缩进
+  return `<div class="wb-video${portrait ? ' is-portrait' : ''}${v.poster ? '' : ' is-plain'}"><video controls playsinline preload="metadata"${poster}${ratio}><source src="${src}" type="${mime}"><a class="wb-video-fallback" href="${src}" target="_blank" rel="noopener noreferrer">${tr(en, '视频')}</a></video>${badge}</div>`
 }
 
 /** 微博正文链接尾部标点（句读/引号/右括号）留在链接外，括号配对时保留（维基百科类 URL）。
@@ -794,8 +821,16 @@ function memberIdentity(name: string, en: boolean): string {
   return `<p class="cmt-as">${en ? 'Commenting as member' : '以会员'} <b>${esc(name)}</b>${en ? '' : ' 的身份发言'}</p><input class="cmt-hp" name="link" tabindex="-1" autocomplete="off" aria-hidden="true">`
 }
 
-/** 卡片内折叠评论区骨架：列表与表单内容由 site.js 按需填充；adminName / memberName 传入时表单免填昵称（管理员优先） */
-export function weiboCommentPanel(w: WeiboItemView, allowComments: boolean, adminName?: string, memberName?: string, en = false): string {
+/** 卡片内折叠评论区骨架：列表与表单内容由 site.js 按需填充；adminName / memberName 传入时表单免填昵称（管理员优先）。
+ *  showRegion 开启时在提示位预置「IP 属地」披露文案（site.js 提交/回复会覆盖提示位，属预期） */
+export function weiboCommentPanel(
+  w: WeiboItemView,
+  allowComments: boolean,
+  adminName?: string,
+  memberName?: string,
+  en = false,
+  showRegion = false
+): string {
   return `<div class="wb-cmt" data-wb-cmt="${w.id}" hidden>
   <div class="wb-cmt-list" data-role="list"><p class="wb-cmt-loading">${tr(en, '加载中…')}</p></div>
   ${
@@ -815,7 +850,7 @@ export function weiboCommentPanel(w: WeiboItemView, allowComments: boolean, admi
   </div>`
   }
   <textarea class="wb-cmt-textarea" name="content" maxlength="1000" rows="2" placeholder="${tr(en, '说点什么…')}" required></textarea>
-  <div class="wb-cmt-foot"><span class="wb-cmt-tip"></span><button class="wb-cmt-submit" type="submit">${tr(en, '发送')}</button></div>
+  <div class="wb-cmt-foot"><span class="wb-cmt-tip">${showRegion ? esc(tr(en, '发布后将显示 IP 属地')) : ''}</span><button class="wb-cmt-submit" type="submit">${tr(en, '发送')}</button></div>
 </form>`
       : ''
   }
@@ -839,7 +874,7 @@ export function weiboCards(o: {
   return o.items
     .map((w) => {
       const foot = weiboCardFoot(w, isAdmin, en)
-      const panel = weiboCommentPanel(w, allowComments, o.adminName, o.memberName, en)
+      const panel = weiboCommentPanel(w, allowComments, o.adminName, o.memberName, en, o.settings.showCommentRegion === '1')
       return `<article class="wb-card${w.pinned ? ' is-pinned' : ''}" id="wb-${w.id}">
   <header class="wb-head">
     <span class="wb-avatar">${o.avatarHtml}</span>
@@ -850,6 +885,7 @@ export function weiboCards(o: {
     ${w.pinned ? `<span class="wb-pin">${tr(en, '置顶')}</span>` : ''}
   </header>
   ${w.content ? `<div class="wb-text">${weiboTextHtml(w.content)}</div>` : ''}
+  ${w.video ? weiboVideoHtml(w.video, en) : ''}
   ${weiboImageGrid(w.images)}
   ${foot}
   ${panel}
@@ -874,11 +910,20 @@ export function weiboHomeEntry(o: { items: WeiboItemView[]; total: number; en?: 
   const en = !!o.en
   const items = o.items
     .map((w) => {
-      // 摘要统一走 excerpt（含空白折叠），与历史上的今天等处同口径
+      // 无正文时用媒体兜底文案：视频优先，其次配图数；视频的封面帧同时充当初图
       const text = w.content || ''
-      const short = text ? excerpt(text, 64) : en ? `Posted ${w.images.length} ${plural(w.images.length, 'photo', 'photos')}` : `发了 ${w.images.length} 张图`
-      const thumb = w.images[0]
-        ? `<span class="wb-home-thumb"><img src="${esc(w.images[0])}" loading="lazy" alt=""></span>`
+      const short = text
+        ? excerpt(text, 64)
+        : w.video
+          ? en
+            ? 'Posted a video'
+            : '发了一段视频'
+          : en
+            ? `Posted ${w.images.length} ${plural(w.images.length, 'photo', 'photos')}`
+            : `发了 ${w.images.length} 张图`
+      const thumbUrl = w.images[0] || (w.video ? w.video.poster : '')
+      const thumb = thumbUrl
+        ? `<span class="wb-home-thumb"><img src="${esc(thumbUrl)}" loading="lazy" alt=""></span>`
         : ''
       return `<a class="wb-home-item" href="/weibo?wb=${w.id}#wb-${w.id}">
   <div class="wb-home-main">
@@ -1202,15 +1247,19 @@ export function onThisDayCard(items: OnThisDayItemView[] | null | undefined, en 
 </section>`
 }
 
-/** 前台微博页发布框：管理员登录时由主题渲染在时间线顶部（访客不可见），交互在 site.js，与后台发布器同款能力 */
+/** 前台微博页发布框：管理员登录时由主题渲染在时间线顶部（访客不可见），交互在 site.js，与后台发布器同款能力。
+ *  按钮顺序是契约：site.js 用 `querySelector('.wb-composer-add')` 取唯一的媒体按钮（管计数与上传进度），
+ *  它必须排在 JS 后插的表情按钮之前；媒体入口只有这一个（图片与视频同一个选择器，视频另走视频通道），
+ *  视频预览容器 `.wb-composer-video` 由 site.js 填充。tests/weibo-admin.test.ts 有守卫。 */
 export function weiboComposer(o: { adminName: string; en?: boolean }): string {
   const en = !!o.en
   return `<form class="wb-composer" data-wb-composer>
   <p class="wb-composer-as">${en ? 'Posting as' : '以作者'} <b>${esc(o.adminName)}</b>${en ? '' : ' 的身份发布'}</p>
   <textarea class="wb-composer-textarea" name="content" maxlength="5000" rows="3" placeholder="${tr(en, '有什么新鲜事？写 #话题 即可归类')}"></textarea>
   <div class="wb-composer-tiles" hidden></div>
+  <div class="wb-composer-video" hidden></div>
   <div class="wb-composer-foot">
-    <button class="wb-composer-add" type="button">${tr(en, '加图（0/9）')}</button>
+    <button class="wb-composer-add" type="button" title="${tr(en, '图片 / 视频，一条微博最多 1 个视频')}">${tr(en, '加图（0/9）')}</button>
     <span class="wb-composer-count" data-count>0 / 5000</span>
     <span class="wb-composer-tip" data-tip aria-live="polite"></span>
     <span class="wb-composer-actions">
@@ -1221,7 +1270,10 @@ export function weiboComposer(o: { adminName: string; en?: boolean }): string {
 </form>`
 }
 
-/** 微博页翻页：上一页 / 下一页（页数少，无需页码跳转）；按话题筛选时翻页要带上 topic */
+/** 微博页翻页：上一页 / 下一页 + 页码跳转表单（与文章列表 pagerHtml 同款）；
+ *  按话题筛选时翻页与跳转都要带上 topic。
+ *  跳转表单 action 固定指向 /weibo：纯微博模式下本页渲染在 '/'，而翻页链接本就仍指 /weibo
+ *  （同一内容，见 pages.ts renderWeibo 注释），保持一致。 */
 export function weiboPager(page: number, totalPages: number, topic?: string, en = false): string {
   if (totalPages <= 1) return ''
   const href = (p: number) => `/weibo?page=${p}${topic ? `&topic=${encodeURIComponent(topic)}` : ''}`
@@ -1235,7 +1287,16 @@ export function weiboPager(page: number, totalPages: number, topic?: string, en 
     page < totalPages
       ? `<a class="wb-pager-btn" href="${href(page + 1)}">${nextLabel}</a>`
       : `<span class="wb-pager-btn is-disabled">${nextLabel}</span>`
-  return `<nav class="wb-pager">${prev}<span class="wb-pager-info">${page} / ${totalPages}</span>${next}</nav>`
+  // 页码跳转：纯 HTML GET 表单（CSP 禁内联脚本），隐藏域带回 topic；
+  // 结构 / class 与文章列表 pagerHtml 的 .pager-jump 完全相同——七主题已共用一套样式，无需新增 CSS
+  const jump = `<form class="pager-jump" action="/weibo" method="get">${
+    topic ? `<input type="hidden" name="topic" value="${esc(topic)}">` : ''
+  }<span class="pager-jump-text">${en ? 'Page' : '跳至'}</span><input class="pager-input" type="number" name="page" min="1" max="${totalPages}" value="${page}" aria-label="${tr(en, '页码')}">${
+    en
+      ? `<span class="pager-jump-text">of ${totalPages}</span><button class="pager-go" type="submit">Go</button>`
+      : `<span class="pager-jump-text">页</span><span class="pager-jump-text">/ 共 ${totalPages} 页</span><button class="pager-go" type="submit">跳转</button>`
+  }</form>`
+  return `<nav class="wb-pager">${prev}<span class="wb-pager-info">${page} / ${totalPages}</span>${next}</nav>${jump}`
 }
 
 export interface PagerContext {
@@ -1298,6 +1359,9 @@ export function commentsHtml(o: {
   tip?: string
   /** 留言板模式：区块与表单换成 guestbook 专用 id，提交目标不同 */
   guestbook?: boolean
+  /** 展示评论 IP 属地（settings.showCommentRegion）：标签由 ipRegionLabel 单点格式化，
+   *  关闭时不渲染；采集与出参门控见 api.ts */
+  showRegion?: boolean
   /** 英文测试版：文案走词典/英文语序，中文路径不传即原样 */
   en?: boolean
 }): string {
@@ -1324,17 +1388,23 @@ export function commentsHtml(o: {
       : c.member_tier
         ? `<span class="cmt-badge">${en ? 'Member' : '会员'}</span>`
         : ''
-    const replyBtn = o.isAdmin
-      ? `<button class="cmt-reply-btn" type="button" data-reply="${c.id}" data-name="${esc(c.nickname)}">${tr(en, '回复')}</button>`
+    // 管理员前台的操作键：回复（复用现有楼中楼流程）+ 删除（连带其下回复，不可恢复）。
+    // 只对登录管理员渲染（访客 HTML 里不存在）——前台删评论走后台 /api/admin/comments/:id（会话鉴权）
+    const adminBtns = o.isAdmin
+      ? `<button class="cmt-reply-btn" type="button" data-reply="${c.id}" data-name="${esc(c.nickname)}">${tr(en, '回复')}</button>
+    <button class="cmt-del-btn" type="button" data-cmt-del="${c.id}" title="${tr(en, '删除这条评论（其下回复一并删除，不可恢复）')}">${tr(en, '删除')}</button>`
       : ''
     const kids = children.get(c.id) || []
+    // IP 属地：与楼号同款小灰字（复用内联样式，七主题零改动）；开关关闭或无快照（旧评论/自托管）不渲染
+    const region = o.showRegion ? ipRegionLabel(c.ip_region || '', en) : ''
     return `<li class="cmt-item" id="cmt-${c.id}">
   <div class="cmt-head">
     ${commentAvatarHtml(c, o.adminAvatar)}
     <span class="cmt-name">${esc(c.nickname)}${badge}</span>
     <span class="cmt-time">${en ? fmtDateTimeEn(c.created_at) : fmtDateTime(c.created_at)}</span>
+    ${region ? `<span class="cmt-region" style="font-size:11px;opacity:0.45">${esc(region)}</span>` : ''}
     ${floor ? `<span class="cmt-floor" style="font-size:11px;opacity:0.45;font-variant-numeric:tabular-nums">#${floor}</span>` : ''}
-    ${replyBtn}
+    ${adminBtns}
   </div>
   <div class="cmt-body">${replaceEmoji(esc(c.content))}</div>
   ${kids.length ? `<ul class="cmt-children">${kids.map((k) => renderItem(k)).join('')}</ul>` : ''}
@@ -1362,7 +1432,7 @@ export function commentsHtml(o: {
     o.guestbook ? tr(en, '想对作者说点什么…') : tr(en, '写下你的想法…')
   }" required></textarea>
   <div class="cmt-form-foot">
-    <span class="cmt-tip">${esc(o.tip || tr(en, '留言即刻展示，请友善交流'))}</span>
+    <span class="cmt-tip">${esc(`${o.tip || tr(en, '留言即刻展示，请友善交流')}${o.showRegion ? ` · ${tr(en, '发布后将显示 IP 属地')}` : ''}`)}</span>
     <button class="cmt-submit" type="submit">${tr(en, '发送')}</button>
   </div>
 `

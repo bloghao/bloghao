@@ -5,20 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>演示站指南 - 博客号文档</title>
 <meta name="description" content="官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫。">
+<link rel="canonical" href="https://bloghao.com/docs/demo.html">
+<meta property="og:url" content="https://bloghao.com/docs/demo.html">
+<meta property="og:image" content="https://bloghao.com/assets/editor.png">
 <meta property="og:title" content="演示站指南 - 博客号文档">
 <meta property="og:description" content="官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫。">
 <meta property="og:type" content="article">
-<link rel="icon" href="/favicon.svg?v=20261012a" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=20261012a">
-<link rel="stylesheet" href="/docs.css?v=20261012a">
-<script src="/docs/docs-search-index.js?v=20261012a"></script>
+<link rel="icon" href="/favicon.svg?v=20261014d" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261014d">
+<link rel="stylesheet" href="/docs.css?v=20261014d">
+<script src="/docs/docs-search-index.js?v=20261014d"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
     <a class="nav-logo" href="/index.html">
-      <img src="/favicon.svg?v=20261012a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+      <img src="/favicon.svg?v=20261014d" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
@@ -93,7 +96,7 @@
 <tr>
 <td>数据</td>
 <td>真实内容</td>
-<td>种子数据（54 篇文章、31 条微博、85+ 评论、演示会员、60 天访客统计），每 2 小时清库重灌</td>
+<td>种子数据（54 篇文章、31 条微博、82 条评论、演示会员、60 天访客统计），每 2 小时清库重灌</td>
 </tr>
 <tr>
 <td>DEMO_MODE</td>
@@ -148,8 +151,9 @@ npm run deploy:demo</code></pre></div><p>部署完成后命令行会给出 <code
 demo 站点块反代），租户 <code>tenants.json</code> 配 <code>demo.bloghao.com</code>；此前跑在另一台小服务器
 （nginx 反代）的旧部署已停。上面的 Worker 形态保留作备用：<code>wrangler.demo.jsonc</code> 里的
 D1/R2 资源尚未创建（database_id 是占位符）、routes 已注释，要切回 Worker 形态需先建
-资源再 <code>npm run deploy:demo</code>。同步流程：主仓库改动后本地跑
-<code>scripts/sync-from-bloghao.sh</code> 提交推送，服务器 <code>git pull &amp;&amp; docker compose up --build -d</code>。</p>
+资源再 <code>npm run deploy:demo</code>。同步流程：主仓库改动后，在 bloghao-demo 仓库本地跑它的
+<code>scripts/sync-from-bloghao.sh</code>（从本仓库导出快照）提交推送，服务器侧以 rsync 文件快照
+方式同步部署目录（线上现行形态；<code>git pull &amp;&amp; docker compose up --build -d</code> 为该仓库最初的提法）。</p>
 </blockquote>
 <h2 id="改种子内容">改种子内容</h2><p>种子数据全部在代码里（重置时可从代码原样重建，不依赖外部服务）：</p>
 <ul>
@@ -203,6 +207,6 @@ D1/R2 资源尚未创建（database_id 是占位符）、routes 已注释，要�
     </span>
   </div>
 </footer>
-<script src="/docs.js?v=20261012a" defer></script>
+<script src="/docs.js?v=20261014d" defer></script>
 </body>
 </html>

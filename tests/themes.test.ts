@@ -7,7 +7,7 @@ import type { ThemeModule } from '../src/themes/registry.ts'
 import type { AboutData, ArchivesData, GuestbookData, HomeData, LinksData, MemberData, PageData, RankData, WeiboData } from '../src/themes/registry.ts'
 import type { HomePostView, MemberView, RankEntryView, WeiboItemView, ArchiveYearGroup, FriendLinkView, CategoryLink, TagCount } from '../src/render.ts'
 import type { CommentRow } from '../src/types.ts'
-import { commentsHtml, footCardHtml, headingAnchors, heatmapHtml, memberCardHtml, newSiteGuideHtml, postNeighborsHtml, rankListHtml } from '../src/render.ts'
+import { commentsHtml, footCardHtml, friendLinkCards, headingAnchors, heatmapHtml, memberCardHtml, newSiteGuideHtml, postNeighborsHtml, rankListHtml } from '../src/render.ts'
 import { esc } from '../src/utils.ts'
 import { packMatrix, qrMatrix } from '../src/qrcode.ts'
 
@@ -187,6 +187,12 @@ for (const [themeId, theme] of Object.entries(THEMES as Record<string, ThemeModu
     assert.ok(withPn.includes('上一次的旅行'))
     assert.ok(!withPn.includes('pn-empty'), '两侧都有时无占位空格')
     assert.ok(!html.includes('pn-nav'), `${themeId}.post 未传 prev/next 不渲染相邻导航`)
+  })
+
+  test(`${themeId}: post 渲染（AI 生成标注：勾选才出，缺省输出不变）`, () => {
+    const ai = theme.post({ ...postData(), post: { ...postData().post, aiGenerated: true } })
+    assert.ok(ai.includes('AI 生成'), `${themeId}.post 勾选 aiGenerated 应在 meta 行渲染 AI 生成标注`)
+    assert.ok(!theme.post(postData()).includes('AI 生成'), `${themeId}.post 缺省不渲染 AI 标注（未设置 = 输出不变）`)
   })
 
   test(`${themeId}: post 渲染分享按钮（canonical 链接 + QR 矩阵位串无损下发）`, () => {
@@ -438,7 +444,7 @@ test('site.js 微博评论头像镜像：会员图 / 作者站点头像 / 游客
   const listEl = { innerHTML: '' }
   const rows = [
     { id: 1, parent_id: 0, is_admin: 0, nickname: '会员甲', content: '内容', created_at: TS, member_avatar: '/images/u/202610/a.png' },
-    { id: 2, parent_id: 0, is_admin: 0, nickname: '游客甲', content: '内容', created_at: TS },
+    { id: 2, parent_id: 0, is_admin: 0, nickname: '游客甲', content: '内容', created_at: TS, ip_region: '广东' },
     { id: 3, parent_id: 0, is_admin: 1, nickname: '站长', content: '内容', created_at: TS },
     { id: 4, parent_id: 0, is_admin: 0, nickname: '游客乙', content: '内容', created_at: TS, avatar: '/images/u/guest.png' },
   ]
@@ -451,6 +457,9 @@ test('site.js 微博评论头像镜像：会员图 / 作者站点头像 / 游客
   assert.match(listEl.innerHTML, /wb-cmt-floor"[^>]*>#1</, '楼层号从 #1 起编')
   assert.match(listEl.innerHTML, /wb-cmt-floor"[^>]*>#4</, '四条顶层编到 #4')
   assert.match(listEl.innerHTML, /wb-cmt-badge">楼主</, '作者徽标微博语境 = 楼主')
+  // IP 属地：接口带 ip_region（服务端已换算成标签）才渲染，没带的行不占位
+  assert.match(listEl.innerHTML, /wb-cmt-region"[^>]*>广东</, '属地小灰字与 SSR cmt-region 同构')
+  assert.equal((listEl.innerHTML.match(/wb-cmt-region/g) || []).length, 1, '没属地的行不渲染占位')
   // 接口没带 adminAvatar（站点未设头像）时，作者评论退回首字块，与 SSR 同态
   listEl.innerHTML = ''
   render({ querySelector: () => listEl }, [rows[2]], false, '')
@@ -625,4 +634,26 @@ test('postNeighborsHtml：两侧齐全/缺一侧/全空三种形态', () => {
   assert.ok(!onlyPrev.includes('href="/post/b"'))
   assert.equal(postNeighborsHtml(null, undefined), '', '两侧全空返回空串')
   assert.equal(postNeighborsHtml(null, next).includes('上一篇'), false, '只传 next 时无上一篇链接')
+})
+
+// ── 友链卡片 URL 兜底（render.ts friendLinkCards）：写侧 normalizeLinkUrl 已拦脏协议，
+// 这里守渲染侧——防备份恢复 / 导入路径的脏数据流进 href/src；协议相对地址 //host 是
+// 外链不是站内路径，同样不放行（2026-10-15 外部审计项） ──
+
+test('friendLinkCards：url/icon 兜底白名单——javascript: 与协议相对地址退化为无链接卡片', () => {
+  const items: FriendLinkView[] = [
+    { name: '正常站', url: 'https://ok.example.com', description: '', icon: 'https://ok.example.com/favicon.ico' },
+    { name: '脚本注入', url: 'javascript:alert(1)', description: '', icon: '' },
+    { name: '协议相对', url: '//evil.example.com', description: '', icon: '//evil.example.com/x.png' },
+    { name: '站内路径', url: '/about', description: '', icon: '/favicon.svg' },
+    { name: '空地址', url: '', description: '', icon: '' },
+  ]
+  const html = friendLinkCards(items)
+  assert.ok(html.includes('href="https://ok.example.com"'), '合法外链照常渲染')
+  assert.ok(html.includes('src="https://ok.example.com/favicon.ico"'), '合法图标照常渲染')
+  assert.ok(!html.includes('javascript:'), '脏协议不进 href')
+  assert.ok(!html.includes('evil.example.com'), '//host 整体退化为无链接卡片（icon 同样不出 src）')
+  assert.ok(html.includes('href="/about"'), '站内路径放行')
+  assert.ok(html.includes('src="/favicon.svg"'), '站内图标放行')
+  assert.ok(html.includes('<span class="fl-card"'), '非法 url 退化为无链接 span 卡片，站名照常展示')
 })
