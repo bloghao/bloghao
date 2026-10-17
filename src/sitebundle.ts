@@ -1,5 +1,5 @@
 /**
- * 整站打包与还原（B26，设计见 docs/PROPOSAL-B26-SITE-BUNDLE.md）—— 自洽小文件，Node 可直接导入。
+ * 整站打包与还原（B26，设计见 docs/archive/PROPOSAL-B26-SITE-BUNDLE.md）—— 自洽小文件，Node 可直接导入。
  *
  * 一句话：把「全部业务表 + 全部图片」打成一个 zip（A 档导出），并只允许把它还原到**空站**（B 档导入）。
  * 与 Markdown 包 / WXR 的分工：那两条是「带走文章」（换别家博客系统），这里是「原样搬家」

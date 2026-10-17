@@ -407,6 +407,74 @@ function onboardCardHtml(s) {
   </div>`
 }
 
+/* 更新中心（自选更新，服务端 src/update.ts + api.ts /admin/update）：显示当前版本 / 最新版本与
+ * 「更新了什么」，用户自己决定「更新到最新」（按指引做一次部署）还是「保持当前版本」（记账位
+ * updateIgnoredVersion）。这里只读清单 + 记偏好，**不存在任何自动更新动作**——安全边界与
+ * 自托管部署形态一致（升级动作由部署侧完成，见 docs/UPDATING.md） */
+async function openUpdateCenter(btn) {
+  const orig = btn ? btn.textContent : ''
+  if (btn) { btn.disabled = true; btn.textContent = '检查中…' }
+  let d
+  try {
+    d = await api('/admin/update')
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = orig }
+    return toast(e.message || '检查更新失败，请重试', true)
+  }
+  if (btn) { btn.disabled = false; btn.textContent = orig }
+  if (!d.checkable) {
+    const why = d.reason === 'demo'
+      ? '演示站不检查更新。'
+      : '暂时获取不到最新版本信息，请检查网络后重试。'
+    modal(`<div class="modal-head"><span>检查更新</span><button class="modal-close" data-close>×</button></div>
+      <div class="modal-body">
+        <p style="color:var(--sub);font-size:13px;margin:0 0 6px;">当前版本：博客号 v${esc(d.current || '?')}</p>
+        <p style="font-size:13px;margin:0;">${why}</p>
+      </div>
+      <div class="modal-foot"><button class="btn" data-close>关闭</button></div>`)
+    return
+  }
+  const releasesHtml = (d.releases || []).map((r) => {
+    const notes = (r.notes || []).map((n) => `<li>${esc(n)}</li>`).join('')
+    return `<div style="margin:0 0 14px;">
+      <div style="font-weight:600;font-size:13px;margin-bottom:4px;">v${esc(r.version)}${r.date ? `<span style="color:var(--sub);font-weight:400;"> · ${esc(r.date)}</span>` : ''}</div>
+      ${notes ? `<ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.8;">${notes}</ul>` : '<div style="color:var(--sub);font-size:13px;">（这一版没有单独的要点说明）</div>'}
+    </div>`
+  }).join('')
+  const status = !d.hasUpdate
+    ? `<div style="font-size:13px;">已是最新版本 <b>v${esc(d.latest)}</b>。</div>`
+    : d.kept
+      ? `<div style="font-size:13px;">检测到新版本 <b>v${esc(d.latest)}</b>，但你已选择<b>保持当前版本</b>。想升级可随时按下方指引操作。</div>`
+      : `<div style="font-size:13px;">有新版本可用：<b>v${esc(d.latest)}</b>（当前 v${esc(d.current)}）。下面是「更新了什么」。</div>`
+  const keepBtn = d.hasUpdate && !d.kept
+    ? '<button class="btn" id="upd-keep" type="button">保持当前版本</button>'
+    : ''
+  const m = modal(`<div class="modal-head"><span>检查更新</span><button class="modal-close" data-close>×</button></div>
+    <div class="modal-body">
+      ${status}
+      ${d.hasUpdate ? `<div style="margin-top:14px;">${releasesHtml}</div>` : ''}
+      <p style="color:var(--sub);font-size:12px;margin:14px 0 0;">本站不会自动更新。升级 = 按指引做一次部署动作，文章与设置都保留。</p>
+    </div>
+    <div class="modal-foot">
+      <a class="btn btn-ghost" href="${esc(d.guide || 'https://bloghao.com/docs/updating.html')}" target="_blank" rel="noopener">如何更新 ↗</a>
+      ${keepBtn}
+      <button class="btn btn-primary" data-close>知道了</button>
+    </div>`)
+  const keep = document.getElementById('upd-keep')
+  if (keep) keep.addEventListener('click', async () => {
+    keep.disabled = true
+    try {
+      const r = await api('/admin/settings', { method: 'PUT', body: { updateIgnoredVersion: d.latest } })
+      state.settings = r.settings
+      toast('已选择保持当前版本 v' + d.latest)
+      m.close()
+    } catch (e) {
+      toast(e.message || '保存失败，请重试', true)
+      keep.disabled = false
+    }
+  })
+}
+
 async function viewHome() {
   let s
   try {
@@ -472,10 +540,13 @@ async function viewHome() {
         <div><div class="stat-value" style="font-size:20px;">${s.db.comments}<small>条评论</small></div></div>
         <div><div class="stat-value" style="font-size:20px;">${s.db.members}<small>位会员</small></div></div>
         <div style="color:var(--sub);font-size:13px;">最近备份：${esc(backupText)}</div>
-        <div style="color:var(--sub);font-size:13px;">系统版本：博客号 v${esc(s.version || '?')}</div>
+        <div style="color:var(--sub);font-size:13px;">系统版本：博客号 v${esc(s.version || '?')} <button class="btn btn-ghost btn-sm" data-act="check-update" type="button">检查更新</button></div>
       </div>
     </div>`
   )
+  // 更新中心：按需检查（不随概览自动出网），用户自己决定更新还是保持当前版本
+  const updBtn = $app.querySelector('[data-act=check-update]')
+  if (updBtn) updBtn.addEventListener('click', () => openUpdateCenter(updBtn))
   // 一键清理页面缓存（src/pagecache.ts）：换 epoch 让旧边缘副本整代作废，访客即刻看到最新页面
   const purgeBtn = $app.querySelector('[data-act=purge-cache]')
   if (purgeBtn) purgeBtn.addEventListener('click', async () => {

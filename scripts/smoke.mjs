@@ -844,7 +844,7 @@ try {
   // Token 复位（空 = 接口关闭，与 telegramBotToken 清理同款）
   await putSettings({ externalToken: '' })
 
-  // ── 会员链路（docs/DEVPLAN-2026-10-07.md 契约 v1）：开关门控 → 注册即登录 → 会员身份评论计分
+  // ── 会员链路（docs/archive/DEVPLAN-2026-10-07.md 契约 v1）：开关门控 → 注册即登录 → 会员身份评论计分
   // → 榜单/首页挂件 → 付费墙防泄漏（游客试读段/会员全文/RSS 无全文）→ 后台会员管理（拉黑即踢）──
   console.log('\n▸ 会员链路')
   const MEMBER_NAME = 'smokemember'

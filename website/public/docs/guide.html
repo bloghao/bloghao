@@ -11,17 +11,17 @@
 <meta property="og:title" content="使用手册 - 博客号文档">
 <meta property="og:description" content="后台导览、写文章全流程、快捷键、评论与媒体管理、设置逐项说明。">
 <meta property="og:type" content="article">
-<link rel="icon" href="/favicon.svg?v=20261014d" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=20261014d">
-<link rel="stylesheet" href="/docs.css?v=20261014d">
-<script src="/docs/docs-search-index.js?v=20261014d"></script>
+<link rel="icon" href="/favicon.svg?v=20261017a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261017a">
+<link rel="stylesheet" href="/docs.css?v=20261017a">
+<script src="/docs/docs-search-index.js?v=20261017a"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
     <a class="nav-logo" href="/index.html">
-      <img src="/favicon.svg?v=20261014d" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+      <img src="/favicon.svg?v=20261017a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
@@ -48,6 +48,7 @@
       <ul class="docs-side-list">
         <li><a href="deploy.html">🚀 部署教程</a></li>
         <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+        <li><a href="updating.html">⬆️ 版本与更新</a></li>
         <li><a class="is-active" href="guide.html">📖 使用手册</a></li>
         <li><a href="plaza.html">🧭 广场</a></li>
         <li><a href="themes.html">🎨 主题开发</a></li>
@@ -150,6 +151,10 @@
 <td>RSS 全文订阅与站点地图（自动生成）；<code>/feed.json</code> 是 JSON Feed 1.1 机器可读订阅格式（内容口径与 RSS 一致）；常用别名路径（<code>/feed</code>、<code>/rss</code>、<code>/atom.xml</code>、<code>/index.xml</code>、<code>/feeds/posts/default</code>、<code>?feed=rss2</code>）同样可订阅，前端与站点地图只展示规范地址</td>
 </tr>
 <tr>
+<td><a href="https://blog.xiaowuleyi.com/llms.txt" target="_blank" rel="noopener noreferrer">/llms.txt</a> · <a href="https://blog.xiaowuleyi.com/llms-full.txt" target="_blank" rel="noopener noreferrer">/llms-full.txt</a> · <a href="https://blog.xiaowuleyi.com/" target="_blank" rel="noopener noreferrer">/post/:slug.md</a></td>
+<td><strong>AI 可获取面</strong>（自动生成，口径见<a href="#16-设置逐项说明">第 16 节</a>末注）：给 AI 助手与 AI 爬虫读的站点导读索引、最新 50 篇全文合集与单篇 Markdown 镜像</td>
+</tr>
+<tr>
 <td><a href="https://blog.xiaowuleyi.com/admin/" target="_blank" rel="noopener noreferrer">/admin/</a></td>
 <td><strong>管理后台</strong>（下文的主角）</td>
 </tr>
@@ -191,12 +196,12 @@
 <tr>
 <td>内容</td>
 <td><strong>文章</strong></td>
-<td>全部文章的管理列表 + 第二页签「分类标签」（分类增删改、全站标签预建与删除）：搜索、按状态筛选、查看 / 编辑 / 置顶 / 下架 / 删除</td>
+<td>全部文章的管理列表 + 第二页签「分类标签」（分类增删改、全站标签预建与删除）：搜索、按状态筛选、时间范围（全部 / 最近 3 天 / 1 个月 / 半年 / 1 年）、查看 / 编辑 / 置顶 / 下架 / 删除</td>
 </tr>
 <tr>
 <td>内容</td>
 <td><strong>微博</strong></td>
-<td>随手记发布器 + 全部微博的管理列表（编辑 / 置顶 / 下架 / 删除）</td>
+<td>随手记发布器 + 全部微博的管理列表（编辑 / 置顶 / 下架 / 删除），同样支持按时间范围筛选，找最近发的内容不用无限翻页</td>
 </tr>
 <tr>
 <td>内容</td>
@@ -241,7 +246,7 @@
 <tr>
 <td>系统</td>
 <td><strong>设置</strong></td>
-<td>四个页签——站点（站点信息、头像与图标、站点模式、SEO 与统计、语言版本、改密码）、互动（评论规则、会员、访客统计）、进阶（灰度 / 闭站 / 外部发布 / 服务端插件）、数据（订阅与备份、数据导出）</td>
+<td>四个页签——站点（站点信息、头像与图标、站点模式、内容可见范围、SEO 与统计、AI 抓取策略、语言版本、改密码）、互动（评论规则、会员、访客统计）、进阶（灰度 / 闭站 / 外部发布 / 服务端插件）、数据（订阅与备份、数据导出）</td>
 </tr>
 </tbody></table></div>
 <p>关于「统计」页的口径，两件事要知道：</p>
@@ -315,7 +320,8 @@
 <p><strong>行首快捷排版（Markdown 爱好者福音）</strong>：富文本模式下在空段落行首输入标记后按空格，自动转成对应格式——<code>&gt; </code> 引用、<code># </code> 或 <code>## </code> H2、<code>### </code> H3、<code>#### </code> H4、<code>- </code> 或 <code>* </code> 无序列表、<code>1. </code> 有序列表；整段只有 <code>```</code> 或 <code>---</code> 时按回车，直接变代码块 / 分割线。只在普通段落触发（标题、引用、代码块里继续输入原字符），输入法选词的空格回车不误触。</p>
 <p><strong>微信表情</strong>：工具栏「😊」打开微信默认表情面板（[微笑] ~ [转圈] 共 117 个），点一个插入一个、可连续选，点面板外或 Esc 关闭。插入的是 <code>[微笑]</code> 这类<strong>文本码</strong>——正文里所见即所得显示小图（编辑器内直接显示表情图，Markdown 模式显示文本码），发布后前台渲染成行内小图；正文里手打的 <code>[微笑]</code> 也会自动渲染。图源为开源 Twemoji（CC-BY 4.0），映射表在 <code>src/emoji.ts</code>。微博发布器（后台 + 前台）同款「😊 表情」按钮；评论区手打文本码同样渲染。</p>
 <p><strong>图片自动压缩</strong>：粘贴 / 拖拽 / 选文件上传的 JPEG、PNG、WebP，超过 150KB 或最长边超过 2000px 会先在本地压一遍（最长边 2000px、WebP 质量 75%——WebP 压缩率高，75% 已是业内通行的视觉无损甜点）并<strong>统一转成 WebP</strong> 再传 R2——同画质比 JPEG 约再省三成体积，透明 PNG / 带透明的 WebP 转过去也不丢透明；旧浏览器不支持 WebP 编码时自动回退 JPEG / PNG 口径（质量 82%）。微博九图、截图帖加载更快，流量更省。GIF 动图会压丢帧所以原样直传，压不小则用原图。</p>
-<p><strong>前台图片灯箱</strong>：文章正文和微博配图点击即全屏查看——双指捏合 / 滚轮缩放，拖动平移，双击放大复原，左右滑动或方向键切换同组图片，<code>Esc</code> 或点 × 关闭。头像和小图标不受影响。</p>
+<p><strong>前台图片灯箱</strong>：文章正文和微博配图点击即全屏查看——双指捏合 / 滚轮缩放，拖动平移，双击放大复原，左右滑动或方向键切换同组图片，向下拖动直接关闭，长按弹出「保存图片 / 复制图片地址」，<code>Esc</code> 或点 × 关闭。头像和小图标不受影响。</p>
+<p><strong>右上角「…」聚合面板</strong>（手机阅读最顺手）：文章页往下滚、顶部导航收起后，右上角浮出「…」按钮，点开底部操作面板——<strong>分享 / 复制链接 / 正文字号</strong>（小 / 标准 / 大 / 特大四档，选一次就记住，只作用于正文不影响评论区）。</p>
 <p><strong>Markdown 模式</strong>：点底栏「Markdown」进入纯文本模式，支持 <code># 标题</code>、<code>**加粗**</code>、<code>*斜体*</code>、<code>`行内代码`</code>、<code>``` 代码块 ```</code>、<code>&gt; 引用</code>、<code>- 列表</code>、<code>1. 列表</code>、<code>[链接](url)</code>、<code>![图](url)</code>、<code>---</code> 分隔线。再点一次「Markdown」转回富文本（自动渲染）。</p>
 <p><strong>粘贴富文本</strong>：从网页、Word、公众号编辑器复制的内容粘贴时，会先经过服务端白名单净化——脚本、危险属性被剥除，排版样式（颜色、字号、对齐、边框）保留。<strong>外链图片自动转存</strong>：粘贴内容里的外链图（公众号 <code>mmbiz.qpic.cn</code> 等有防盗链、随时会失效）会自动抓取转存进站内 R2 图床并替换地址（单篇上限 30 张，与采集同口径），转存失败的图保留原地址。</p>
 <p><strong>外链跳转提醒</strong>：正文里指向第三方网站的链接（微博正文同理，见第 8 节），访客点击时会先经过本站的「即将离开本站」提醒页——展示目标域名与完整链接、附免责声明，由访客自行决定是否继续，防钓鱼防误触。主流官方大站（苹果 / 谷歌 / X / GitHub / 微博 / 知乎 / B 站等，清单在 <code>src/outlink.ts</code> 的 <code>TRUSTED_OUT_DOMAINS</code>）与本站自身域名不受影响、直接跳转；存库与 RSS / 导出内容里的链接保持原始地址，提醒页只在浏览器渲染层生效。</p>
@@ -382,7 +388,7 @@
 <li>每页 15 条，<strong>置顶的排最前</strong>；访客可以点赞、在卡片里展开评论区留言</li>
 <li>正文里贴的<strong>链接自动变成可点击的超链</strong>（中英文都认，句尾标点不会粘进链接）；指向第三方网站的链接会先经过「即将离开本站」提醒页（见第 5 节），主流大站直接跳转</li>
 <li>从卡片正文的 <code>#话题</code> 高亮链接点进去，可筛选同一话题的全部微博（未筛选时页头不显示话题条，保持干净）</li>
-<li>微博页有独立的翻页，首页的「微博入口卡」展示最新随手记摘要并链接过来</li>
+<li>微博页翻页条除「新一条 / 更早的」外，还有<strong>页码输入框</strong>——填页码点「跳转」直达，不用一页页翻（按话题筛选时跳转会带上话题）；首页的「微博入口卡」展示最新随手记摘要并链接过来</li>
 </ul>
 <p><strong>分享卡片</strong>：每条微博底栏的「分享」按钮可以一键把这条随手记生成一张精美的图片卡（站名头像 + 正文带话题高亮 + 配图九宫格 + 时间与站点域名；带视频的随手记用视频<strong>封面帧</strong>入画），支持 <code>navigator.share</code> 的手机（iOS 15+ / 安卓主流浏览器）直接唤起系统分享面板发朋友圈，桌面端「保存图片」直接下载；支持剪贴板写入的浏览器（Chrome / Edge / Safari 16+ / Firefox 127+）还有「复制图片」，可直接粘贴到公众号编辑器、微信聊天等支持粘贴图片的输入框，不支持的浏览器自动隐藏该按钮；微信等内置浏览器里长按预览图也能保存转发。纯前端生成（点击时才加载生成器），不经过服务端。</p>
 <p><strong>管理已有微博</strong>（后台「微博」页列表，或前台 <code>/weibo</code> 卡片上的编辑 / 置顶 / 删除按钮）：</p>
@@ -710,7 +716,7 @@ curl -X POST https://blog.xiaowuleyi.com/api/external/weibo \
 </tr>
 <tr>
 <td><strong>服务端插件</strong></td>
-<td>随内核运行的官方插件（发布同步 TG 频道 / 广场同步 / 评论 Webhook / 页脚自定义代码 / 通用出站 Webhook，启停在「插件」页）的配置项：评论 Webhook 地址、页脚自定义 HTML（挂件 / 徽章等，受 CSP 保护外部脚本不执行）、Buffer API Key 与渠道、<strong>广场地址与站点 Token</strong>（在官网广场 bloghao.com/plaza 登记站点拿到 Token 后填入并开启「广场同步」插件，发布文章/微博自动同步上广场，加密文与会员专属文不上）；插件配置统一走「插件」页的「配置」按钮（新建插件不必再加专属设置项）。<strong>通用出站 Webhook</strong> 可把文章发布 / 更新 / 删除、微博发布 / 删除、新评论、备份完成七类事件自选推送到你的地址（可选 HMAC 签名）；开发新插件见 docs/PLUGINS.md，广场机制见 docs/PLAZA.md</td>
+<td>随内核运行的官方插件（发布同步 TG 频道 / 广场同步 / 评论 Webhook / 页脚自定义代码 / 通用出站 Webhook，启停在「插件」页）的配置项：评论 Webhook 地址、页脚自定义 HTML（挂件 / 徽章等，受 CSP 保护外部脚本不执行）、Buffer API Key 与渠道、<strong>广场地址与站点 Token</strong>（在官网广场 bloghao.com/plaza 登记站点拿到 Token 后填入并开启「广场同步」插件，发布文章/微博自动同步上广场，加密文与会员专属文不上；接好后可在「插件 → 广场同步 → 数据」看广场带来的曝光 / 点击 / 点赞趋势与回访量）；插件配置统一走「插件」页的「配置」按钮（新建插件不必再加专属设置项）。<strong>通用出站 Webhook</strong> 可把文章发布 / 更新 / 删除、微博发布 / 删除、新评论、备份完成七类事件自选推送到你的地址（可选 HMAC 签名）；开发新插件见 docs/PLUGINS.md，广场机制见 docs/PLAZA.md</td>
 </tr>
 <tr>
 <td><strong>订阅与备份</strong></td>
@@ -778,10 +784,19 @@ curl -X POST https://blog.xiaowuleyi.com/api/external/weibo \
 <li><strong>登录态</strong>：30 天有效，过期重新登录即可</li>
 <li>你可以放心把后台地址告诉朋友——他们只能看到登录页；「创建管理员」入口只在库里没有任何用户时开放</li>
 </ul>
-<h2 id="19-升级备份与数据导出">19. 升级、备份与数据导出</h2><p><strong>升级</strong>（本仓库 push 到 <code>main</code> 会经 GitHub Actions 自动部署，无需手动操作；手动部署则）：</p>
+<h2 id="19-升级备份与数据导出">19. 升级、备份与数据导出</h2><p><strong>先看一眼更新中心（有没有新版本、更新了什么）</strong>：后台概览页「系统」卡片点 <strong>「检查更新」</strong>——向官网取一次版本清单，告诉你当前版本、最新版本，以及<strong>从你的版本到现在「更新了什么 / 优化了什么」</strong>（要点来自发布日志）。有更新时你可以：</p>
+<ul>
+<li>按指引<strong>升级</strong>（真正换版本仍是一次部署动作，见下）；</li>
+<li>或点 <strong>「保持当前版本」</strong>——记下你的选择，同一版本不再反复提示（出现更新的版本时会再次提示）。</li>
+</ul>
+<p>博客号<strong>不做自动更新</strong>：更新中心只做「告知 + 记录选择」，升级动作永远由你发起。检查只单向拉取官网公开清单，<strong>不上报任何本站信息</strong>。完整说明见 <a href="updating.html">UPDATING.md</a>。</p>
+<p><strong>升级</strong>（本仓库 push 到 <code>main</code> 会经 GitHub Actions 自动部署，无需手动操作；手动部署则）：</p>
 <div class="codeblock" data-lang="bash"><pre><code>git pull &amp;&amp; npm install &amp;&amp; npm run deploy
 # 如果 schema.sql 有更新，补一句：
-npx wrangler d1 execute DB --remote --file schema.sql   # 幂等，安全</code></pre></div><p><strong>自动备份（已内置，无需配置）</strong>：Worker 自带 Cron Trigger——每分钟扫一次「定时发布」（见 <a href="#4-写一篇文章完整流程">第 4 节</a>），每天<strong>北京时间 00:30</strong> 把数据库（文章 / 微博 / 评论 / 友链 / 设置等全部业务表）导成 JSON 存进 R2 图床的 <code>backups/</code> 目录，按日期命名（<code>xwblog-YYYY-MM-DD.json</code>），滚动保留最近 30 份。后台「设置 → 订阅与备份」可以关掉它、查看上次备份时间与体积、或点「立即备份」马上来一份；备份失败时若配了 Telegram 机器人会收到提醒。</p>
+npx wrangler d1 execute DB --remote --file schema.sql   # 幂等，安全</code></pre></div><blockquote>
+<p>用 Cloudflare 一键部署出来的站点，你的仓库是部署时创建的副本——把官方仓库最新代码同步进副本（GitHub 上 Sync fork，或 <code>git pull</code> 官方仓库后推副本），Cloudflare 会自动重新部署。Docker 自托管则是 <code>git pull &amp;&amp; docker compose up --build -d</code>（数据在卷里不受影响）。升级前建议先备份（下方「立即备份」或 SQL 导出）。</p>
+</blockquote>
+<p><strong>自动备份（已内置，无需配置）</strong>：Worker 自带 Cron Trigger——每分钟扫一次「定时发布」（见 <a href="#4-写一篇文章完整流程">第 4 节</a>），每天<strong>北京时间 00:30</strong> 把数据库（文章 / 微博 / 评论 / 友链 / 设置等全部业务表）导成 JSON 存进 R2 图床的 <code>backups/</code> 目录，按日期命名（<code>xwblog-YYYY-MM-DD.json</code>），滚动保留最近 30 份。后台「设置 → 订阅与备份」可以关掉它、查看上次备份时间与体积、或点「立即备份」马上来一份；备份失败时若配了 Telegram 机器人会收到提醒。</p>
 <p><strong>手动备份</strong>（每月一次或大版本前）：</p>
 <div class="codeblock" data-lang="bash"><pre><code>npx wrangler d1 export xwblog-db --remote --output=backup-$(date +%F).sql   # 文章/微博/评论/友链/设置
 npx wrangler r2 object get xwblog-images/ --file=?   # 图片按需从媒体库下载</code></pre></div><p>恢复：<code>npx wrangler d1 execute xwblog-db --remote --file=backup.sql</code>。自动备份的 JSON 想恢复时，把其中 <code>tables</code> 里的数据导回 D1 即可（每张表一条 <code>INSERT</code>，或需要时写个小脚本）。</p>
@@ -818,7 +833,7 @@ npx wrangler r2 object get xwblog-images/ --file=?   # 图片按需从媒体库�
     </article>
   
   <nav class="docs-pager">
-    <a class="docs-pager-link is-prev" href="cloudflare.html"><span>← 上一篇</span><b>☁️ Cloudflare 基础</b></a>
+    <a class="docs-pager-link is-prev" href="updating.html"><span>← 上一篇</span><b>⬆️ 版本与更新</b></a>
     <a class="docs-pager-link is-next" href="plaza.html"><span>下一篇 →</span><b>🧭 广场</b></a>
   </nav>
   </main>
@@ -868,6 +883,6 @@ npx wrangler r2 object get xwblog-images/ --file=?   # 图片按需从媒体库�
     </span>
   </div>
 </footer>
-<script src="/docs.js?v=20261014d" defer></script>
+<script src="/docs.js?v=20261017a" defer></script>
 </body>
 </html>

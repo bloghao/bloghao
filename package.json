@@ -1,6 +1,6 @@
 {
   "name": "bloghao",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "private": true,
   "description": "博客号 BlogHao —— 轻写作博客系统，完全跑在 Cloudflare（Workers + D1 + R2）上",
   "type": "module",
@@ -11,6 +11,7 @@
     "deploy:demo": "wrangler deploy -c wrangler.demo.jsonc",
     "deploy:site": "cd website && wrangler pages deploy public",
     "build:docs": "node website/build-docs.mjs",
+    "build:release": "node scripts/build-release.mjs",
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
     "db:init:local": "wrangler d1 execute DB --local --file schema.sql",

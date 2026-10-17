@@ -11,17 +11,17 @@
 <meta property="og:title" content="广场 - 博客号文档">
 <meta property="og:description" content="内容聚合流：三步接入官方广场，让每篇文章与微博被更多博主看到；含混排口径与自建 hub。">
 <meta property="og:type" content="article">
-<link rel="icon" href="/favicon.svg?v=20261014d" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=20261014d">
-<link rel="stylesheet" href="/docs.css?v=20261014d">
-<script src="/docs/docs-search-index.js?v=20261014d"></script>
+<link rel="icon" href="/favicon.svg?v=20261017a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261017a">
+<link rel="stylesheet" href="/docs.css?v=20261017a">
+<script src="/docs/docs-search-index.js?v=20261017a"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
     <a class="nav-logo" href="/index.html">
-      <img src="/favicon.svg?v=20261014d" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+      <img src="/favicon.svg?v=20261017a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
@@ -48,6 +48,7 @@
       <ul class="docs-side-list">
         <li><a href="deploy.html">🚀 部署教程</a></li>
         <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+        <li><a href="updating.html">⬆️ 版本与更新</a></li>
         <li><a href="guide.html">📖 使用手册</a></li>
         <li><a class="is-active" href="plaza.html">🧭 广场</a></li>
         <li><a href="themes.html">🎨 主题开发</a></li>
@@ -67,7 +68,7 @@
       <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/PLAZA.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
     </div>
     <article class="doc-md">
-<h1 id="广场博客号内容聚合">广场（博客号内容聚合）</h1><p>广场是官网 <strong><a href="https://bloghao.com/plaza/" target="_blank" rel="noopener noreferrer">bloghao.com/plaza</a></strong> 上的内容聚合流：所有开通同步的博客号，其公开文章与微博在这里汇成一条河，按「<strong>权重 + 新文推荐 + 随机展示</strong>」混排——新文有曝光，权重高的站靠前，随机抖动让每次刷新都可能撞见新东西。</p>
+<h1 id="广场博客号内容聚合">广场（博客号内容聚合）</h1><p>广场是官网 <strong><a href="https://bloghao.com/plaza/" target="_blank" rel="noopener noreferrer">bloghao.com/plaza</a></strong> 上的内容聚合流：所有开通同步的博客号，其公开文章与微博在这里汇成一片可逛的广场——<strong>双视图</strong>（桌面默认卡片墙瀑布流、手机默认河流式）、按「<strong>权重 + 新文推荐 + 随机展示</strong>」混排、<strong>匿名点赞</strong>与近 7 日活跃榜，新站入驻有 7 天聚光扶持。新文有曝光，权重高的站靠前，随机抖动让每次刷新都可能撞见新东西。</p>
 <div class="codeblock"><pre><code>┌─ 你的博客号 ────────────┐         ┌─ 广场 hub（独立 Worker）─┐         ┌─ 官网 bloghao.com ─┐
 │ 发布文章 / 微博          │  push   │ 签名校验 → 入库          │  feed   │ /plaza/ 页面        │
 │ 「广场同步」插件自动上报  │ ──────→ │ RSS pull 补漏（cron）    │ ──────→ │ 拉取渲染（ES5）      │
@@ -158,7 +159,7 @@ hub 静默跳过，不影响其余补漏。管理端 <code>POST /api/admin/pull<
 <li><strong>weight</strong>：站点权重 0-10 × 0.05/档（管理员按内容质量定档）；<strong>新站聚光</strong>（B25 P0.4）——注册 7 天内的站 weight 临时 +2 档（封顶 10），到期自动回落，冷启动扶持不改动管理员定的档</li>
 <li><strong>jitter</strong>：0~0.3 随机抖动（每次刷新换序，「逛」的感觉）</li>
 </ul>
-<p>官网广场页消费 feed 的完整口径（双视图卡片墙 / 卡片三型 / 站点视图 / 侧栏活跃榜 / 匿名点赞 / 曝光点击回传 / <code>utm_source=bloghao-plaza</code> 出站标记）见 <strong>PLAZA-2.0-PLAN.md</strong> 与 <code>website/public/plaza/plaza.js</code>。</p>
+<p>官网广场页消费 feed 的完整口径（双视图卡片墙 / 卡片三型 / 站点视图 / 侧栏活跃榜 / 匿名点赞 / 曝光点击回传 / <code>utm_source=bloghao-plaza</code> 出站标记）见 <strong>docs/archive/PLAZA-2.0-PLAN.md</strong> 与 <code>website/public/plaza/plaza.js</code>。</p>
 <h2 id="ingest-协议第三方博客系统也能接">ingest 协议（第三方博客系统也能接）</h2><p>请求：<code>POST {hub}/api/ingest</code>，头三件套 + JSON body：</p>
 <div class="codeblock"><pre><code>X-Plaza-Token: &lt;32位站点token&gt;
 X-Plaza-Timestamp: &lt;毫秒时间戳，±10分钟窗口&gt;
@@ -200,7 +201,7 @@ X-Plaza-Signature: &lt;hex(HMAC-SHA256(token, timestamp + &quot;.&quot; + rawBod
 （站点 token 只有 hub 管理员能发，自动收录的前提是持有 PLAZA_ADMIN_TOKEN）</li>
 </ul>
 <h2 id="与认证roadmap-b18的关系">与认证（ROADMAP B18）的关系</h2><p><code>sites.verified</code> 徽标位与 feed / 名录出参的 <code>siteVerified</code> 已就位（官网展示「✔︎ 认证」），v1 由 hub 管理员在站点所有权验证通过后手工打开；签名凭据自动化签发（token 化验证文件 / DNS 校验）是 B18 的启动范围，届时只扩 hub 管理端点，协议与出参形状不变。</p>
-<h2 id="演进方向b25-广场-202026-10-16-立项">演进方向（B25 广场 2.0，2026-10-16 立项）</h2><p>广场的下一程（卡片墙双视图 / 站点与话题维度 / 匿名点赞与数据回流 / 关注订阅周刊 / 信任治理）完整方案与推进步骤见 <strong><a href="https://github.com/bloghao/bloghao/blob/main/docs/PLAZA-2.0-PLAN.md">PLAZA-2.0-PLAN.md</a></strong>；本文档只承载已落地协议，各阶段落地后回写。</p>
+<h2 id="演进方向b25-广场-20p0p1p2-已随-v260-上线">演进方向（B25 广场 2.0：P0/P1/P2 已随 v2.6.0 上线）</h2><p>广场 2.0 的第一批（P0 地基 / P1 双视图卡片墙 / P2 匿名点赞与数据回流）已随 v2.6.0 上线（交互细节与红线见 <strong><a href="https://github.com/bloghao/bloghao/blob/main/archive/PLAZA-2.0-PLAN.md">docs/archive/PLAZA-2.0-PLAN.md</a></strong>）；剩 P3 留存（本地关注 / 周刊精选）、P4 话题与搜索、P5 信任治理按广场活跃度里程碑触发，方案见同文档。本文档只承载已落地协议，各阶段落地后回写。</p>
 <h2 id="隐私与边界">隐私与边界</h2><ul>
 <li>广场只收<strong>公开内容</strong>的标题 / 摘要 / 链接 / 封面，不收正文、不收评论、不收任何访客身份</li>
 <li>hub 的 items 表是<strong>派生数据</strong>：源站删了推 <code>deleted</code> 即清，hub 被删也不影响任何博客站</li>
@@ -231,7 +232,7 @@ X-Plaza-Signature: &lt;hex(HMAC-SHA256(token, timestamp + &quot;.&quot; + rawBod
         <li class="toc-d2"><a href="#schema-与部署" data-toc="schema-与部署">schema 与部署</a></li>
         <li class="toc-d2"><a href="#docker-poc-自托管分站的自动收录2026-10-16" data-toc="docker-poc-自托管分站的自动收录2026-10-16">docker-poc 自托管分站的自动收录（2026-10-16）</a></li>
         <li class="toc-d2"><a href="#与认证roadmap-b18的关系" data-toc="与认证roadmap-b18的关系">与认证（ROADMAP B18）的关系</a></li>
-        <li class="toc-d2"><a href="#演进方向b25-广场-202026-10-16-立项" data-toc="演进方向b25-广场-202026-10-16-立项">演进方向（B25 广场 2.0，2026-10-16 立项）</a></li>
+        <li class="toc-d2"><a href="#演进方向b25-广场-20p0p1p2-已随-v260-上线" data-toc="演进方向b25-广场-20p0p1p2-已随-v260-上线">演进方向（B25 广场 2.0：P0/P1/P2 已随 v2.6.0 上线）</a></li>
         <li class="toc-d2"><a href="#隐私与边界" data-toc="隐私与边界">隐私与边界</a></li>
       </ul>
     </aside>
@@ -248,6 +249,6 @@ X-Plaza-Signature: &lt;hex(HMAC-SHA256(token, timestamp + &quot;.&quot; + rawBod
     </span>
   </div>
 </footer>
-<script src="/docs.js?v=20261014d" defer></script>
+<script src="/docs.js?v=20261017a" defer></script>
 </body>
 </html>

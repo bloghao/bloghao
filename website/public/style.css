@@ -66,6 +66,30 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; ba
 }
 .nav-demo:hover { opacity: 0.8; }
 
+/* ---------- 移动端汉堡菜单 ---------- */
+/* ≤860px 收起横排链接，改用汉堡 + 下拉面板（官网导航 8 项，620-860 区间横排会挤爆） */
+.nav-burger {
+  display: none; flex-direction: column; justify-content: center; gap: 5px;
+  width: 40px; height: 40px; padding: 0 9px;
+  background: none; border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+}
+.nav-burger i { display: block; height: 2px; border-radius: 2px; background: var(--ink); transition: transform 0.2s ease, opacity 0.2s ease; }
+.nav-burger.is-open i:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-burger.is-open i:nth-child(2) { opacity: 0; }
+.nav-burger.is-open i:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+.nav-mobile {
+  display: none; position: fixed; top: 62px; left: 0; right: 0; z-index: 99;
+  flex-direction: column; padding: 6px 24px 14px;
+  background: rgba(250, 248, 244, 0.97);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 18px 40px rgba(32, 29, 26, 0.1);
+}
+.nav-mobile.open { display: flex; }
+.nav-mobile a { padding: 13px 4px; font-size: 15px; font-weight: 600; color: var(--ink); border-bottom: 1px dashed var(--line); }
+.nav-mobile a:last-child { border-bottom: none; }
+.nav-mobile a:active { color: var(--accent); }
+
 /* ---------- 按钮 ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -286,11 +310,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; ba
   .pc-only { display: none; }
 }
 @media (max-width: 620px) {
-  .nav-links { display: none; }
   .nav-inner { gap: 14px; }
   .nav-logo { white-space: nowrap; }
   .nav-logo-en { display: none; }
-  .nav-demo { white-space: nowrap; }
   .hero { padding-top: 110px; }
   .grid-3, .theme-row { grid-template-columns: 1fr; }
   .section { padding: 60px 0; }
@@ -470,7 +492,13 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; ba
   .nav-links { gap: 15px; }
   .nav-inner { gap: 18px; }
 }
+@media (max-width: 860px) {
+  .nav-links { display: none; }
+  .nav-burger { display: inline-flex; }
+}
 @media (max-width: 620px) {
   .support-grid { grid-template-columns: 1fr; }
   .support-panel { padding: 36px 20px 30px; }
+  .nav-demo { display: none; }
+  .nav-cta { margin-left: auto; }
 }

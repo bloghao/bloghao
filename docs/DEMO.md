@@ -55,9 +55,9 @@ npm run deploy:demo
 ```
 
 部署完成后命令行会给出 `https://xwblog-demo.<你的子域>.workers.dev` 地址，**打开即自动播种**，
-无需任何初始化命令。`wrangler.demo.jsonc` 里已声明 `routes`（官方站绑 `demo.bloghao.com`），
-部署时自动完成 Custom Domain 绑定与证书签发；自建演示站不需要这个域名的话，删掉 `routes`
-一条再部署即可，或在 Cloudflare 后台该 Worker 的 Settings → Domains & Routes 手动管理。
+无需任何初始化命令。`wrangler.demo.jsonc` 的 `routes`（绑 `demo.bloghao.com`）当前**已注释**——
+官方线上演示站跑在 Docker 形态（见下），不需要 Cloudflare 域名绑定；想以 Worker 形态绑这个域名，
+取消注释 `routes` 一条再部署即可，或在 Cloudflare 后台该 Worker 的 Settings → Domains & Routes 手动管理。
 
 > 配额说明：演示站与生产站共享账号的免费额度（Workers 10 万请求/天、D1 5M 行读取/天），
 > 演示站流量很小可忽略；若想完全隔离配额，用另一个免费 Cloudflare 账号 `wrangler login` 后
@@ -95,7 +95,8 @@ npm run dev:demo
 - `src/demo-content.ts` —— 微博、评论（含楼中楼与待审）、友链、独立页面、settings、访客统计
 - `src/demo-images.ts` —— 程序化生成的 SVG 配图（打进 bundle，重置时写入 R2）
 
-改完后 `npm run deploy:demo` 重新部署生效；本地 `npm run dev:demo` 刷新即可看到新版种子。
+改完后本地 `npm run dev:demo` 刷新即可看到新版种子；`npm run deploy:demo` 只对 Worker 形态生效
+（官方线上演示站是 bloghao-demo 仓库的 Docker 形态，同步种子改动走该仓库的部署流程）。
 `tests/demo.test.ts` 守着种子数据的不变量（slug 唯一、正文安全、评论树合法、图片引用存在等），
 改内容后跑一遍 `npm test`。
 

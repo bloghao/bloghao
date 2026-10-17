@@ -209,10 +209,12 @@ input, textarea, select { font: inherit; color: inherit; }
 .tab.is-active { background: var(--card); color: var(--ink); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .toolbar .input { width: 220px; }
 
-/* 小屏（390px）下操作按钮一行放不下：允许换行，别把标题挤没 */
+/* 小屏（390px）下操作按钮一行放不下：允许换行，别把标题挤没。
+   main 给足 flex-basis（同 wb-row-main/fl-main 先例）——纯 flex:1 基线为 0 时
+   会与不收缩的 ops 排进同一行被挤成 13px 竖排字（390px 实测），给了基线 ops 才会换行 */
 .post-row { display: flex; align-items: center; gap: 14px; padding: 13px 18px; border-bottom: 1px solid #f2f2f2; flex-wrap: wrap; }
 .post-row:last-child { border-bottom: none; }
-.post-main { flex: 1; min-width: 0; }
+.post-main { flex: 1 1 240px; min-width: 0; }
 .post-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
 .post-title a:hover { color: var(--accent); }
 .post-meta { font-size: 12px; color: var(--sub); margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; }
@@ -307,7 +309,7 @@ input, textarea, select { font: inherit; color: inherit; }
 /* ---------- 评论 ---------- */
 .comment-row { display: flex; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #f2f2f2; flex-wrap: wrap; }
 .comment-row:last-child { border-bottom: none; }
-.comment-main { flex: 1; min-width: 0; }
+.comment-main { flex: 1 1 240px; min-width: 0; }
 .comment-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
 .comment-meta .who { font-weight: 600; }
 .comment-post { font-size: 12px; color: var(--sub); }
@@ -759,6 +761,11 @@ img.side-user-avatar { object-fit: cover; }
 
 /* ---------- 标签管理（分类页） ---------- */
 .panel-head-sub { font-size: 12px; font-weight: 400; color: var(--sub); }
+/* 手机（≤700px）标题与说明竖排：横排会把「AI 与爬虫抓取」「编辑器插件」这类标题挤断字（390px 实测） */
+@media (max-width: 700px) {
+  .panel-head { flex-wrap: wrap; row-gap: 2px; }
+  .panel-head-sub { flex-basis: 100%; }
+}
 .tag-manage-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .tag-manage-item {
   display: inline-flex; align-items: center; gap: 6px;
@@ -848,7 +855,7 @@ body.no-scroll { overflow: hidden; }
   display: flex; align-items: center; justify-content: center;
   font-weight: 600; color: var(--accent);
 }
-.pl-main { flex: 1; min-width: 0; }
+.pl-main { flex: 1 1 200px; min-width: 0; }
 .pl-name { font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pl-ver { font-size: 11px; font-weight: 400; color: var(--sub); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; }
 .pl-desc { font-size: 12.5px; color: var(--sub); margin-top: 2px; }

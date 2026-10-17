@@ -15,6 +15,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execFile as execFileCb } from 'node:child_process'
 import { randomToken, hashPassword, safeEqual, rateLimit } from '../src/auth'
+import { parseSemver, updateStatus, validateUpdateManifest, UPDATE_GUIDE_URL, UPDATE_MANIFEST_URL, type UpdateStatus } from '../src/update'
+import { APP_VERSION } from '../src/version'
 
 const CONTROL_PASSWORD = process.env.CONTROL_PASSWORD || ''
 /** 登录账户名（默认 admin）：带用户名的登录表单方便浏览器密码管理器记住整套凭据 */
@@ -305,6 +307,96 @@ function readOpsLog(limit = 20): { ts: string; action: string; detail: string }[
   } catch {
     return []
   }
+}
+
+// ── 更新中心（自选更新，机制见 src/update.ts / docs/UPDATING.md）──────────
+// 运维视角的「更新中心」：显示当前镜像版本、最新可用版本与「更新了什么」，运维自己决定
+// 「更新到最新」（跑一次部署动作）还是「保持当前版本」（记账）。只读官网发布的机器可读清单
+// （固定可信端点，无用户输入入路径），清单按不可信输入严格校验；拿不到就降级为「暂不可检查」。
+// 偏好落 TENANTS_DIR/.update-pref.json（随 data/ 卷持久化，与 ops.log 同域，整机备份一并带走）。
+const UPDATE_PREF_FILE = path.join(process.env.TENANTS_DIR || 'data/tenants', '.update-pref.json')
+
+function readUpdatePref(): { ignored: string } {
+  try {
+    const j = JSON.parse(fs.readFileSync(UPDATE_PREF_FILE, 'utf8')) as { ignored?: unknown }
+    const v = typeof j.ignored === 'string' ? j.ignored.replace(/^v/, '') : ''
+    return { ignored: parseSemver(v) ? v : '' }
+  } catch {
+    return { ignored: '' }
+  }
+}
+
+function writeUpdatePref(ignored: string): void {
+  try {
+    fs.mkdirSync(path.dirname(UPDATE_PREF_FILE), { recursive: true })
+    fs.writeFileSync(UPDATE_PREF_FILE, JSON.stringify({ ignored, at: new Date().toISOString() }, null, 2))
+  } catch {
+    /* 写入失败下次再试，不影响主流程 */
+  }
+}
+
+interface UpdateView {
+  checkable: boolean
+  current: string
+  status?: UpdateStatus
+}
+
+let updateCache: { at: number; view: UpdateView } | null = null
+
+/** 拉官网版本清单并算状态；10 分钟内存缓存（仪表盘反复刷新不刷出一堆出网请求）。失败降级 checkable:false */
+async function fetchUpdateView(): Promise<UpdateView> {
+  const current = APP_VERSION
+  if (updateCache && Date.now() - updateCache.at < 10 * 60_000) return updateCache.view
+  let view: UpdateView = { checkable: false, current }
+  try {
+    const res = await fetch(UPDATE_MANIFEST_URL, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(6_000) })
+    if (res.ok) {
+      const m = validateUpdateManifest(await res.json().catch(() => null))
+      if (m) view = { checkable: true, current, status: updateStatus(current, m, readUpdatePref().ignored) }
+    }
+  } catch {
+    /* 不可达：降级为暂不可检查，不影响其余面板 */
+  }
+  updateCache = { at: Date.now(), view }
+  return view
+}
+
+/** 更新中心卡片：当前版本 / 最新版本 / 更新了什么 / 保持当前版本 / 更新指引 */
+function updateCardHtml(view: UpdateView): string {
+  const st = view.status
+  const head = st
+    ? `当前 v${esc(view.current)} <span class="muted">· 最新 v${esc(st.latest)}${st.date ? `（${esc(st.date)}）` : ''}</span>`
+    : `当前 v${esc(view.current)} <span class="muted">· 官网清单暂不可达</span>`
+  let line: string
+  if (!st) {
+    line = `<p class="tenant-meta">暂时获取不到最新版本信息（官网清单不可达），稍后自动重试。升级动作与手动选择见 <a href="${esc(UPDATE_GUIDE_URL)}" target="_blank" rel="noopener" style="color:var(--accent)">更新指引 ↗</a>。</p>`
+  } else if (!st.hasUpdate) {
+    line = `<p class="tenant-meta">已是最新版本，无需操作。</p>`
+  } else if (st.kept) {
+    line = `<p class="tenant-meta">检测到新版本 <b>v${esc(st.latest)}</b>，你已选择<b>保持当前版本</b>；出现更新的版本时会再次提示。</p>`
+  } else {
+    line = `<p class="tenant-meta">有新版本可用：<b>v${esc(st.latest)}</b>（当前 v${esc(view.current)}）。更新 = 按指引做一次部署动作（拉取代码 + 重建镜像 + 重启），数据与设置都保留。</p>`
+  }
+  const notes = st && st.hasUpdate
+    ? st.releases
+        .map((r) => {
+          const items = r.notes.map((n) => `<li>${esc(n)}</li>`).join('')
+          return `<div style="margin:10px 0"><div><b>v${esc(r.version)}</b>${r.date ? ` <span class="muted">· ${esc(r.date)}</span>` : ''}</div>${
+            items ? `<ul style="margin:6px 0 0;padding-left:18px;line-height:1.8">${items}</ul>` : '<div class="muted">（这一版没有单独要点）</div>'
+          }</div>`
+        })
+        .join('')
+    : ''
+  const keep = st && st.hasUpdate && !st.kept
+    ? `<form method="post" action="/update-keep" style="margin-top:10px"><input type="hidden" name="version" value="${esc(st.latest)}"><button class="btn" type="submit">保持当前版本（v${esc(view.current)}）</button><span class="muted" style="margin-left:8px">不打扰：出现更新的版本时会再次提示。</span></form>`
+    : ''
+  return `<div class="card fade fade-2">
+  <h2>版本与更新 <span class="muted">· ${head}</span></h2>
+  ${line}
+  ${notes}
+  ${keep}
+  <p class="tenant-meta" style="margin-top:10px">本站不做自动更新——升级是一次显式部署动作，见 <a href="${esc(UPDATE_GUIDE_URL)}" target="_blank" rel="noopener" style="color:var(--accent)">更新指引 ↗</a>。</p>
+</div>`
 }
 
 // ── DNS 自动化（Cloudflare）──────────────────────────────────────────────
@@ -1042,13 +1134,15 @@ function showcaseCardHtml(): string {
 async function dashboard(deps: ControlDeps, flash = ''): Promise<string> {
   // 广场统计按需拉取（4s 超时）：hub 不可达时卡片降级，不影响其余面板
   const plazaStats = PLAZA_HUB_URL && PLAZA_ADMIN_TOKEN ? await fetchPlazaStats() : null
+  // 更新中心：拉官网版本清单（10 分钟缓存），拿不到降级显示，不拖垮仪表盘
+  const updateView = await fetchUpdateView()
   const scheme = deps.scheme === 'https' ? 'https' : 'http'
   // 数据列涉及逐租户开库查询，与广场统计一样在 async 上下文取好再进纯渲染
   const statsMap = new Map<string, TenantStats | null>()
   for (const host of Object.keys(deps.readTenantsConfig().tenants)) {
     statsMap.set(host, await tenantStats(host))
   }
-  return page('控制台', dashboardBody(deps, plazaStats, scheme, statsMap), flash, true)
+  return page('控制台', dashboardBody(deps, plazaStats, scheme, statsMap, updateView), flash, true)
 }
 
 /** 仪表盘入口（GET /）：flash 从一次性 Cookie 取（PRG），取到必须带清障头回给浏览器 */
@@ -1065,6 +1159,7 @@ function dashboardBody(
   plazaStats: PlazaStats | null,
   scheme = 'https',
   statsMap?: Map<string, TenantStats | null>,
+  updateView?: UpdateView,
 ): string {
   const cfgAll = deps.readTenantsConfig()
   const rows = Object.entries(cfgAll.tenants)
@@ -1142,6 +1237,8 @@ ${
 </div>`
     : ''
 }
+
+${updateView ? updateCardHtml(updateView) : ''}
 
 ${
   PLAZA_HUB_URL && PLAZA_ADMIN_TOKEN
@@ -1520,6 +1617,17 @@ export async function controlApp(deps: ControlDeps): Promise<void> {
   // 日常无需手动点——开通/启用已自动收录，这里是补收录功能上线前的存量站与失败重试
   if (method === 'POST' && path === '/plaza-sync') {
     return flashRedirect(res, await plazaSyncAll(deps))
+  }
+
+  // 更新中心「保持当前版本」：记下运维选择的版本号（出现更新的版本时该记录自动失效）。
+  // 只认 x.y.z 形态，脏值拒绝——这是运维偏好，不涉及任何部署动作（升级是一次显式动作）
+  if (method === 'POST' && path === '/update-keep') {
+    const ver = (form?.get('version') || '').trim().replace(/^v/, '')
+    if (!parseSemver(ver)) return flashRedirect(res, '✗ 版本号形态不合法')
+    writeUpdatePref(ver)
+    updateCache = null // 清缓存：下次仪表盘立即反映新偏好
+    opsLog('更新偏好', `保持当前版本 → 忽略 v${ver}`)
+    return flashRedirect(res, `✓ 已选择保持当前版本（忽略 v${ver}）；出现更新的版本时会再次提示。`)
   }
 
   // 官网同步：拉 GitHub 最新 tarball 替换 SITE_DIR；SITE_DIR 未配置时端点不存在

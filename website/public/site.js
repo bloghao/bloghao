@@ -10,6 +10,26 @@
   window.addEventListener('scroll', onScroll, { passive: true })
   onScroll()
 
+  // 移动端汉堡菜单（≤860px 显示；点链接自动收起，回桌面宽度强制复位）
+  var burger = document.getElementById('nav-burger')
+  var mobileMenu = document.getElementById('nav-mobile')
+  if (burger && mobileMenu) {
+    var setMenu = function (open) {
+      mobileMenu.classList.toggle('open', open)
+      burger.classList.toggle('is-open', open)
+      burger.setAttribute('aria-expanded', open ? 'true' : 'false')
+    }
+    burger.addEventListener('click', function () {
+      setMenu(!mobileMenu.classList.contains('open'))
+    })
+    mobileMenu.addEventListener('click', function (e) {
+      if (e.target && e.target.tagName === 'A') setMenu(false)
+    })
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 860) setMenu(false)
+    })
+  }
+
   // 滚动入场
   var els = document.querySelectorAll('.reveal')
   if ('IntersectionObserver' in window) {

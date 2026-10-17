@@ -17,6 +17,9 @@
 
 > 列表排序（最新/最多阅读/最多点赞/最多留言/随机）目前只由 SSR 页面（首页 / 分类 / 搜索）使用，本接口固定按最新（置顶优先）返回。
 
+### GET /api/public/weibo?page=1&limit=15&topic=话题
+已发布微博分页（摘要视图），返回 `{items, total, page, totalPages}`，元素含 `id/content/imageList/topicList/videoView(封面帧)/commentCount/likes/pinned/created_at`；`topic` 传话题名可按话题筛选。内容口径与 SSR `/weibo` 页一致（站点可见窗口外不出现，无敏感字段：email/qq/ip 不出）。
+
 ### POST /api/public/comments
 文章留言。Body：
 
@@ -108,6 +111,12 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 ### GET /go?u=<url>（SSR 页面）
 外链中间页（机制见 `src/outlink.ts`）：白名单域名（`TRUSTED_OUT_DOMAINS`，子域名自动跟随）与本站同源地址 302 直跳；其余第三方 http(s) 地址渲染「即将离开本站」确认页（展示目标域名与完整链接、附免责声明，`noindex`，无 JS、不自动跳转，故不构成开放重定向）。目标缺失 / 非 http(s) / 超 2048 字符一律 302 回首页。正文外链在渲染层包装进来：文章 / 页面 / 关于我走 `sanitizeHtml(html, { origin })`，微博文本走 `weiboTextHtml`（客户端镜像在 site.js）——存库与 RSS / 导出保持原始 URL。
 
+### GET /llms.txt · /llms-full.txt（机器可读面）
+AI 可获取面（`src/llms.ts`，`text/plain; charset=utf-8`，`public, max-age=600`，进页面边缘缓存数据白名单，恒为游客视角）：`/llms.txt` 是站点导读索引（站名 + 描述 + 最新 100 篇条目、独立页面与订阅清单）；`/llms-full.txt` 附最新 50 篇全文（库存净化 HTML 经 `htmlToMd` 转成干净 Markdown）。防泄漏与 RSS 同一份口径：会员锁文索引照常出条目、全文只出摘要与引导；访问密码文索引出作者摘要、正文整体退出；演示站 / 全站 noindex / AI 策略 deny 档出桩。
+
+### GET /post/:slug.md（单篇 Markdown 镜像）
+文章 Markdown 版本（`text/markdown`，同上防泄漏与缓存口径；`/llms-full.txt` 同款转换链路 `sanitizeHtml → htmlToMd`）。密码文 404（与不存在同响应）、AI 策略 deny 档 404、窗口外草稿软删不出现；文章页 head 带 `<link rel="alternate" type="text/markdown">` 自动声明。
+
 ## 认证
 
 ### GET /api/auth/state
@@ -166,7 +175,7 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 ### 文章
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/api/admin/posts?status=all\|published\|scheduled\|draft&q=关键词&page=1&limit=20` | 列表（不含 content；元素附 `tagList`、`categoryName`） |
+| GET | `/api/admin/posts?status=all\|published\|scheduled\|draft&q=关键词&page=1&limit=20&range=all\|3d\|1m\|6m\|1y` | 列表（不含 content；元素附 `tagList`、`categoryName`）；`range` 是时间范围筛选（滚动窗口，按 `COALESCE(published_at, created_at)` 过滤），未传 / 未知值降级为「全部」，真实时间边界由服务端按白名单计算，客户端传不了时间戳 |
 | POST | `/api/admin/posts` | 新建 |
 | GET | `/api/admin/posts/lookup?q=关键词&page=1` | 站内文章选择器（编辑器「插入链接 → 站内文章」）：仅已发布，轻出参 `{items:[{id, slug, title, summary, cover, published_at, hasPassword, minTier}], total, page, totalPages}`，无正文无口令；**注册在 `/:id` 之前**（否则 lookup 被 id 参数吞掉） |
 | GET | `/api/admin/posts/:id` | 详情（含 content、categoryId） |
@@ -204,7 +213,7 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 ### 微博（随手记）
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/api/admin/weibo?status=all\|published\|draft&page=1&limit=20` | 列表（置顶优先；元素附 `imageList`、`topicList`、`videoView`、`commentCount`） |
+| GET | `/api/admin/weibo?status=all\|published\|draft&page=1&limit=20&range=all\|3d\|1m\|6m\|1y` | 列表（置顶优先，`range` 同文章列表的时间范围筛选；元素附 `imageList`、`topicList`、`videoView`、`commentCount`） |
 | GET | `/api/admin/weibo/:id` | 单条原稿（前台卡片「编辑」的数据源，附 `imageList`、`topicList`、`videoView`） |
 | POST | `/api/admin/weibo` | 新建（发布或存草稿） |
 | PUT | `/api/admin/weibo/:id` | 更新（转回草稿会自动取消置顶） |
@@ -313,12 +322,13 @@ Body `{"delta": 1}` 或 `{"delta": -1}`，返回 `{"ok":true,"likes":7}`。计�
 ### 设置 / 账号 / 工具
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET / PUT | `/api/admin/settings` | 可写键：`siteName, siteDescription, siteUrl（http(s) scheme 校验，非法整体 400；留空 = 回退当前访问域名）, siteMode（blog-weibo/weibo-blog/blog/weibo 四选一，脏值回退默认）, footerText, avatarUrl, faviconUrl, ogImageDefault, theme, allowComments, moderateComments, showCommentRegion（评论 IP 属地展示开关，默认 0；采集无条件，见 /api/public/comments）, notifyNewComment, rssFullText, backupEnabled, postsPerPage, about（legacy，已由「页面」承载）, pluginsDisabled, serverPluginsDisabled（服务端插件停用名单）, serverPluginConfig（服务端插件配置 JSON：{插件id:{字段:值}}，顶层键必须是注册插件、字段键必须在其 configFields 登记内、值字符串 ≤ 500，插件 configValidate 语义校验不过整体 400）, appearance（主题外观变量 JSON，非法整体 400）, customCss（皮肤包自定义 CSS，样式安检门净化：@import 与脚本类内容拒绝、url() 只收 https 与站内相对或 data:image|font、花括号配平、≤ 8000 字符，非法整体 400）, siteGrayscale, siteClosed, siteClosedMessage, siteNoindex（全站 noindex 开关）, membersEnabled（会员体系总开关）, onboarding/onboardingManual（新手引导记账位：`onboarding` 由 `/api/auth/setup` 首装成功时播种 `'1'`，后台概览页据此显示引导清单卡，置 `'0'` 即完成/跳过且不再显示；`onboardingManual` 记录「使用手册」已打开；设置页「保存全部」不含这两键）, rankTopN（/rank 展示条数 1-50）, turnstileSiteKey/turnstileSecret（注册人机验证，两键成对启用否则整体 400）, edition（zh/en，重新开启 en 即重置回退状态）, tgChannelChatId, commentWebhookUrl（公网 http(s) 校验）, footerHtmlCode（≤5000 字，管理员信任级 HTML）, bufferAccessToken/bufferChannelId（微博同步 Buffer）, plazaEndpoint（公网 https 校验）/plazaToken（广场同步）, externalToken, telegramBotToken, telegramAllowFrom, telegramWebhookSecret, verifyMetas（站点验证 meta：一行一个 meta 标签，name 走白名单、取值形态受限，非法整体 400）, analyticsScript（统计脚本：https 脚本地址或 script 片段，内联脚本体与白名单外属性拒绝）, robotsExtra（robots.txt 追加段，剥控制字符、限 2000 字符）, aiPolicy（AI 抓取策略三档：`allow` 默认 / `seek` 只许检索引用不许训练 / `deny` 全部拒绝；写进 robots.txt 的 AI 声明段 + `Content-signal` 行，**默认档输出与历史逐字节一致**；三值白名单脏值整体 400，渲染端 `readAiPolicy` 脏值兜底当 allow）`；`theme` 必须是已注册主题 id；`avatarUrl`/`faviconUrl`/`ogImageDefault` 只接受站内 `/images/` 与 `http(s)` 外链；`pluginsDisabled`/`serverPluginsDisabled` 为逗号分隔的插件 id（仅字母/数字/`_`/`-`）；`siteGrayscale`/`siteClosed`/`siteNoindex`/布尔开关为 `1`/`0`（闭站时公开页面与公开 API 一律 503，白名单见 src/closed.ts，已登录管理员不受影响）；`siteClosedMessage` ≤1000 字；`externalToken`/`telegramBotToken`/`telegramWebhookSecret`/`commentWebhookUrl`/`bufferAccessToken`/`plazaToken`/`turnstileSecret` 为敏感项，GET 与 PUT 的响应一律打码（`••••••••`），明文只在生成时返回一次，PUT 收到打码占位符视为保持原值；`verifyMetas` / `analyticsScript` 存库为结构化 JSON，GET 与 PUT 响应回显成「可粘贴形态」（与提交格式同形，可原样改回再存），渲染时按结构化值重放——统计脚本域自动进 CSP（`script-src` + `connect-src`），验证 meta 与预取声明（Speculation Rules）注入 head；`robotsExtra` 附在内置 robots 段之后（`GET /robots.txt`，演示站与全站 noindex 固定整站 Disallow） |
+| GET / PUT | `/api/admin/settings` | 可写键：`siteName, siteDescription, siteUrl（http(s) scheme 校验，非法整体 400；留空 = 回退当前访问域名）, siteMode（blog-weibo/weibo-blog/blog/weibo 四选一，脏值回退默认）, footerText, avatarUrl, faviconUrl, ogImageDefault, theme, allowComments, moderateComments, showCommentRegion（评论 IP 属地展示开关，默认 0；采集无条件，见 /api/public/comments）, notifyNewComment, rssFullText, backupEnabled, postsPerPage, about（legacy，已由「页面」承载）, pluginsDisabled, serverPluginsDisabled（服务端插件停用名单）, serverPluginConfig（服务端插件配置 JSON：{插件id:{字段:值}}，顶层键必须是注册插件、字段键必须在其 configFields 登记内、值字符串 ≤ 500，插件 configValidate 语义校验不过整体 400）, appearance（主题外观变量 JSON，非法整体 400）, customCss（皮肤包自定义 CSS，样式安检门净化：@import 与脚本类内容拒绝、url() 只收 https 与站内相对或 data:image|font、花括号配平、≤ 8000 字符，非法整体 400）, siteGrayscale, siteClosed, siteClosedMessage, siteNoindex（全站 noindex 开关）, membersEnabled（会员体系总开关）, onboarding/onboardingManual（新手引导记账位：`onboarding` 由 `/api/auth/setup` 首装成功时播种 `'1'`，后台概览页据此显示引导清单卡，置 `'0'` 即完成/跳过且不再显示；`onboardingManual` 记录「使用手册」已打开；设置页「保存全部」不含这两键）, rankTopN（/rank 展示条数 1-50）, turnstileSiteKey/turnstileSecret（注册人机验证，两键成对启用否则整体 400）, edition（zh/en，重新开启 en 即重置回退状态）, tgChannelChatId, commentWebhookUrl（公网 http(s) 校验）, footerHtmlCode（≤5000 字，管理员信任级 HTML）, bufferAccessToken/bufferChannelId（微博同步 Buffer）, plazaEndpoint（公网 https 校验）/plazaToken（广场同步）, externalToken, telegramBotToken, telegramAllowFrom, telegramWebhookSecret, verifyMetas（站点验证 meta：一行一个 meta 标签，name 走白名单、取值形态受限，非法整体 400）, analyticsScript（统计脚本：https 脚本地址或 script 片段，内联脚本体与白名单外属性拒绝）, robotsExtra（robots.txt 追加段，剥控制字符、限 2000 字符）, aiPolicy（AI 抓取策略三档：`allow` 默认 / `seek` 只许检索引用不许训练 / `deny` 全部拒绝；写进 robots.txt 的 AI 声明段 + `Content-signal` 行，**默认档输出与历史逐字节一致**；三值白名单脏值整体 400，渲染端 `readAiPolicy` 脏值兜底当 allow）, contentVisibleRange（站点可见窗口：`''` 全部可见默认 / `3d` / `1m` / `6m` / `1y`，白名单外整体 400——窗口外内容对游客与会员彻底不可见，防泄漏清单见 AGENTS.md「站点可见窗口」节）, updateIgnoredVersion（更新中心「保持当前版本」记账位：`x.y.z` 形态，脏值清空；出现更高版本自动失效重新提示）`；`theme` 必须是已注册主题 id；`avatarUrl`/`faviconUrl`/`ogImageDefault` 只接受站内 `/images/` 与 `http(s)` 外链；`pluginsDisabled`/`serverPluginsDisabled` 为逗号分隔的插件 id（仅字母/数字/`_`/`-`）；`siteGrayscale`/`siteClosed`/`siteNoindex`/布尔开关为 `1`/`0`（闭站时公开页面与公开 API 一律 503，白名单见 src/closed.ts，已登录管理员不受影响）；`siteClosedMessage` ≤1000 字；`externalToken`/`telegramBotToken`/`telegramWebhookSecret`/`commentWebhookUrl`/`bufferAccessToken`/`plazaToken`/`turnstileSecret` 为敏感项，GET 与 PUT 的响应一律打码（`••••••••`），明文只在生成时返回一次，PUT 收到打码占位符视为保持原值；`verifyMetas` / `analyticsScript` 存库为结构化 JSON，GET 与 PUT 响应回显成「可粘贴形态」（与提交格式同形，可原样改回再存），渲染时按结构化值重放——统计脚本域自动进 CSP（`script-src` + `connect-src`），验证 meta 与预取声明（Speculation Rules）注入 head；`robotsExtra` 附在内置 robots 段之后（`GET /robots.txt`，演示站与全站 noindex 固定整站 Disallow） |
 | PUT | `/api/admin/password` | Body `{oldPassword, newPassword}`（8-64 位） |
 | POST | `/api/admin/tools/md` | Body `{md}` → `{html}`，Markdown 渲染 |
 | POST | `/api/admin/tools/linkmeta` | Body `{url}` → `{meta:{title, description, image, siteName}}`，编辑器「网址卡片」抓取目标页 og 元数据；只抓 http(s) 公网地址（私有网段/非常规端口拒绝，限长限时），抓不到时字段为空（前端用域名占位组卡）。限频 10 次/分钟/IP |
 | POST | `/api/admin/tools/sanitize` | Body `{html}` → `{html}`，白名单净化（粘贴用） |
 | POST | `/api/admin/cache/purge` | 一键清理页面边缘缓存：换 settings `pageCacheEpoch` 让旧副本整代作废（浏览器侧响应不变）；后台「概览 → 系统」按钮消费 |
+| GET | `/api/admin/update` | 更新中心检查（后台概览「系统」卡「检查更新」）：单向拉取官网公开清单 `bloghao.com/version.json`（固定可信端点，6s 超时，10 分钟内存缓存），返回 `{checkable, current, latest, notes?, guide?}` 与「保持当前版本」判定（`kept`）——**不上报任何本站信息**；网络异常 / 校验不过一律降级 `checkable:false`，绝不 500。演示站直接短路 `{checkable:false, reason:'demo'}`；偏好写入走 settings 的 `updateIgnoredVersion` 键。机制见 `src/update.ts` 与 docs/UPDATING.md |
 
 ### 插件（编辑器插件远程安装 + 服务端插件，B8）
 | 方法 | 路径 | 说明 |

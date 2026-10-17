@@ -13,7 +13,7 @@ export interface SessionUser {
   avatar: string
 }
 
-/* ---------------- 会员体系（访客注册身份，与 users 管理员彻底分离，契约见 docs/DEVPLAN-2026-10-07.md 附录 A） ---------------- */
+/* ---------------- 会员体系（访客注册身份，与 users 管理员彻底分离，契约见 docs/archive/DEVPLAN-2026-10-07.md 附录 A） ---------------- */
 
 export type MemberTier = 'normal' | 'coffee' | 'top'
 

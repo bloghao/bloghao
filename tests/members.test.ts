@@ -4,7 +4,7 @@ import { awardPoints, awardCommentPoints, canRead, cstDayStart, normalizeMinTier
 import { createMember, listApprovedComments, listGuestbookComments, listMembersAdmin, listRankTop, updateMemberAdmin, updateMemberNickname, updateMemberQQ } from '../src/db.ts'
 import { cleanNickname, isValidQQ, NICKNAME_CHANGE_COOLDOWN_MS, nicknameCooldown, teaserHtml } from '../src/utils.ts'
 
-// ── 会员体系（契约见 docs/DEVPLAN-2026-10-07.md 附录 A）：积分引擎 / 会员查询 SQL 形状 ──
+// ── 会员体系（契约见 docs/archive/DEVPLAN-2026-10-07.md 附录 A）：积分引擎 / 会员查询 SQL 形状 ──
 
 // ── 积分规则常量表：2026-10-07 拍板数值（评论 +2、每日登录 +1），数值只许改 points.ts 一处 ──
 

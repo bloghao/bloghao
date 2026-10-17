@@ -11,17 +11,17 @@
 <meta property="og:title" content="演示站指南 - 博客号文档">
 <meta property="og:description" content="官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫。">
 <meta property="og:type" content="article">
-<link rel="icon" href="/favicon.svg?v=20261014d" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=20261014d">
-<link rel="stylesheet" href="/docs.css?v=20261014d">
-<script src="/docs/docs-search-index.js?v=20261014d"></script>
+<link rel="icon" href="/favicon.svg?v=20261017a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261017a">
+<link rel="stylesheet" href="/docs.css?v=20261017a">
+<script src="/docs/docs-search-index.js?v=20261017a"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
     <a class="nav-logo" href="/index.html">
-      <img src="/favicon.svg?v=20261014d" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+      <img src="/favicon.svg?v=20261017a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
@@ -48,6 +48,7 @@
       <ul class="docs-side-list">
         <li><a href="deploy.html">🚀 部署教程</a></li>
         <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+        <li><a href="updating.html">⬆️ 版本与更新</a></li>
         <li><a href="guide.html">📖 使用手册</a></li>
         <li><a href="plaza.html">🧭 广场</a></li>
         <li><a href="themes.html">🎨 主题开发</a></li>
@@ -132,9 +133,9 @@ npx wrangler r2 bucket create xwblog-demo-images
 
 # 3. 部署
 npm run deploy:demo</code></pre></div><p>部署完成后命令行会给出 <code>https://xwblog-demo.&lt;你的子域&gt;.workers.dev</code> 地址，<strong>打开即自动播种</strong>，
-无需任何初始化命令。<code>wrangler.demo.jsonc</code> 里已声明 <code>routes</code>（官方站绑 <code>demo.bloghao.com</code>），
-部署时自动完成 Custom Domain 绑定与证书签发；自建演示站不需要这个域名的话，删掉 <code>routes</code>
-一条再部署即可，或在 Cloudflare 后台该 Worker 的 Settings → Domains &amp; Routes 手动管理。</p>
+无需任何初始化命令。<code>wrangler.demo.jsonc</code> 的 <code>routes</code>（绑 <code>demo.bloghao.com</code>）当前<strong>已注释</strong>——
+官方线上演示站跑在 Docker 形态（见下），不需要 Cloudflare 域名绑定；想以 Worker 形态绑这个域名，
+取消注释 <code>routes</code> 一条再部署即可，或在 Cloudflare 后台该 Worker 的 Settings → Domains &amp; Routes 手动管理。</p>
 <blockquote>
 <p>配额说明：演示站与生产站共享账号的免费额度（Workers 10 万请求/天、D1 5M 行读取/天），
 演示站流量很小可忽略；若想完全隔离配额，用另一个免费 Cloudflare 账号 <code>wrangler login</code> 后
@@ -161,7 +162,8 @@ D1/R2 资源尚未创建（database_id 是占位符）、routes 已注释，要�
 <li><code>src/demo-content.ts</code> —— 微博、评论（含楼中楼与待审）、友链、独立页面、settings、访客统计</li>
 <li><code>src/demo-images.ts</code> —— 程序化生成的 SVG 配图（打进 bundle，重置时写入 R2）</li>
 </ul>
-<p>改完后 <code>npm run deploy:demo</code> 重新部署生效；本地 <code>npm run dev:demo</code> 刷新即可看到新版种子。
+<p>改完后本地 <code>npm run dev:demo</code> 刷新即可看到新版种子；<code>npm run deploy:demo</code> 只对 Worker 形态生效
+（官方线上演示站是 bloghao-demo 仓库的 Docker 形态，同步种子改动走该仓库的部署流程）。
 <code>tests/demo.test.ts</code> 守着种子数据的不变量（slug 唯一、正文安全、评论树合法、图片引用存在等），
 改内容后跑一遍 <code>npm test</code>。</p>
 <h2 id="常见问题">常见问题</h2><ul>
@@ -207,6 +209,6 @@ D1/R2 资源尚未创建（database_id 是占位符）、routes 已注释，要�
     </span>
   </div>
 </footer>
-<script src="/docs.js?v=20261014d" defer></script>
+<script src="/docs.js?v=20261017a" defer></script>
 </body>
 </html>

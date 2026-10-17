@@ -64,6 +64,7 @@ grep -rn "<关键词>" . --exclude-dir=node_modules   # 剔除后搜残留引用
 ### 4. 回填版本档案（属于本次发布提交的一部分）
 
 - 根目录 CHANGELOG.md：Unreleased 区整段移入新版本小节，写日期与版本号，更新底部 compare 链接
+- **跑 `npm run build:release`**：从 CHANGELOG 重新生成 `website/public/version.json`——这是官网部署的**机器可读版本清单**，也是各分站 / 自托管用户「更新中心」看到的「更新了什么」唯一事实源（见 `docs/UPDATING.md`、`src/update.ts`）。**必须与 CHANGELOG 改动同一次提交**，否则更新中心要么看不到新版本、要么要点与 CHANGELOG 不一致
 - docs/VERSIONS.md 版本大事记（官网「版本更新说明」页源文件）：新版本补一节要点并同步「版本速览」表
 - `package.json`：`version` bump 到本次版本号
 
@@ -107,4 +108,4 @@ git fetch upstream --tags         # 新 tag 带回本地坐标
 | 2026-10-12 | wrangler.jsonc 显式 `workers_dev: false`（审计 C2：关闭本站 workers.dev 平行入口，commit 906cb3e） | 个人部署配置：官方 DEPLOY 文档的首步部署就依赖 workers.dev 域，写入官方配置会破坏新用户首装体验；本站生产由重部署生效 | wrangler.jsonc |
 | 2026-10-12 | 控制面「演示体验站」卡与顶栏「博客列表」按钮（commit e8748ce，随 showcase 收编一起进的 main） | 个人部署细节：卡片硬编码 demo.bloghao.com 与本机路径、按钮指向 cib 容器的 /blog-admin/ 分流——showcase 端点与投稿卡本身是官网目录投稿闭环，照发 | docker-poc/control.ts |
 | 2026-10-12 | 上条外链白名单的发布日修订：**bloghao.com 随项目组织化已是官方项目域名**（官网 / 广场 hub / 市场目录都在此域），官方版保留该条；剔除 xiaowuleyi.com / habfut.com / btchao.com 三个 | 官方用户视角 bloghao.com 是项目自有域，信任直连合理；其余三个仍是站长个人站点 | src/outlink.ts、public/site.js、tests/outlink.test.ts |
-| 2026-10-14 | 官网首页「赞助招募」区（index.html + style.css + site.js：虚位以待招募面板、助理微信 btcxwly 一键复制、导航加「赞助」锚点；后经 2b93b90 改名 support 防广告拦截、b1ac7c0 拆机构/个人双轨） | **发布日拍板（2026-10-17，v2.6.0）：随官方版发布**——官网 bloghao.com 本身是官方站点，赞助区随官方版走才与 ops「官网」tarball 同步（服务器从官方仓拉）自洽，开源项目带赞助位属常规操作；助理微信本就面向官网访客公开。若未来要撤，需同步处理线上官网 | website/public/index.html、website/public/style.css、website/public/site.js |
+| 2026-10-14 | 官网首页「赞助招募」区（index.html + style.css + site.js：虚位以待招募面板、助理微信 btcxwly 一键复制、导航加「赞助」锚点） | **待发布日拍板**：官网 bloghao.com 本身是官方站点，赞助区随官方版发 = 官方首页长期带招募位（开源项目常规操作）；但助理微信是站长个人联系方式、属站长营收动作——若发布日决定不随官方版，注意 ops「官网」tarball 同步（服务器 /var/www/bloghao 从官方仓拉）会把它覆盖掉 | website/public/index.html、website/public/style.css、website/public/site.js |

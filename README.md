@@ -44,7 +44,8 @@
 | 🔒 **安全默认开启** | PBKDF2 / HttpOnly 会话 / CSRF 同源校验 / HTML 白名单净化 / 评论与友链蜜罐限流 / CSP |
 | ⚡ **快** | SSR 直出、主题 CSS 内联零额外请求、边缘节点全球分发 |
 | 📡 **自带生态件** | 全文 RSS、sitemap、robots.txt、OG 分享标签（可一键生成 1200×630 专属分享卡图）、JSON-LD 结构化数据、图片灯箱、每晚自动备份到 R2、GitHub Actions 自动部署 |
-| 🚚 **数据导出** | 一键打包 Markdown（文章含草稿 + 微博 + 页面 + 引用的图片，front-matter 齐全）与 WordPress WXR——数据主权随时兑现，搬家不留钳制 |
+| 🚚 **数据导出与整站搬家** | 一键打包 Markdown（文章含草稿 + 微博 + 页面 + 引用的图片，front-matter 齐全）与 WordPress WXR；**整站包**一键打包 / 还原整个站点（换服务器 / 换域名不求人，配套「清空本站内容」）——数据主权随时兑现，搬家不留钳制 |
+| 🤖 **对 AI 友好** | robots.txt 三档 AI 抓取策略（默认放行 / 只许检索引用 / 全部拒绝）、`/llms.txt` 站点导读与每篇 `.md` 镜像让 AI 低成本拿到干净正文、后台统计把 AI 训练与检索引用分栏计量；更新中心一键查看「当前版本 vs 最新版更新了什么」，升级与否自己决定 |
 | 🐳 **Docker 自托管** | 同一套代码零改动跑进普通 Node 容器：文章存内置 SQLite，图片落本地磁盘或继续用 Cloudflare R2；单进程按域名托管多个独立博客站，定时发布 / 每晚备份照常（见「部署」方式三） |
 
 <details>
@@ -56,7 +57,7 @@
 - **评论**：文章评论 / 微博评论在后台分开管理；楼中楼回复；防垃圾三件套（蜜罐、同 IP 限流、长度限制）；新留言即时推送到 Telegram（复用发布机器人，后台可关）
 - **订阅与备份**：RSS 全文输出（订阅器不点开就能读完，可切回摘要）；每天北京时间 00:30 自动把数据库全量快照存进 R2，滚动保留 30 份，后台可查看 / 手动备份
 - **独立页面**：后台「页面」新建 / 编辑 / 排序，勾选后出现在前台顶部导航；「关于我」为 `about` 页面（升级自动迁移，`/about` 不变）
-- **数据导出**：设置 → 数据导出，Markdown 包（图片流式打包不过内存）与 WXR 单文件
+- **数据导出**：设置 → 数据导出，Markdown 包（图片流式打包不过内存）与 WXR 单文件；整站搬家见 docs/GUIDE.md §19（整站包一键导出 / 一键还原到空站 + 清空本站内容）
 - **时光机**：首页「历史上的今天」卡片，往年今日的文章与微博自动浮上来（七套主题适配，无命中不渲染）
 - **分类与标签**：分类页 `/category/:slug`；分类页可直接预建 / 删除全站标签
 - **站点外观**：站点名称 / 描述 / 页脚 / 头像 / 浏览器 favicon（均可上传到图床）/ 每页文章数 / 关于我（页面系统承载）
@@ -183,13 +184,15 @@ bloghao/
 | [docs/GUIDE.md](docs/GUIDE.md) | **使用手册**：后台导览、写文章 / 发微博全流程、评论与友链管理、采集插件、设置逐项说明 |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | **部署教程**：资源创建、首次上线、自定义域名、GitHub 自动部署、备份恢复、FAQ |
 | [docs/API.md](docs/API.md) | API 参考：全部公开 / 管理接口 |
+| [docs/UPDATING.md](docs/UPDATING.md) | **版本与更新**：更新中心怎么用、Cloudflare 与 Docker 两条路的升级动作 |
+| [docs/PLAZA.md](docs/PLAZA.md) | 广场：三步接入官方广场，让每篇文章与微博被更多博主看到 |
 | [docs/THEMES.md](docs/THEMES.md) | 主题开发指南：一套主题 = 八个必需渲染函数（+ 可选会员 / 排行榜）+ 全局 CSS |
 | [docs/PLUGINS.md](docs/PLUGINS.md) | 插件开发指南：编辑器插件 API 与内置「公众号采集」 |
 | [docs/DEMO.md](docs/DEMO.md) | **演示站指南**：跑一个预置一年数据、每 2 小时自动重置的在线体验站（与生产完全隔离） |
 | [docker-poc/README.md](docker-poc/README.md) | **Docker 自托管**：架构与适配层、本地直跑、图片存储二选一（本地盘 / R2）、加站点 |
 | [docker-poc/DEPLOY.md](docker-poc/DEPLOY.md) | 自托管服务器部署清单：选机、端口与反代、HTTPS 与缓存、验收与升级 |
 | [docs/wechat-typography-spec.md](docs/wechat-typography-spec.md) | 微信排版规范落地对照 + 体检规则表 |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | 开发方向备忘：已调研、尚未启动的功能方向（如 IndexNow、WordPress 导入）与待拍板决策 |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | 路线图：接下来做什么（排期内 / 待拍板 / 随缘）、已上线大事记与不做清单 |
 | [docs/VERSIONS.md](docs/VERSIONS.md) | **版本更新说明**：从项目诞生到今天的大版本大事记，每个版本带来了什么 |
 
 ## ❓ FAQ

@@ -29,12 +29,13 @@ const GITHUB_BLOB = 'https://github.com/bloghao/bloghao/blob/main/'
 
 // 资源缓存版本：改动 style.css / docs.css / docs.js / docs-search-index.js / favicon.svg 后
 // 改这里，重建时统一带上（搜索索引换版本号 = 访客立刻拿到新索引，不必等缓存过期）
-const V = '?v=20261014d'
+const V = '?v=20261017a'
 
 // 文档清单：slug 决定输出文件名与站内路径，顺序即侧栏与上下篇顺序
 const DOCS = [
   { slug: 'deploy', file: 'DEPLOY.md', icon: '🚀', title: '部署教程', desc: '从注册 Cloudflare 到部署 Worker、绑定自定义域名、自动部署、备份与恢复，含 Docker 自托管。' },
   { slug: 'cloudflare', file: 'CLOUDFLARE-BASICS.md', icon: '☁️', title: 'Cloudflare 基础', desc: 'Workers、D1、R2、定时任务、域名与 Turnstile：看懂这套博客跑在 Cloudflare 上的每个部件，控制台巡检、常用命令与免费额度速查。' },
+  { slug: 'updating', file: 'UPDATING.md', icon: '⬆️', title: '版本与更新', desc: '更新中心怎么用：看懂「更新了什么 / 优化了什么」，自己决定更新到最新版还是保持当前版本；Cloudflare 与 Docker 自托管的升级动作一次说清。' },
   { slug: 'guide', file: 'GUIDE.md', icon: '📖', title: '使用手册', desc: '后台导览、写文章全流程、快捷键、评论与媒体管理、设置逐项说明。' },
   { slug: 'plaza', file: 'PLAZA.md', icon: '🧭', title: '广场', desc: '内容聚合流：三步接入官方广场，让每篇文章与微博被更多博主看到；含混排口径与自建 hub。' },
   { slug: 'themes', file: 'THEMES.md', icon: '🎨', title: '主题开发', desc: '一套主题 = 八个必需渲染函数（+ 可选 member / rank）+ 全局 CSS，三步注册新主题。' },
@@ -42,7 +43,7 @@ const DOCS = [
   { slug: 'api', file: 'API.md', icon: '🔌', title: 'API 参考', desc: '全部公开 / 管理接口与 HTML 净化白名单摘要，写自己的客户端。' },
   { slug: 'typography', file: 'wechat-typography-spec.md', icon: '🩺', title: '排版规范', desc: '微信编辑器插件开发规范的落地对照表与体检规则。' },
   { slug: 'demo', file: 'DEMO.md', icon: '🎪', title: '演示站指南', desc: '官方演示站的机制：仿真数据、每 2 小时重置、DEMO_MODE 门控与体验守卫。' },
-  { slug: 'roadmap', file: 'ROADMAP.md', icon: '🗺️', title: '路线图', desc: '已上线能力与近期计划，按 A / B / C 优先级管理的开发方向。' },
+  { slug: 'roadmap', file: 'ROADMAP.md', icon: '🗺️', title: '路线图', desc: '接下来做什么（排期内 / 待拍板 / 随缘）、已上线大事记与不做清单。' },
   { slug: 'versions', file: 'VERSIONS.md', icon: '🏷️', title: '版本更新说明', desc: '从 2026-10-03 项目诞生到今天的大版本大事记：每个版本带来了什么，博客号一路怎么长成现在这样。' },
   { slug: 'changelog', file: '../CHANGELOG.md', icon: '📜', title: '更新日志', desc: '每个版本更新了哪些细节：新增、变更与修复，官方发布时回填；升级 = 重新部署，D1 自动迁移。' },
 ]

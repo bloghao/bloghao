@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>版本与更新 - 博客号文档</title>
+<meta name="description" content="更新中心怎么用：看懂「更新了什么 / 优化了什么」，自己决定更新到最新版还是保持当前版本；Cloudflare 与 Docker 自托管的升级动作一次说清。">
+<link rel="canonical" href="https://bloghao.com/docs/updating.html">
+<meta property="og:url" content="https://bloghao.com/docs/updating.html">
+<meta property="og:image" content="https://bloghao.com/assets/editor.png">
+<meta property="og:title" content="版本与更新 - 博客号文档">
+<meta property="og:description" content="更新中心怎么用：看懂「更新了什么 / 优化了什么」，自己决定更新到最新版还是保持当前版本；Cloudflare 与 Docker 自托管的升级动作一次说清。">
+<meta property="og:type" content="article">
+<link rel="icon" href="/favicon.svg?v=20261017a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261017a">
+<link rel="stylesheet" href="/docs.css?v=20261017a">
+<script src="/docs/docs-search-index.js?v=20261017a"></script>
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="nav-logo" href="/index.html">
+      <img src="/favicon.svg?v=20261017a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">文档中心</a>
+      <a href="/index.html">返回官网</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="nav-demo" href="https://demo.bloghao.com" target="_blank" rel="noopener">在线演示 ↗</a>
+      <a class="btn btn-ghost" href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="docs-shell docs-shell-toc">
+  
+    <aside class="docs-sidebar">
+      <div class="docs-search">
+        <label class="docs-search-label" for="docs-search-input">🔍 搜索文档</label>
+        <input id="docs-search-input" class="docs-search-input" type="search" role="combobox" autocomplete="off"
+               aria-expanded="false" aria-controls="docs-search-list" aria-autocomplete="list"
+               placeholder="搜标题 / 关键词，回车跳转" data-docs-search-input>
+        <ul id="docs-search-list" class="docs-search-list" hidden data-docs-search-list></ul>
+      </div>
+      <a class="docs-side-title" href="index.html">📚 文档中心</a>
+      <ul class="docs-side-list">
+        <li><a href="deploy.html">🚀 部署教程</a></li>
+        <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+        <li><a class="is-active" href="updating.html">⬆️ 版本与更新</a></li>
+        <li><a href="guide.html">📖 使用手册</a></li>
+        <li><a href="plaza.html">🧭 广场</a></li>
+        <li><a href="themes.html">🎨 主题开发</a></li>
+        <li><a href="plugins.html">🧩 插件开发</a></li>
+        <li><a href="api.html">🔌 API 参考</a></li>
+        <li><a href="typography.html">🩺 排版规范</a></li>
+        <li><a href="demo.html">🎪 演示站指南</a></li>
+        <li><a href="roadmap.html">🗺️ 路线图</a></li>
+        <li><a href="versions.html">🏷️ 版本更新说明</a></li>
+        <li><a href="changelog.html">📜 更新日志</a></li>
+      </ul>
+      <a class="docs-side-extra" href="/llms.txt" target="_blank" rel="noopener">🤖 llms.txt · AI 索引</a>
+    </aside>
+  <main class="docs-main">
+    <div class="docs-crumbs">
+      <a href="index.html">文档中心</a><span>/</span><b>⬆️ 版本与更新</b>
+      <a class="doc-edit" href="https://github.com/bloghao/bloghao/blob/main/docs/UPDATING.md" target="_blank" rel="noopener noreferrer">✏️ 编辑此页</a>
+    </div>
+    <article class="doc-md">
+<h1 id="版本与更新更新中心">版本与更新（更新中心）</h1><blockquote>
+<p>面向<strong>已经部署了博客号</strong>的站长（Cloudflare 版 / Docker 自托管版）与自托管运维：怎么知道有没有新版本、新版本带来了什么、以及<strong>怎么安全地升级</strong>。</p>
+<p>一句话：<strong>博客号不会自动更新</strong>——「检查更新」只帮你看「更新了什么 / 优化了什么」，<strong>真正换版本永远是一次你自己发起的部署动作</strong>。</p>
+</blockquote>
+<h2 id="1-更新中心在哪">1. 更新中心在哪</h2><div class="table-wrap"><table>
+<thead>
+<tr>
+<th>部署形态</th>
+<th>入口</th>
+<th>看到什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Cloudflare 版</strong></td>
+<td>后台 → <strong>概览页</strong> → 「系统」卡片里的 <strong>「检查更新」</strong> 按钮</td>
+<td>当前版本、最新版本、从你的版本到现在「更新了什么」、一键「保持当前版本」、升级指引</td>
+</tr>
+<tr>
+<td><strong>Docker 自托管</strong></td>
+<td>控制面（后台之外的运维控制台）<strong>仪表盘 → 「版本与更新」卡片</strong></td>
+<td>同上（以镜像版本为准），另有「保持当前版本」记账</td>
+</tr>
+</tbody></table></div>
+<p>两处都是<strong>按需检查</strong>——不点不开，点开才去官网取一次清单，不会在你每次进后台时偷偷出网。</p>
+<h2 id="2-它怎么工作以及为什么不自动更新">2. 它怎么工作（以及为什么不自动更新）</h2><ul>
+<li>检查更新时，后台向官网取一份<strong>机器可读的版本清单</strong>：<code>https://bloghao.com/version.json</code>。
+这份清单由发布流程从 <a href="https://github.com/bloghao/bloghao/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">CHANGELOG.md</a> 自动生成（<code>npm run build:release</code>），内容是每个版本号的<strong>日期 + 要点列表</strong>。</li>
+<li>后台拿清单里的最新版本和你<strong>当前运行的版本</strong>比一比：<ul>
+<li>有更新 → 列出「从你这一版到现在，更新了什么」（新 → 旧），并给升级指引链接；</li>
+<li>已是最新 → 明确告诉你「已是最新版本」。</li>
+</ul>
+</li>
+<li>清单来自官网静态文件，但后台仍当<strong>不可信输入</strong>处理：版本号必须形如 <code>x.y.z</code>，说明文字剥控制字符、限长，脏值一律丢弃；取不到（网络不通 / 官网维护）就降级显示「暂时获取不到最新版本信息」，<strong>不报错、不阻塞</strong>。</li>
+<li><strong>为什么不做自动更新</strong>：博客号的身份是「你自己的站」。自动拉代码 / 自动重建容器 / 自动改数据库，一旦某次发布有问题就是无人看守的半夜事故。所以这里刻意只做<strong>告知 + 记录你的选择</strong>，升级动作留给一次你确认过的部署（见第 4 节）。这也与「部署即上线、测试是唯一刹车」的发布纪律一致。</li>
+</ul>
+<h2 id="3保持当前版本是什么意思">3.「保持当前版本」是什么意思</h2><p>有时你就是不想现在升——某个新版本用不上，或者想等它稳定一阵。点 <strong>「保持当前版本」</strong> 后：</p>
+<ul>
+<li>后台记下你选择保持的<strong>版本号</strong>（Cloudflare 版存站点设置的 <code>updateIgnoredVersion</code>，自托管控制面存 <code>data/tenants/.update-pref.json</code>）。</li>
+<li>之后打开更新中心，仍会显示有新版本，但会注明「<strong>你已选择保持当前版本</strong>」，不再反复催你。</li>
+<li>这是<strong>记录一个选择，不是关闭检查</strong>：一旦出现<strong>比它更新的版本</strong>，这条「保持」记录<strong>自动失效</strong>，更新中心会重新正常提示。想随时改主意，直接按升级指引操作即可，无需先去哪里「取消保持」。</li>
+</ul>
+<blockquote>
+<p>它只影响<strong>提示语气</strong>，不影响任何功能——保留旧版本不会让站点少任何东西，旧版本也照常安全运行（除非新版本里有「⚠️ 升级注意」标出的必要动作）。</p>
+</blockquote>
+<h2 id="4-怎么真正升级">4. 怎么真正升级</h2><p>升级 = 把你运行的那份代码换成新版本，再走一次<strong>标准部署</strong>。数据库结构由 <code>ensureSchema</code> 在启动时<strong>自动增量迁移</strong>，正常情况无需手动改库。</p>
+<blockquote>
+<p><strong>升级前先备份</strong>（尤其跨版本）：后台「设置 → 订阅与备份 → 立即备份」来一份，或按 <a href="guide.html">GUIDE.md</a> §19 导出 SQL。有底气才动。</p>
+</blockquote>
+<h3 id="41-cloudflare-版worker-d1-r2">4.1 Cloudflare 版（Worker + D1 + R2）</h3><p><strong>若你是一键部署出来的（Cloudflare 接管了 push 自动部署）</strong>：你的仓库是你自己的副本（在部署时创建）。把 <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener noreferrer">bloghao/bloghao</a> 的最新代码同步进你的副本（<code>git pull</code> 官方仓库后推你的副本，或在 GitHub 上点 <strong>Sync fork / Update branch</strong>），Cloudflare 会自动重新构建部署，几十秒后新版本上线。</p>
+<p><strong>若你是命令行部署的</strong>：</p>
+<div class="codeblock" data-lang="bash"><pre><code>git pull                 # 拉官方仓库最新代码
+npm install              # 依赖有变时
+npm run deploy            # 部署 Worker
+# 若本次发布含 schema 变化（CHANGELOG 标了「⚠️ 升级注意」）：
+npx wrangler d1 execute xwblog-db --remote --file schema.sql   # 幂等，安全</code></pre></div><p>D1 建表 / 加列是幂等的，重跑 <code>schema.sql</code> 不会破坏数据；表结构也会在 Worker 冷启动时由 <code>ensureSchema</code> 自动补。</p>
+<h3 id="42-docker-自托管版">4.2 Docker 自托管版</h3><p>镜像里就是业务代码，升级 = <strong>拉最新代码 → 重建镜像 → 重启容器</strong>。数据库在 <code>data/</code> 卷里，重建容器不动它：</p>
+<div class="codeblock" data-lang="bash"><pre><code>cd docker-poc
+git pull                                     # 拉最新代码
+docker compose up --build -d                 # 重建并滚动重启（数据卷保留）</code></pre></div><p>多租户（一个容器带多个分站）同样一条命令；Caddy / 反代配置不变。想<strong>锁到某个稳定版</strong>而不是追最新，用官方仓库的版本 tag：</p>
+<div class="codeblock" data-lang="bash"><pre><code>git fetch --tags
+git checkout v2.6.0                          # 换成你要的版本 tag
+docker compose up --build -d</code></pre></div><blockquote>
+<p>自托管用的官方稳定版来自 <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener noreferrer">bloghao/bloghao</a>，每个版本都打 <code>vX.Y.Z</code> tag（见 <a href="https://github.com/bloghao/bloghao/blob/main/docs/RELEASING.md">RELEASING.md</a>）。控制面的「版本与更新」卡片显示的「当前版本」即镜像里的 <code>APP_VERSION</code>。</p>
+</blockquote>
+<h3 id="43-升级可能需要的额外动作">4.3 升级可能需要的额外动作</h3><p>绝大多数版本「拉代码 + 重新部署」就完事。少数版本会含<strong>需要手动动作</strong>的条目（例如某个设置要重填、某个外部依赖要改），这类条目在 <a href="https://github.com/bloghao/bloghao/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">CHANGELOG.md</a> 里一律以 <strong>⚠️ 升级注意</strong> 标出——更新中心的要点列表来自同一份 CHANGELOG，看到带这个标记的条目就先照着做。</p>
+<h2 id="5-升级会不会丢数据-丢设置">5. 升级会不会丢数据 / 丢设置</h2><p>不会。三种部署形态下：</p>
+<ul>
+<li><strong>文章 / 微博 / 评论 / 会员 / 图片</strong>：都在数据库与图床里，升级只换代码，不碰数据；</li>
+<li><strong>设置 / 主题 / 皮肤包 / 自定义 CSS</strong>：都在数据库的 settings 里，随库保留；</li>
+<li><strong>D1 结构变化</strong>：由 <code>ensureSchema</code> 自动增量迁移（只加不删），冷启动时补齐；</li>
+<li><strong>自托管 Docker</strong>：数据在挂载的 <code>data/</code> 卷里，<code>up --build</code> 重建容器不动卷。</li>
+</ul>
+<p>真正会「清空内容」的只有你主动点的**「清空本站内容」**（整站搬家配套，硬删不可撤销）——那不是升级动作，别混。</p>
+<h2 id="6-常见问题">6. 常见问题</h2><p><strong>Q：更新中心显示「暂时获取不到最新版本信息」？</strong>
+A：官网清单 <code>bloghao.com/version.json</code> 那一刻取不到（本机/服务器出网受限、DNS 或官网短时维护）。不影响站点运行，稍后再点一次即可。自托管若服务器本身没有公网出网，检查更新会一直取不到——不影响升级（按第 4 节手动拉代码即可）。</p>
+<p><strong>Q：我点了「保持当前版本」，以后还会提示吗？</strong>
+A：会出现比它更新的版本时重新提示；同一版本不再反复催。</p>
+<p><strong>Q：演示站为什么看不到更新中心？</strong>
+A：演示站（<a href="https://demo.bloghao.com" target="_blank" rel="noopener noreferrer">demo.bloghao.com</a>）禁一切对外调用，更新中心对它恒为「不检查」（服务端直接短路），与后台其他出网工具同口径。</p>
+<p><strong>Q：能不能让某个分站保持旧版、其余分站升级？</strong>
+A：可以。分站共用同一份代码（同一容器 / 同一镜像），要「分站差异化版本」得分别部署两套代码——一回事一地做，别指望一个容器里跑两个版本。</p>
+<p><strong>Q：更新中心会把版本号或使用数据传回官网吗？</strong>
+A：不会。它只<strong>单向拉取</strong>官网的公开清单，不上报任何本站信息（版本号、站点地址都不外发）。</p>
+<hr>
+<p>遇到升级问题？先看 <a href="deploy.html">DEPLOY.md</a> 的 FAQ 与「日常运维备忘」，再不行去 <a href="https://github.com/bloghao/bloghao/issues" target="_blank" rel="noopener noreferrer">仓库提 Issue</a>。</p>
+
+    </article>
+  
+  <nav class="docs-pager">
+    <a class="docs-pager-link is-prev" href="cloudflare.html"><span>← 上一篇</span><b>☁️ Cloudflare 基础</b></a>
+    <a class="docs-pager-link is-next" href="guide.html"><span>下一篇 →</span><b>📖 使用手册</b></a>
+  </nav>
+  </main>
+  
+    <aside class="docs-toc">
+      <div class="docs-toc-title">本页目录</div>
+      <ul class="docs-toc-list">
+        <li class="toc-d2"><a href="#1-更新中心在哪" data-toc="1-更新中心在哪">1. 更新中心在哪</a></li>
+        <li class="toc-d2"><a href="#2-它怎么工作以及为什么不自动更新" data-toc="2-它怎么工作以及为什么不自动更新">2. 它怎么工作（以及为什么不自动更新）</a></li>
+        <li class="toc-d2"><a href="#3保持当前版本是什么意思" data-toc="3保持当前版本是什么意思">3.「保持当前版本」是什么意思</a></li>
+        <li class="toc-d2"><a href="#4-怎么真正升级" data-toc="4-怎么真正升级">4. 怎么真正升级</a></li>
+        <li class="toc-d3"><a href="#41-cloudflare-版worker-d1-r2" data-toc="41-cloudflare-版worker-d1-r2">4.1 Cloudflare 版（Worker + D1 + R2）</a></li>
+        <li class="toc-d3"><a href="#42-docker-自托管版" data-toc="42-docker-自托管版">4.2 Docker 自托管版</a></li>
+        <li class="toc-d3"><a href="#43-升级可能需要的额外动作" data-toc="43-升级可能需要的额外动作">4.3 升级可能需要的额外动作</a></li>
+        <li class="toc-d2"><a href="#5-升级会不会丢数据-丢设置" data-toc="5-升级会不会丢数据-丢设置">5. 升级会不会丢数据 / 丢设置</a></li>
+        <li class="toc-d2"><a href="#6-常见问题" data-toc="6-常见问题">6. 常见问题</a></li>
+      </ul>
+    </aside>
+</div>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>© <span id="year">2026</span> 博客号 BlogHao · MIT License</span>
+    <span class="footer-links">
+      <a href="/index.html">官网首页</a>
+      <a href="https://github.com/bloghao/bloghao" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://demo.bloghao.com" target="_blank" rel="noopener">演示站</a>
+      <a href="/llms.txt" target="_blank" rel="noopener">AI 索引</a>
+    </span>
+  </div>
+</footer>
+<script src="/docs.js?v=20261017a" defer></script>
+</body>
+</html>

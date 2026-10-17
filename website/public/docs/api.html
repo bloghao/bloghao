@@ -11,17 +11,17 @@
 <meta property="og:title" content="API 参考 - 博客号文档">
 <meta property="og:description" content="全部公开 / 管理接口与 HTML 净化白名单摘要，写自己的客户端。">
 <meta property="og:type" content="article">
-<link rel="icon" href="/favicon.svg?v=20261014d" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=20261014d">
-<link rel="stylesheet" href="/docs.css?v=20261014d">
-<script src="/docs/docs-search-index.js?v=20261014d"></script>
+<link rel="icon" href="/favicon.svg?v=20261017a" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=20261017a">
+<link rel="stylesheet" href="/docs.css?v=20261017a">
+<script src="/docs/docs-search-index.js?v=20261017a"></script>
 </head>
 <body>
 
 <header class="nav" id="nav">
   <div class="nav-inner">
     <a class="nav-logo" href="/index.html">
-      <img src="/favicon.svg?v=20261014d" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
+      <img src="/favicon.svg?v=20261017a" alt="博客号 logo">博客号 <span class="nav-logo-en">BlogHao</span>
     </a>
     <nav class="nav-links">
       <a href="index.html">文档中心</a>
@@ -48,6 +48,7 @@
       <ul class="docs-side-list">
         <li><a href="deploy.html">🚀 部署教程</a></li>
         <li><a href="cloudflare.html">☁️ Cloudflare 基础</a></li>
+        <li><a href="updating.html">⬆️ 版本与更新</a></li>
         <li><a href="guide.html">📖 使用手册</a></li>
         <li><a href="plaza.html">🧭 广场</a></li>
         <li><a href="themes.html">🎨 主题开发</a></li>
@@ -75,6 +76,7 @@
 <blockquote>
 <p>列表排序（最新/最多阅读/最多点赞/最多留言/随机）目前只由 SSR 页面（首页 / 分类 / 搜索）使用，本接口固定按最新（置顶优先）返回。</p>
 </blockquote>
+<h3 id="get-apipublicweibopage1limit15topic话题">GET /api/public/weibo?page=1&amp;limit=15&amp;topic=话题</h3><p>已发布微博分页（摘要视图），返回 <code>{items, total, page, totalPages}</code>，元素含 <code>id/content/imageList/topicList/videoView(封面帧)/commentCount/likes/pinned/created_at</code>；<code>topic</code> 传话题名可按话题筛选。内容口径与 SSR <code>/weibo</code> 页一致（站点可见窗口外不出现，无敏感字段：email/qq/ip 不出）。</p>
 <h3 id="post-apipubliccomments">POST /api/public/comments</h3><p>文章留言。Body：</p>
 <div class="codeblock" data-lang="json"><pre><code>{ &quot;slug&quot;: &quot;hello-bloghao&quot;, &quot;nickname&quot;: &quot;路人甲&quot;, &quot;content&quot;: &quot;写得真好&quot;, &quot;link&quot;: &quot;&quot; }</code></pre></div><ul>
 <li><code>link</code> 是蜜罐字段，正常客户端永远传空字符串/不传</li>
@@ -126,6 +128,8 @@
 <li>成功后<strong>其他设备的会员会话全部失效</strong>（当前会话保留）；本站不提供密码找回，表单旁有固定提醒</li>
 </ul>
 <h3 id="get-gouurlssr-页面">GET /go?u=<url>（SSR 页面）</h3><p>外链中间页（机制见 <code>src/outlink.ts</code>）：白名单域名（<code>TRUSTED_OUT_DOMAINS</code>，子域名自动跟随）与本站同源地址 302 直跳；其余第三方 http(s) 地址渲染「即将离开本站」确认页（展示目标域名与完整链接、附免责声明，<code>noindex</code>，无 JS、不自动跳转，故不构成开放重定向）。目标缺失 / 非 http(s) / 超 2048 字符一律 302 回首页。正文外链在渲染层包装进来：文章 / 页面 / 关于我走 <code>sanitizeHtml(html, { origin })</code>，微博文本走 <code>weiboTextHtml</code>（客户端镜像在 site.js）——存库与 RSS / 导出保持原始 URL。</p>
+<h3 id="get-llmstxt-llms-fulltxt机器可读面">GET /llms.txt · /llms-full.txt（机器可读面）</h3><p>AI 可获取面（<code>src/llms.ts</code>，<code>text/plain; charset=utf-8</code>，<code>public, max-age=600</code>，进页面边缘缓存数据白名单，恒为游客视角）：<code>/llms.txt</code> 是站点导读索引（站名 + 描述 + 最新 100 篇条目、独立页面与订阅清单）；<code>/llms-full.txt</code> 附最新 50 篇全文（库存净化 HTML 经 <code>htmlToMd</code> 转成干净 Markdown）。防泄漏与 RSS 同一份口径：会员锁文索引照常出条目、全文只出摘要与引导；访问密码文索引出作者摘要、正文整体退出；演示站 / 全站 noindex / AI 策略 deny 档出桩。</p>
+<h3 id="get-postslugmd单篇-markdown-镜像">GET /post/:slug.md（单篇 Markdown 镜像）</h3><p>文章 Markdown 版本（<code>text/markdown</code>，同上防泄漏与缓存口径；<code>/llms-full.txt</code> 同款转换链路 <code>sanitizeHtml → htmlToMd</code>）。密码文 404（与不存在同响应）、AI 策略 deny 档 404、窗口外草稿软删不出现；文章页 head 带 <code>&lt;link rel=&quot;alternate&quot; type=&quot;text/markdown&quot;&gt;</code> 自动声明。</p>
 <h2 id="认证">认证</h2><h3 id="get-apiauthstate">GET /api/auth/state</h3><p><code>{&quot;needsSetup&quot;: true, &quot;user&quot;: null}</code> —— <code>needsSetup=true</code> 表示尚无任何用户，可调用 setup。</p>
 <h3 id="post-apiauthsetup-仅首次">POST /api/auth/setup （仅首次）</h3><div class="codeblock" data-lang="json"><pre><code>{ &quot;username&quot;: &quot;demo&quot;, &quot;password&quot;: &quot;至少8位&quot;, &quot;displayName&quot;: &quot;小吴&quot; }</code></pre></div><p>创建管理员 + 欢迎文章，响应 Set-Cookie 会话（30 天）。</p>
 <h3 id="post-apiauthlogin">POST /api/auth/login</h3><p><code>{ &quot;username&quot;, &quot;password&quot; }</code>。同 IP 10 分钟内最多尝试 10 次。</p>
@@ -161,8 +165,8 @@
 </thead>
 <tbody><tr>
 <td>GET</td>
-<td><code>/api/admin/posts?status=all|published|scheduled|draft&amp;q=关键词&amp;page=1&amp;limit=20</code></td>
-<td>列表（不含 content；元素附 <code>tagList</code>、<code>categoryName</code>）</td>
+<td><code>/api/admin/posts?status=all|published|scheduled|draft&amp;q=关键词&amp;page=1&amp;limit=20&amp;range=all|3d|1m|6m|1y</code></td>
+<td>列表（不含 content；元素附 <code>tagList</code>、<code>categoryName</code>）；<code>range</code> 是时间范围筛选（滚动窗口，按 <code>COALESCE(published_at, created_at)</code> 过滤），未传 / 未知值降级为「全部」，真实时间边界由服务端按白名单计算，客户端传不了时间戳</td>
 </tr>
 <tr>
 <td>POST</td>
@@ -228,8 +232,8 @@
 </thead>
 <tbody><tr>
 <td>GET</td>
-<td><code>/api/admin/weibo?status=all|published|draft&amp;page=1&amp;limit=20</code></td>
-<td>列表（置顶优先；元素附 <code>imageList</code>、<code>topicList</code>、<code>videoView</code>、<code>commentCount</code>）</td>
+<td><code>/api/admin/weibo?status=all|published|draft&amp;page=1&amp;limit=20&amp;range=all|3d|1m|6m|1y</code></td>
+<td>列表（置顶优先，<code>range</code> 同文章列表的时间范围筛选；元素附 <code>imageList</code>、<code>topicList</code>、<code>videoView</code>、<code>commentCount</code>）</td>
 </tr>
 <tr>
 <td>GET</td>
@@ -558,6 +562,11 @@
 <td><code>/api/admin/cache/purge</code></td>
 <td>一键清理页面边缘缓存：换 settings <code>pageCacheEpoch</code> 让旧副本整代作废（浏览器侧响应不变）；后台「概览 → 系统」按钮消费</td>
 </tr>
+<tr>
+<td>GET</td>
+<td><code>/api/admin/update</code></td>
+<td>更新中心检查（后台概览「系统」卡「检查更新」）：单向拉取官网公开清单 <code>bloghao.com/version.json</code>（固定可信端点，6s 超时，10 分钟内存缓存），返回 <code>{checkable, current, latest, notes?, guide?}</code> 与「保持当前版本」判定（<code>kept</code>）——<strong>不上报任何本站信息</strong>；网络异常 / 校验不过一律降级 <code>checkable:false</code>，绝不 500。演示站直接短路 <code>{checkable:false, reason:&#39;demo&#39;}</code>；偏好写入走 settings 的 <code>updateIgnoredVersion</code> 键。机制见 <code>src/update.ts</code> 与 docs/UPDATING.md</td>
+</tr>
 </tbody></table></div>
 <h3 id="插件编辑器插件远程安装-服务端插件b8">插件（编辑器插件远程安装 + 服务端插件，B8）</h3><div class="table-wrap"><table>
 <thead>
@@ -800,6 +809,7 @@
         <li class="toc-d3"><a href="#get-apihealth" data-toc="get-apihealth">GET /api/health</a></li>
         <li class="toc-d3"><a href="#get-apipublicemoji" data-toc="get-apipublicemoji">GET /api/public/emoji</a></li>
         <li class="toc-d3"><a href="#get-apipublicpostspage1limit10tag生活" data-toc="get-apipublicpostspage1limit10tag生活">GET /api/public/posts?page=1&amp;limit=10&amp;tag=生活</a></li>
+        <li class="toc-d3"><a href="#get-apipublicweibopage1limit15topic话题" data-toc="get-apipublicweibopage1limit15topic话题">GET /api/public/weibo?page=1&amp;limit=15&amp;topic=话题</a></li>
         <li class="toc-d3"><a href="#post-apipubliccomments" data-toc="post-apipubliccomments">POST /api/public/comments</a></li>
         <li class="toc-d3"><a href="#post-apipubliclikeslug" data-toc="post-apipubliclikeslug">POST /api/public/like/:slug</a></li>
         <li class="toc-d3"><a href="#post-apipubliclikeweiboid" data-toc="post-apipubliclikeweiboid">POST /api/public/like/weibo/:id</a></li>
@@ -815,6 +825,8 @@
         <li class="toc-d3"><a href="#post-apimemberprofile" data-toc="post-apimemberprofile">POST /api/member/profile</a></li>
         <li class="toc-d3"><a href="#post-apimemberpassword" data-toc="post-apimemberpassword">POST /api/member/password</a></li>
         <li class="toc-d3"><a href="#get-gouurlssr-页面" data-toc="get-gouurlssr-页面">GET /go?u=（SSR 页面）</a></li>
+        <li class="toc-d3"><a href="#get-llmstxt-llms-fulltxt机器可读面" data-toc="get-llmstxt-llms-fulltxt机器可读面">GET /llms.txt · /llms-full.txt（机器可读面）</a></li>
+        <li class="toc-d3"><a href="#get-postslugmd单篇-markdown-镜像" data-toc="get-postslugmd单篇-markdown-镜像">GET /post/:slug.md（单篇 Markdown 镜像）</a></li>
         <li class="toc-d2"><a href="#认证" data-toc="认证">认证</a></li>
         <li class="toc-d3"><a href="#get-apiauthstate" data-toc="get-apiauthstate">GET /api/auth/state</a></li>
         <li class="toc-d3"><a href="#post-apiauthsetup-仅首次" data-toc="post-apiauthsetup-仅首次">POST /api/auth/setup （仅首次）</a></li>
@@ -862,6 +874,6 @@
     </span>
   </div>
 </footer>
-<script src="/docs.js?v=20261014d" defer></script>
+<script src="/docs.js?v=20261017a" defer></script>
 </body>
 </html>

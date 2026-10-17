@@ -24,6 +24,7 @@ import {
   memberSessionCookie,
 } from './auth'
 import { verifyTurnstile } from './turnstile'
+import { updateStatus, validateUpdateManifest, UPDATE_GUIDE_URL, UPDATE_MANIFEST_URL } from './update'
 import { APP_VERSION } from './version'
 import {
   countUsers,
@@ -274,7 +275,7 @@ api.post('/auth/logout', async (c) => {
   return c.json({ ok: true })
 })
 
-/* ---------------- 会员（访客注册/登录，契约见 docs/DEVPLAN-2026-10-07.md 附录 A） ---------------- */
+/* ---------------- 会员（访客注册/登录，契约见 docs/archive/DEVPLAN-2026-10-07.md 附录 A） ---------------- */
 
 /** 对外视图裁剪：公开口径只有昵称/档位/积分；self = 本人视角（另给 email/username/createdAt），管理口径走 listMembersAdmin 原始行 */
 function memberView(m: MemberRow, self = false) {
@@ -374,7 +375,7 @@ api.get('/member/me', async (c) => {
   return c.json({ member: row ? memberView(row, true) : null })
 })
 
-/* 会员个人资料（/member 页会员卡，契约见 docs/DEVPLAN-2026-10-07.md）：改昵称（30 天一次）与改密码 */
+/* 会员个人资料（/member 页会员卡，契约见 docs/archive/DEVPLAN-2026-10-07.md）：改昵称（30 天一次）与改密码 */
 
 /** 抓取 QQ 头像并转存进站内图床，返回站内地址；失败返回 null（调用方容忍只存 qq 号，
  *  会员中心「重试头像」重跑同一请求补抓）。q1 主端点、q2 备用镜像，s=140 档（100 略糊、
@@ -567,6 +568,29 @@ api.get('/admin/stats', async (c) => {
       published_at: r.published_at,
     })),
   })
+})
+
+/* 更新中心（自选更新）——按需抓官网发布的机器可读版本清单（src/update.ts），比对当前版本给出
+ * 「更新了什么 / 优化了什么」，用户自己决定「更新到最新」还是「保持当前版本」。**不做任何自动
+ * 更新**：这里只读清单 + 报状态，真正换版本靠一次部署动作（Cloudflare 重新部署 / Docker 重建，
+ * 见 docs/UPDATING.md）。出网端点是固定可信地址（同 api.telegram.org 口径），仅 https、无用户
+ * 输入进路径；响应按不可信输入严格校验，拿不到就降级为「暂不可检查」。演示站禁外发，直接短路 */
+api.get('/admin/update', async (c) => {
+  const current = APP_VERSION
+  if (isDemo(c.env)) return c.json({ ok: true, checkable: false, reason: 'demo', current, guide: UPDATE_GUIDE_URL })
+  const settings = await getSettings(c.env.DB)
+  let manifest = null
+  try {
+    const res = await fetch(UPDATE_MANIFEST_URL, {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(6_000),
+    })
+    if (res.ok) manifest = validateUpdateManifest(await res.json().catch(() => null))
+  } catch {
+    /* 网络异常 / 超时 / 非 JSON：一律按「拿不到最新版本信息」降级，不打扰用户 */
+  }
+  if (!manifest) return c.json({ ok: true, checkable: false, reason: 'unreachable', current, guide: UPDATE_GUIDE_URL })
+  return c.json({ ok: true, checkable: true, ...updateStatus(current, manifest, settings.updateIgnoredVersion || ''), guide: UPDATE_GUIDE_URL })
 })
 
 /* 访客统计（后台「统计」页），聚合见 src/stats.ts；bot 为爬虫/AI 抓取维度（src/bots.ts） */
@@ -2121,6 +2145,13 @@ api.put('/admin/settings', async (c) => {
       patch[key] = v
       continue
     }
+    if (key === 'updateIgnoredVersion') {
+      // 更新中心「保持当前版本」记账位（src/update.ts）：只认 x.y.z 形态，脏值清空
+      // （清空即「没选择忽略」，下次检查照常提示更新——宁缺毋滥，不让脏值锁死更新提示）
+      const u = v.trim().replace(/^v/, '')
+      patch[key] = /^\d{1,6}\.\d{1,6}\.\d{1,6}$/.test(u) ? u : ''
+      continue
+    }
     if (key === 'edition') {
       // 英文测试版（English 0.1）开关：二值白名单；重新开启即重置回退状态与错误记录
       patch[key] = v === 'en' ? 'en' : 'zh'
@@ -2170,7 +2201,7 @@ api.post('/admin/backup', async (c) => {
 })
 
 /* ---------------- 整站包（B26：一键导出整站 / 一键导入还原到空站，机制 src/sitebundle.ts） ----------------
- * 设计见 docs/PROPOSAL-B26-SITE-BUNDLE.md。三条契约：只还原到空站 / 只装内容不装实例身份 /
+ * 设计见 docs/archive/PROPOSAL-B26-SITE-BUNDLE.md。三条契约：只还原到空站 / 只装内容不装实例身份 /
  * 版本不匹配一律拒绝（不做覆盖、不做合并）。全部端点都在 /admin/* 鉴权中间件之后。 */
 
 /** 一键导出整站包：流式吐 zip（与 Markdown / WXR 导出同形，不落 R2） */

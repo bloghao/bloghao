@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { ensureSchema } from '../src/db.ts'
 
-// ── 会员体系 Step 0 地基（docs/DEVPLAN-2026-10-07.md 附录 A）──
+// ── 会员体系 Step 0 地基（docs/archive/DEVPLAN-2026-10-07.md 附录 A）──
 // schema.sql 与 db.ts 的 SCHEMA_TABLES / SCHEMA_COLUMNS / SCHEMA_INDEXES 是同一 schema 的两份
 // 表达（AGENTS.md 铁律），此前只靠人工核对；本文件把不变量固化成自动守卫。
 

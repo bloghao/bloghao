@@ -7,7 +7,7 @@ import { normalizeCacheQuery } from '../src/pagecache.ts'
 // 参数语义钉死，防两侧（缓存键 vs 服务端消费）镜像漂移（AGENTS「SQL / 输入」防线 +
 // tests/pagecache.test.ts 头注释「镜像错位 = 把错页发给访客」）。
 // 注意：tag 参数缓存侧会 trim，而服务端消费点（pages.ts renderList / api.ts /public/posts）
-// 目前不 trim（docs/AUDIT-CACHE-2026-10-15.md C1）——此处只钉缓存侧自身语义，不断言
+// 目前不 trim（docs/archive/AUDIT-CACHE-2026-10-15.md C1）——此处只钉缓存侧自身语义，不断言
 // 「trim 后与干净键同键」（那是待修复的碰撞行为，不能固化成测试）。
 
 const q = (s: string) => normalizeCacheQuery(new URL('https://x.test/' + s).searchParams)

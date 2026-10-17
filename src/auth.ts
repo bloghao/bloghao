@@ -105,7 +105,7 @@ export async function destroyOtherSessions(db: D1Database, userId: number, keepT
     .run()
 }
 
-/* ---------------- 会员会话（访客注册身份，与管理员 sessions 彻底分离，契约见 docs/DEVPLAN-2026-10-07.md 附录 A） ---------------- */
+/* ---------------- 会员会话（访客注册身份，与管理员 sessions 彻底分离，契约见 docs/archive/DEVPLAN-2026-10-07.md 附录 A） ---------------- */
 
 export const MEMBER_SESSION_COOKIE = 'xw_member_session'
 

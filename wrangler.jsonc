@@ -32,5 +32,6 @@
   // "30 16 * * *" = 北京时间 00:30 自动备份 D1 → R2 backups/（30 份滚动）
   "triggers": { "crons": ["* * * * *", "30 16 * * *"] },
 
+
   "observability": { "enabled": true }
 }
